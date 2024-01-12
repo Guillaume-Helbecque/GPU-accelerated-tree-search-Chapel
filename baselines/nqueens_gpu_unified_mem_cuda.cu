@@ -19,7 +19,7 @@
 Implementation of N-Queens Nodes.
 *******************************************************************************/
 
-#define MAX_QUEENS 21
+#define MAX_QUEENS 20
 
 typedef struct
 {
@@ -154,10 +154,10 @@ uint8_t isSafe(const int G, const uint8_t* board, const uint8_t queen_num, const
 {
   uint8_t isSafe = 1;
 
-  for (int g = 0; g < G; g++) {
-    for (int i = 0; i < queen_num; i++) {
-      const uint8_t other_row_pos = board[i];
+  for (int i = 0; i < queen_num; i++) {
+    const uint8_t other_row_pos = board[i];
 
+    for (int g = 0; g < G; g++) {
       if (other_row_pos == row_pos - (queen_num - i) ||
           other_row_pos == row_pos + (queen_num - i)) {
         isSafe = 0;
@@ -204,11 +204,16 @@ __global__ void evaluate_gpu(const int N, const int G, const Node* parents, uint
     uint8_t isSafe = 1;
 
     // If child 'k' is not scheduled, we evaluate its safety 'G' times, otherwise 0.
-    const int G_notScheduled = G * (k >= depth);
-    for (int g = 0; g < G_notScheduled; g++) {
+    if (k >= depth) {
+      // const int G_notScheduled = G * (k >= depth);
       for (int i = 0; i < depth; i++) {
-        isSafe *= (parent.board[i] != queen_num - (depth - i) &&
-                   parent.board[i] != queen_num + (depth - i));
+        const uint8_t pbi = parent.board[i];
+        int y;
+        for (int g = 0; g < G/*G_notScheduled*/; g++) {
+          isSafe *= (pbi != queen_num - (depth - i) &&
+                     pbi != queen_num + (depth - i));
+          y += g;
+        }
       }
       evals[threadId] = isSafe;
     }

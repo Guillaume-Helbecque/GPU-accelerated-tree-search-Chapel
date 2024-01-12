@@ -6,7 +6,7 @@ CUDA_COMPILER := nvcc
 HIP_COMPILER  := hipcc
 
 C_COMMON_OPTS    := -O3
-CUDA_COMMON_OPTS := $(C_COMMON_OPTS) -arch=sm_60
+CUDA_COMMON_OPTS := $(C_COMMON_OPTS) -arch=sm_70
 HIP_COMMON_OPTS  := $(C_COMMON_OPTS) -offload-arch=gfx906
 
 HIP_PATCH_G5K    := DEVICE_LIB_PATH=/opt/rocm-4.5.0/amdgcn/bitcode/

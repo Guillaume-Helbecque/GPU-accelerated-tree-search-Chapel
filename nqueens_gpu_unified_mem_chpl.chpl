@@ -12,7 +12,7 @@ config const BLOCK_SIZE = 512;
 Implementation of N-Queens Nodes.
 *******************************************************************************/
 
-config param MAX_QUEENS = 21;
+config param MAX_QUEENS = 20;
 
 record Node {
   var depth: uint(8);
@@ -217,7 +217,6 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   var root = new Node(N);
 
   var pool: SinglePool;
-
   pool.pushBack(root);
 
   var timer: stopwatch;
