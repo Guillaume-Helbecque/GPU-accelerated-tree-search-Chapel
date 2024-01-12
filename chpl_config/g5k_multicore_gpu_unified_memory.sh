@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 # Configuration of Chapel for GPU-accelerated multi-core experiments on the French
-# national Grid5000 testbed (https://www.grid5000.fr/w/Grid5000:Home).
+# national Grid5000 testbed (https://www.grid5000.fr/w/Grid5000:Home). This script
+# configures Chapel with the unified memory model for GPU.
 
 # Load gcc, cuda and cmake
 module load gcc/10.4.0_gcc-10.4.0
@@ -28,11 +29,11 @@ export CHPL_HOST_COMPILER=gnu
 export CHPL_LLVM=bundled
 
 NUM_T_LOCALE=$(cat /proc/cpuinfo | grep processor | wc -l)
-export CHPL_RT_NUM_THREADS_PER_LOCALE=$NUM_T_LOCALE
+export CHPL_RT_NUM_THREADS_PER_LOCALE=2
 export CHPL_RT_NUM_GPUS_PER_LOCALE=2
 export CHPL_LOCALE_MODEL="gpu"
-export CHPL_GPU="nvidia"
-export CHPL_GPU_ARCH="sm_60"
+export CHPL_GPU="nvidia" #"amd"
+export CHPL_GPU_ARCH="sm_70" #"gfx906"
 export CHPL_GPU_MEM_STRATEGY="unified_memory"
 
 export GASNET_PHYSMEM_MAX='64 GB'
