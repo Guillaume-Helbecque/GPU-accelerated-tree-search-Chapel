@@ -5,7 +5,7 @@ CHPL_COMPILER := chpl
 CHPL_COMMON_OPTS := --fast
 
 # Source & object files
-CHPL_SOURCES := nqueens_multigpu_chpl.chpl nqueens_unified_mem_chpl.chpl
+CHPL_SOURCES := nqueens_chpl.chpl nqueens_gpu_chpl.chpl nqueens_gpu_unified_mem_chpl.chpl nqueens_multigpu_chpl.chpl
 CHPL_OBJECTS := $(CHPL_SOURCES:.chpl=.o)
 
 # Build codes
