@@ -1,6 +1,6 @@
 /*
-  C+Cuda backtracking algorithm to solve instances of the N-Queens problem.
-  This version is a variant of nqueens_cuda.cu exploiting unified memory features.
+  Multi-GPU backtracking to solve instances of the N-Queens problem in C+OpenMP+CUDA.
+  This version exploits the unified memory model.
 */
 
 #include <stdio.h>

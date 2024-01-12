@@ -1,5 +1,5 @@
 /*
-  C+Cuda backtracking algorithm to solve instances of the N-Queens problem.
+  Multi-GPU backtracking to solve instances of the N-Queens problem in C+OpenMP+CUDA.
 */
 
 #include <stdio.h>

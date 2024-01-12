@@ -1,5 +1,5 @@
 /*
-  Sequential C backtracking algorithm to solve instances of the N-Queens problem.
+  Sequential backtracking to solve instances of the N-Queens problem in C.
 */
 
 #include <stdio.h>

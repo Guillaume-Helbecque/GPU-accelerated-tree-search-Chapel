@@ -1,6 +1,6 @@
 /*
-  Chapel backtracking algorithm to solve instances of the N-Queens problem.
-  This version is a variant of nqueens_chpl.chpl exploiting unified memory features.
+  Multi-GPU backtracking to solve instances of the N-Queens problem in Chapel.
+  This version exploits the unified memory model.
 */
 
 use Time;

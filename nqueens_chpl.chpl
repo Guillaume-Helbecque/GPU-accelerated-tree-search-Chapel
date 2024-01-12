@@ -1,5 +1,5 @@
 /*
-  Chapel backtracking algorithm to solve instances of the N-Queens problem.
+  Sequential backtracking to solve instances of the N-Queens problem in Chapel.
 */
 
 use Time;

@@ -1,5 +1,5 @@
 /*
-  C+Cuda backtracking algorithm to solve instances of the N-Queens problem.
+  Single-GPU backtracking to solve instances of the N-Queens problem in C+CUDA.
 */
 
 #include <stdio.h>
