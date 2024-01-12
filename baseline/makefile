@@ -13,7 +13,7 @@ HIP_PATCH_G5K    := DEVICE_LIB_PATH=/opt/rocm-4.5.0/amdgcn/bitcode/
 
 # Source files
 C_SOURCES    := nqueens_c.c
-CUDA_SOURCES := nqueens_cuda.cu nqueens_unified_mem_cuda.cu nqueens_multigpu_cuda.cu
+CUDA_SOURCES := nqueens_gpu_cuda.cu nqueens_gpu_unified_mem_cuda.cu nqueens_multigpu_cuda.cu
 
 # Object files
 C_OBJECTS    := $(C_SOURCES:.c=.o)
