@@ -257,7 +257,7 @@ void nqueens_search(const int N, const int G, const int m, const int M,
 
   pushBack(&pool, root);
 
-  int count = 0;
+  // int count = 0;
   clock_t startTime = clock();
 
   while (1) {
@@ -286,7 +286,7 @@ void nqueens_search(const int N, const int G, const int m, const int M,
 
       const int nbBlocks = ceil((double)evalsSize / BLOCK_SIZE);
 
-      count += 1;
+      // count += 1;
       evaluate_gpu<<<nbBlocks, BLOCK_SIZE>>>(N, G, parents, evals, evalsSize);
       cudaDeviceSynchronize();
 
@@ -301,7 +301,7 @@ void nqueens_search(const int N, const int G, const int m, const int M,
   *elapsedTime = (double)(endTime - startTime) / CLOCKS_PER_SEC;
 
   printf("\nExploration terminated.\n");
-  printf("Cuda kernel calls: %d\n", count);
+  // printf("Cuda kernel calls: %d\n", count);
 
   deleteSinglePool(&pool);
 }

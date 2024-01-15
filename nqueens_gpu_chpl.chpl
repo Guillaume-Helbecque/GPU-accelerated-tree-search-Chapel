@@ -3,7 +3,7 @@
 */
 
 use Time;
-use GpuDiagnostics;
+/* use GpuDiagnostics; */
 
 config const BLOCK_SIZE = 512;
 
@@ -270,19 +270,19 @@ proc main()
 
   var elapsedTime: real;
 
-  startGpuDiagnostics();
+  /* startGpuDiagnostics(); */
 
   nqueens_search(exploredTree, exploredSol, elapsedTime);
 
-  stopGpuDiagnostics();
+  /* stopGpuDiagnostics(); */
 
   print_results(exploredTree, exploredSol, elapsedTime);
 
-  writeln("GPU diagnostics:");
+  /* writeln("GPU diagnostics:");
   writeln("   kernel_launch: ", getGpuDiagnostics().kernel_launch);
   writeln("   host_to_device: ", getGpuDiagnostics().host_to_device);
   writeln("   device_to_host: ", getGpuDiagnostics().device_to_host);
-  writeln("   device_to_device: ", getGpuDiagnostics().device_to_device);
+  writeln("   device_to_device: ", getGpuDiagnostics().device_to_device); */
 
   return 0;
 }
