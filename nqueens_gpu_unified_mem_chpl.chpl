@@ -157,7 +157,7 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref po
 // Evaluate a bulk of parent nodes on GPU.
 proc evaluate_gpu(const parents: [] Node, const size: int)
 {
-  var evals: [0..#size] uint(8) = noinit;
+  var labels: [0..#size] uint(8) = noinit;
 
   @assertOnGpu
   foreach threadId in 0..#size {
@@ -179,14 +179,14 @@ proc evaluate_gpu(const parents: [] Node, const size: int)
                    pbi != queen_num + (depth - i));
       }
     }
-    evals[threadId] = isSafe;
+    labels[threadId] = isSafe;
   }
 
-  return evals;
+  return labels;
 }
 
 // Generate children nodes (evaluated by GPU) on CPU.
-proc generate_children(const parents: [] Node, const size: int, const evals: [] uint(8),
+proc generate_children(const parents: [] Node, const size: int, const labels: [] uint(8),
   ref exploredTree: uint, ref exploredSol: uint, ref pool: SinglePool)
 {
   for i in 0..#size  {
@@ -197,7 +197,7 @@ proc generate_children(const parents: [] Node, const size: int, const evals: [] 
       exploredSol += 1;
     }
     for j in depth..(N-1) {
-      if (evals[j + i * N] == 1) {
+      if (labels[j + i * N] == 1) {
         var child = new Node();
         child.depth = parent.depth;
         child.board = parent.board;
@@ -236,8 +236,8 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
       on here.gpus[0] {
         // declaration of buffers on unified memory
         var parents: [0..#poolSize] Node = noinit;
-        const evalsSize = N * poolSize;
-        var evals: [0..#evalsSize] uint(8) = noinit;
+        const numLabels = N * poolSize;
+        var labels: [0..#numLabels] uint(8) = noinit;
 
         /*
           Initialization of buffer on CPU memory.
@@ -248,15 +248,15 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
             parents[i] = pool.popBack(hasWork);
         }
 
-        /* GPU kernel - evaluate each children and fill evals */
-        evals = evaluate_gpu(parents, evalsSize);
+        /* GPU kernel - evaluate each children and fill labels */
+        labels = evaluate_gpu(parents, numLabels);
 
         /*
           On CPU - generate the children and fill the work pool.
           Not GPU-eligible because the work pool `pool` is not known by the GPU.
         */
         on host {
-          generate_children(parents, poolSize, evals, exploredTree, exploredSol, pool);
+          generate_children(parents, poolSize, labels, exploredTree, exploredSol, pool);
         }
       }
     }

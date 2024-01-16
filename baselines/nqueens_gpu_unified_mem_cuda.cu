@@ -190,7 +190,7 @@ void decompose(const int N, const int G, const Node parent,
 }
 
 // Evaluate a bulk of parent nodes on GPU.
-__global__ void evaluate_gpu(const int N, const int G, const Node* parents, uint8_t* evals, const int size)
+__global__ void evaluate_gpu(const int N, const int G, const Node* parents, uint8_t* labels, const int size)
 {
   int threadId = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -215,13 +215,13 @@ __global__ void evaluate_gpu(const int N, const int G, const Node* parents, uint
           y += g;
         }
       }
-      evals[threadId] = isSafe;
+      labels[threadId] = isSafe;
     }
   }
 }
 
 // Generate children nodes (evaluated by GPU) on CPU.
-void generate_children(const int N, const Node* parents, const int size, const uint8_t* evals,
+void generate_children(const int N, const Node* parents, const int size, const uint8_t* labels,
   unsigned long long int* exploredTree, unsigned long long int* exploredSol, SinglePool* pool)
 {
   for (int i = 0; i < size; i++) {
@@ -232,7 +232,7 @@ void generate_children(const int N, const Node* parents, const int size, const u
       *exploredSol += 1;
     }
     for (int j = depth; j < N; j++) {
-      if (evals[j + i * N] == 1) {
+      if (labels[j + i * N] == 1) {
         Node child;
         memcpy(child.board, parent.board, N * sizeof(uint8_t));
         swap(&child.board[depth], &child.board[j]);
@@ -280,20 +280,20 @@ void nqueens_search(const int N, const int G, const int m, const int M,
         if (!hasWork) break;
       }
 
-      const int evalsSize = N * poolSize;
-      uint8_t* evals;
-      cudaMallocManaged(&evals, evalsSize * sizeof(uint8_t));
+      const int numLabels = N * poolSize;
+      uint8_t* labels;
+      cudaMallocManaged(&labels, numLabels * sizeof(uint8_t));
 
-      const int nbBlocks = ceil((double)evalsSize / BLOCK_SIZE);
+      const int nbBlocks = ceil((double)numLabels / BLOCK_SIZE);
 
       // count += 1;
-      evaluate_gpu<<<nbBlocks, BLOCK_SIZE>>>(N, G, parents, evals, evalsSize);
+      evaluate_gpu<<<nbBlocks, BLOCK_SIZE>>>(N, G, parents, labels, numLabels);
       cudaDeviceSynchronize();
 
-      generate_children(N, parents, poolSize, evals, exploredTree, exploredSol, &pool);
+      generate_children(N, parents, poolSize, labels, exploredTree, exploredSol, &pool);
 
       cudaFree(parents);
-      cudaFree(evals);
+      cudaFree(labels);
     }
   }
 

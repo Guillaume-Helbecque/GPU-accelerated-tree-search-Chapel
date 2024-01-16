@@ -171,7 +171,7 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref po
 // Evaluate a bulk of parent nodes on GPU.
 proc evaluate_gpu(const parents_d: [] Node, const size)
 {
-  var evals: [0..#size] uint(8) = noinit;
+  var labels: [0..#size] uint(8) = noinit;
 
   @assertOnGpu
   foreach threadId in 0..#size {
@@ -194,15 +194,15 @@ proc evaluate_gpu(const parents_d: [] Node, const size)
                      pbi != queen_num + (depth - i));
         }
       }
-      evals[threadId] = isSafe;
+      labels[threadId] = isSafe;
     }
   }
 
-  return evals;
+  return labels;
 }
 
 // Generate children nodes (evaluated by GPU) on CPU.
-proc generate_children(const ref parents: [] Node, const size: int, const ref evals: [] uint(8),
+proc generate_children(const ref parents: [] Node, const size: int, const ref labels: [] uint(8),
   ref exploredTree: uint, ref exploredSol: uint, ref pool: SinglePool)
 {
   for i in 0..#size  {
@@ -213,7 +213,7 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref ev
       exploredSol += 1;
     }
     for j in depth..(N-1) {
-      if (evals[j + i * N] == 1) {
+      if (labels[j + i * N] == 1) {
         var child = new Node();
         child.depth = depth + 1;
         child.board = parent.board;
@@ -299,18 +299,18 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
           if !hasWork then break;
         }
 
-        const evalsSize = N * poolSize;
-        var evals: [0..#evalsSize] uint(8) = noinit;
+        const numLabels = N * poolSize;
+        var labels: [0..#numLabels] uint(8) = noinit;
 
         on gpu {
           const parents_d = parents; // host-to-device
-          evals = evaluate_gpu(parents_d, evalsSize);
+          labels = evaluate_gpu(parents_d, numLabels);
         }
 
         /*
           Each task 0 generates and inserts its children nodes to the pool.
         */
-        generate_children(parents, poolSize, evals, tree, sol, pool_loc);
+        generate_children(parents, poolSize, labels, tree, sol, pool_loc);
       }
       else {
         break;

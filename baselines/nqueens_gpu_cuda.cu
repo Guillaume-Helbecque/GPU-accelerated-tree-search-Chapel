@@ -189,7 +189,7 @@ void decompose(const int N, const int G, const Node parent,
 }
 
 // Evaluate a bulk of parent nodes on GPU.
-__global__ void evaluate_gpu(const int N, const int G, const Node* parents_d, uint8_t* evals_d, const int size)
+__global__ void evaluate_gpu(const int N, const int G, const Node* parents_d, uint8_t* labels_d, const int size)
 {
   int threadId = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -214,13 +214,13 @@ __global__ void evaluate_gpu(const int N, const int G, const Node* parents_d, ui
           y += g;
         }
       }
-      evals_d[threadId] = isSafe;
+      labels_d[threadId] = isSafe;
     }
   }
 }
 
 // Generate children nodes (evaluated by GPU) on CPU.
-void generate_children(const int N, const Node* parents, const int size, const uint8_t* evals,
+void generate_children(const int N, const Node* parents, const int size, const uint8_t* labels,
   unsigned long long int* exploredTree, unsigned long long int* exploredSol, SinglePool* pool)
 {
   for (int i = 0; i < size; i++) {
@@ -231,7 +231,7 @@ void generate_children(const int N, const Node* parents, const int size, const u
       *exploredSol += 1;
     }
     for (int j = depth; j < N; j++) {
-      if (evals[j + i * N] == 1) {
+      if (labels[j + i * N] == 1) {
         Node child;
         memcpy(child.board, parent.board, N * sizeof(uint8_t));
         swap(&child.board[depth], &child.board[j]);
@@ -260,12 +260,12 @@ void nqueens_search(const int N, const int G, const int m, const int M,
   clock_t startTime = clock();
 
   Node* parents = (Node*)malloc(M * sizeof(Node));
-  uint8_t* evals = (uint8_t*)malloc(M*N * sizeof(uint8_t));
+  uint8_t* labels = (uint8_t*)malloc(M*N * sizeof(uint8_t));
 
   Node* parents_d;
-  uint8_t* evals_d;
+  uint8_t* labels_d;
   cudaMalloc(&parents_d, M * sizeof(Node));
-  cudaMalloc(&evals_d, M*N * sizeof(uint8_t));
+  cudaMalloc(&labels_d, M*N * sizeof(uint8_t));
 
   while (1) {
     int hasWork = 0;
@@ -285,26 +285,26 @@ void nqueens_search(const int N, const int G, const int m, const int M,
         if (!hasWork) break;
       }
 
-      const int evalsSize = N * poolSize;
+      const int numLabels = N * poolSize;
 
       cudaMemcpy(parents_d, parents, poolSize * sizeof(Node), cudaMemcpyHostToDevice);
 
-      const int nbBlocks = ceil((double)evalsSize / BLOCK_SIZE);
+      const int nbBlocks = ceil((double)numLabels / BLOCK_SIZE);
 
       // count += 1;
-      evaluate_gpu<<<nbBlocks, BLOCK_SIZE>>>(N, G, parents_d, evals_d, evalsSize);
+      evaluate_gpu<<<nbBlocks, BLOCK_SIZE>>>(N, G, parents_d, labels_d, numLabels);
 
-      cudaMemcpy(evals, evals_d, evalsSize * sizeof(uint8_t), cudaMemcpyDeviceToHost);
+      cudaMemcpy(labels, labels_d, numLabels * sizeof(uint8_t), cudaMemcpyDeviceToHost);
 
-      generate_children(N, parents, poolSize, evals, exploredTree, exploredSol, &pool);
+      generate_children(N, parents, poolSize, labels, exploredTree, exploredSol, &pool);
     }
   }
 
   cudaFree(parents_d);
-  cudaFree(evals_d);
+  cudaFree(labels_d);
 
   free(parents);
-  free(evals);
+  free(labels);
 
   clock_t endTime = clock();
   *elapsedTime = (double)(endTime - startTime) / CLOCKS_PER_SEC;
