@@ -10,7 +10,7 @@ module load cmake/3.23.3_gcc-10.4.0
 export HERE=$(pwd)
 
 export CHPL_VERSION=$(cat CHPL_VERSION)
-export CHPL_HOME=~/chapel-${CHPL_VERSION}MCG_array_on_device_amd
+export CHPL_HOME=~/chapel-${CHPL_VERSION}MCG_amd
 
 # Download Chapel if not found
 if [ ! -d "$CHPL_HOME" ]; then

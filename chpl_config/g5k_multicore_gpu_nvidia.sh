@@ -2,7 +2,6 @@
 
 # Configuration of Chapel for Nvidia GPU-accelerated multi-core experiments on
 # the French national Grid5000 testbed (https://www.grid5000.fr/w/Grid5000:Home).
-# This script configures Chapel with the unified memory model for GPU.
 
 # Load gcc, cuda and cmake
 module load gcc/10.4.0_gcc-10.4.0
@@ -12,7 +11,7 @@ module load cuda/11.7.1_gcc-10.4.0
 export HERE=$(pwd)
 
 export CHPL_VERSION=$(cat CHPL_VERSION)
-export CHPL_HOME=~/chapel-${CHPL_VERSION}MCG_unified_memory_nvidia
+export CHPL_HOME=~/chapel-${CHPL_VERSION}MCG_nvidia
 
 # Download Chapel if not found
 if [ ! -d "$CHPL_HOME" ]; then
@@ -34,7 +33,7 @@ export CHPL_RT_NUM_GPUS_PER_LOCALE=2
 export CHPL_LOCALE_MODEL="gpu"
 export CHPL_GPU="nvidia"
 export CHPL_GPU_ARCH="sm_70"
-export CHPL_GPU_MEM_STRATEGY="unified_memory"
+export CHPL_GPU_MEM_STRATEGY="array_on_device"
 
 export GASNET_PHYSMEM_MAX='64 GB'
 
