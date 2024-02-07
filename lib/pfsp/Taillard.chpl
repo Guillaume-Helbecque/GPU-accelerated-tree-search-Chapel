@@ -1,10 +1,5 @@
 module Taillard
 {
-  /* #include <stdlib.h>
-  #include <stdio.h>
-
-  #include "../c_headers/c_taillard.h" */
-
   const time_seeds: [0..#120] int(64) =
   [   873654221 /*ta001*/,    379008056 /*ta002*/,  1866992158 /*ta003*/, 216771124 /*ta004*/,  495070989 /*ta005*/,
       402959317 /*ta006*/,  1369363414 /*ta007*/, 2021925980 /*ta008*/, 573109518 /*ta009*/,  88325120 /*ta010*/,
@@ -74,7 +69,7 @@ module Taillard
     return optimal[id];
   }
 
-  proc unif(ref seed: int(64), low: int(64), high: int(64)): int(64)
+  private proc unif(ref seed: int(64), low: int(64), high: int(64)): int(64)
   {
     var m: int(64) = 2147483647, a: int(64) = 16807, b: int(64) = 127773, c: int(64) = 2836, k: int(64);
     var value_0_1: real;
@@ -89,26 +84,14 @@ module Taillard
 
   proc taillard_get_processing_times(ref ptm: [] int, const id: int): void
   {
-    var N = taillard_get_nb_jobs(id);
-    var M = taillard_get_nb_machines(id);
+    const N = taillard_get_nb_jobs(id);
+    const M = taillard_get_nb_machines(id);
     var time_seed = time_seeds[id - 1];
-
-    /* if (!ptm) {
-      ptm = malloc(N*M*sizeof(int));
-    } */
 
     for i in 0..#M {
       for j in 0..#N {
         ptm[i*N+j] = unif(time_seed, 1, 99): int;
       }
     }
-  }
-
-  proc taillard_get_instance_data(ref ptm: [] int, ref N: int, ref M: int, const id: int): void
-  {
-    N = taillard_get_nb_jobs(id);
-    M = taillard_get_nb_machines(id);
-
-    taillard_get_processing_times(ptm, id);
   }
 }

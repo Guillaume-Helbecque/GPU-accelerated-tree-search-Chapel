@@ -37,8 +37,6 @@ module Bound_simple
     }
   }
 
-  // void
-  // schedule_front(const int* const p_times, const int* const min_heads, const int N, const int M, const int * const permut, const int limit1, int * front)
   proc schedule_front(const data: bound_data, const permut: [] int, const limit1: int, ref front: [] int): void
   {
     const N = data.nb_jobs;
@@ -55,8 +53,6 @@ module Bound_simple
     }
   }
 
-  // void
-  // schedule_back(const int* const p_times, const int* const min_tails, const int N, const int M, const int * const permut, const int limit2, int * back)
   proc schedule_back(const data: bound_data, const permut: [] int, const limit2: int, ref back: [] int): void
   {
     const N = data.nb_jobs;

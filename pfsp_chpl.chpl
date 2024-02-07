@@ -14,8 +14,6 @@ use Taillard;
 Implementation of PFSP Nodes.
 *******************************************************************************/
 
-config param MAX_QUEENS = 20;
-
 record Node
   {
     var depth: int;

@@ -2,12 +2,6 @@ module Bound_johnson
 {
   use Sort;
   use Bound_simple;
-  /* #include <stdlib.h>
-  #include <stdio.h>
-  #include <string.h>
-
-  #include "../c_headers/c_bound_simple.h"
-  #include "../c_headers/c_bound_johnson.h" */
 
   enum lb2_variant { LB2_FULL, LB2_NABESHIMA, LB2_LAGEWEG, LB2_LEARN }
 
@@ -31,7 +25,7 @@ module Bound_johnson
       this.nb_jobs = data.nb_jobs;
       this.nb_machines = data.nb_machines;
 
-      var lb2_type = lb2_variant.LB2_FULL; //////////////////////////
+      var lb2_type = lb2_variant.LB2_FULL;
 
       //depends on nb of machine pairs
       if (lb2_type == lb2_variant.LB2_FULL) then
@@ -90,12 +84,7 @@ module Bound_johnson
 
   proc fill_machine_pairs(ref b: johnson_bd_data/*, enum lb2_variant lb2_type*/): void
   {
-    /* if (!b) {
-      writeln("allocate johnson_bd_data first\n");
-      exit(-1);
-    } */
-
-    var lb2_type = lb2_variant.LB2_FULL; //////////////////////////
+    var lb2_type = lb2_variant.LB2_FULL;
 
     select (lb2_type) {
       when lb2_variant.LB2_FULL {}
