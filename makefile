@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 # Compilers & common options
 CHPL_COMPILER := chpl
-CHPL_COMMON_OPTS := --fast
+CHPL_COMMON_OPTS := --fast -M lib/common
 CHPL_PFSP_LIBPATH := -M lib/pfsp
 
 # Source files
@@ -28,4 +28,4 @@ pfsp_chpl.o: pfsp_chpl.chpl
 .PHONY: clean
 
 clean:
-	rm -f $(CHPL_OBJECTS)
+	rm -f $(CHPL_NQUEENS_OBJECTS) $(CHPL_PFSP_OBJECTS)

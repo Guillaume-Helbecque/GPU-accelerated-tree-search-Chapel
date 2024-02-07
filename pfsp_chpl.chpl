@@ -4,6 +4,8 @@
 
 use Time;
 
+use Pool;
+
 use Bound_johnson;
 use Bound_simple;
 use Taillard;
@@ -49,48 +51,6 @@ record Node
     proc deinit()
     {}
   }
-
-/*******************************************************************************
-Implementation of a dynamic-sized single pool data structure.
-Its initial capacity is 1024, and we reallocate a new container with double
-the capacity when it is full. Since we perform only DFS, it only supports
-'pushBack' and 'popBack' operations.
-*******************************************************************************/
-
-config param CAPACITY = 1024;
-
-record SinglePool {
-  var dom: domain(1);
-  var elements: [dom] Node;
-  var capacity: int;
-  var size: int;
-
-  proc init() {
-    this.dom = 0..#CAPACITY;
-    this.capacity = CAPACITY;
-  }
-
-  proc ref pushBack(node: Node) {
-    if (this.size >= this.capacity) {
-      this.capacity *=2;
-      this.dom = 0..#this.capacity;
-    }
-
-    this.elements[this.size] = node;
-    this.size += 1;
-  }
-
-  proc ref popBack(ref hasWork: int) {
-    if (this.size > 0) {
-      hasWork = 1;
-      this.size -= 1;
-      return this.elements[this.size];
-    }
-
-    var default: Node;
-    return default;
-  }
-}
 
 /*******************************************************************************
 Implementation of the sequential PFSP search.
@@ -220,7 +180,7 @@ inline proc branchingRule(const lb_begin, const lb_end, const depth, const best)
 }
 
 proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  best: atomic int, ref best_task: int, ref pool)
+  best: atomic int, ref best_task: int, ref pool: SinglePool(Node))
 {
   for i in parent.limit1+1..parent.limit2-1 {
     var child = new Node(parent);
@@ -247,7 +207,7 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 }
 
 proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  best: atomic int, ref best_task: int, ref pool)
+  best: atomic int, ref best_task: int, ref pool: SinglePool(Node))
 {
   var lb_begin: [0..#jobs] int; // = allocate(c_int, this.jobs);
   var lb_end: [0..#jobs] int; // = allocate(c_int, this.jobs);
@@ -297,7 +257,7 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 }
 
 proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  best: atomic int, ref best_task: int, ref pool)
+  best: atomic int, ref best_task: int, ref pool: SinglePool(Node))
 {
   for i in parent.limit1+1..parent.limit2-1 {
     var child = new Node(parent);
@@ -324,7 +284,7 @@ proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 }
 
 proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  best: atomic int, ref best_task: int, ref pool)
+  best: atomic int, ref best_task: int, ref pool: SinglePool(Node))
 {
   select lb {
     when "lb1" {
@@ -347,7 +307,7 @@ proc pfsp_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime:
 {
   var root = new Node(jobs);
 
-  var pool = new SinglePool();
+  var pool = new SinglePool(Node);
 
   pool.pushBack(root);
 

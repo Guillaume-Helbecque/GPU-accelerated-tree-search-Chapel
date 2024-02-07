@@ -3,6 +3,8 @@
 */
 
 use Time;
+
+use Pool_ext;
 use GpuDiagnostics;
 
 config const BLOCK_SIZE = 512;
@@ -35,62 +37,6 @@ record Node {
     this.depth = other.depth;
     this.board = other.board;
   } */
-}
-
-/*******************************************************************************
-Implementation of a dynamic-sized single pool data structure.
-Its initial capacity is 1024, and we reallocate a new container with double
-the capacity when it is full. Since we perform only DFS, it only supports
-'pushBack' and 'popBack' operations.
-*******************************************************************************/
-
-config param CAPACITY = 1024;
-
-record SinglePool {
-  var dom: domain(1);
-  var elements: [dom] Node;
-  var capacity: int;
-  var front: int;
-  var size: int;
-
-  proc init() {
-    this.dom = 0..#CAPACITY;
-    this.capacity = CAPACITY;
-  }
-
-  proc ref pushBack(node: Node) {
-    if (this.front + this.size >= this.capacity) {
-      this.capacity *=2;
-      this.dom = 0..#this.capacity;
-    }
-
-    this.elements[this.front + this.size] = node;
-    this.size += 1;
-  }
-
-  proc ref popBack(ref hasWork: int) {
-    if (this.size > 0) {
-      hasWork = 1;
-      this.size -= 1;
-      return this.elements[this.front + this.size];
-    }
-
-    var default: Node;
-    return default;
-  }
-
-  proc ref popFront(ref hasWork: int) {
-    if (this.size > 0) {
-      hasWork = 1;
-      const elt = this.elements[this.front];
-      this.front += 1;
-      this.size -= 1;
-      return elt;
-    }
-
-    var default: Node;
-    return default;
-  }
 }
 
 /*******************************************************************************
@@ -148,7 +94,7 @@ proc isSafe(const board, const queen_num, const row_pos): uint(8)
 }
 
 // Evaluate and generate children nodes on CPU.
-proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref pool: SinglePool)
+proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref pool: SinglePool(Node))
 {
   const depth = parent.depth;
 
@@ -203,7 +149,7 @@ proc evaluate_gpu(const parents_d: [] Node, const size)
 
 // Generate children nodes (evaluated by GPU) on CPU.
 proc generate_children(const ref parents: [] Node, const size: int, const ref labels: [] uint(8),
-  ref exploredTree: uint, ref exploredSol: uint, ref pool: SinglePool)
+  ref exploredTree: uint, ref exploredSol: uint, ref pool: SinglePool(Node))
 {
   for i in 0..#size  {
     const parent = parents[i];
@@ -230,7 +176,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 {
   var root = new Node(N);
 
-  var pool = new SinglePool();
+  var pool = new SinglePool(Node);
 
   pool.pushBack(root);
 
@@ -275,7 +221,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     ref eachExploredTree, ref eachExploredSol) {
 
     var tree, sol: uint;
-    var pool_loc = new SinglePool();
+    var pool_loc = new SinglePool(Node);
 
     // each task gets its chunk
     pool_loc.elements[0..#c] = pool.elements[gpuID+f.. by D #c];
