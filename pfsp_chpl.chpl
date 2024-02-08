@@ -111,11 +111,15 @@ proc print_settings(): void
   writeln("=================================================");
 }
 
-proc print_results(const exploredTree: uint, const exploredSol: uint, const timer: real)
+proc print_results(const optimum: int, const exploredTree: uint, const exploredSol: uint,
+  const timer: real)
 {
   writeln("\n=================================================");
   writeln("Size of the explored tree: ", exploredTree);
   writeln("Number of explored solutions: ", exploredSol);
+  const is_better = if (optimum < initUB) then " (improved)"
+                                          else " (not improved)";
+  writeln("Optimal makespan: ", optimum, is_better);
   writeln("Elapsed time: ", timer, " [s]");
   writeln("=================================================\n");
 }
@@ -177,7 +181,7 @@ inline proc branchingRule(const lb_begin, const lb_end, const depth, const best)
 }
 
 proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  best: atomic int, ref best_task: int, ref pool: SinglePool(Node))
+  ref best: int, ref pool: SinglePool(Node))
 {
   for i in parent.limit1+1..parent.limit2-1 {
     var child = new Node(parent);
@@ -190,12 +194,11 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     if (child.depth == jobs) { // if child leaf
       num_sol += 1;
 
-      if (lowerbound < best_task) { // if child feasible
-        best_task = lowerbound;
-        best.write(lowerbound);
+      if (lowerbound < best) { // if child feasible
+        best = lowerbound;
       }
     } else { // if not leaf
-      if (lowerbound < best_task) { // if child feasible
+      if (lowerbound < best) { // if child feasible
         pool.pushBack(child);
         tree_loc += 1;
       }
@@ -204,10 +207,10 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 }
 
 proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  best: atomic int, ref best_task: int, ref pool: SinglePool(Node))
+  ref best: int, ref pool: SinglePool(Node))
 {
-  var lb_begin: [0..#jobs] int; // = allocate(c_int, this.jobs);
-  var lb_end: [0..#jobs] int; // = allocate(c_int, this.jobs);
+  var lb_begin: [0..#jobs] int = noinit; // = allocate(c_int, this.jobs);
+  var lb_end: [0..#jobs] int = noinit; // = allocate(c_int, this.jobs);
   /* var prio_begin = allocate(c_int, this.jobs);
   var prio_end = allocate(c_int, this.jobs); */
   var beginEnd = branchingSide;
@@ -216,7 +219,7 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     lb_begin, lb_end, nil, nil, beginEnd);
 
   if (branchingSide == BEGINEND) {
-    beginEnd = branchingRule(lb_begin, lb_end, parent.depth, best_task);
+    beginEnd = branchingRule(lb_begin, lb_end, parent.depth, best);
   }
 
   for i in parent.limit1+1..parent.limit2-1 {
@@ -226,12 +229,11 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     if (parent.depth + 1 == jobs) { // if child leaf
       num_sol += 1;
 
-      if (lb < best_task) { // if child feasible
-        best_task = lb;
-        best.write(lb);
+      if (lb < best) { // if child feasible
+        best = lb;
       }
     } else { // if not leaf
-      if (lb < best_task) { // if child feasible
+      if (lb < best) { // if child feasible
         var child = new Node(parent);
         child.depth += 1;
 
@@ -254,7 +256,7 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 }
 
 proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  best: atomic int, ref best_task: int, ref pool: SinglePool(Node))
+  ref best: int, ref pool: SinglePool(Node))
 {
   for i in parent.limit1+1..parent.limit2-1 {
     var child = new Node(parent);
@@ -262,17 +264,16 @@ proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     child.depth  += 1;
     child.limit1 += 1;
 
-    var lowerbound = lb2_bound(lbound1, lbound2, child.prmu, child.limit1, jobs, best_task);
+    var lowerbound = lb2_bound(lbound1, lbound2, child.prmu, child.limit1, jobs, best);
 
     if (child.depth == jobs) { // if child leaf
       num_sol += 1;
 
-      if (lowerbound < best_task) { // if child feasible
-        best_task = lowerbound;
-        best.write(lowerbound);
+      if (lowerbound < best) { // if child feasible
+        best = lowerbound;
       }
     } else { // if not leaf
-      if (lowerbound < best_task) { // if child feasible
+      if (lowerbound < best) { // if child feasible
         pool.pushBack(child);
         tree_loc += 1;
       }
@@ -281,17 +282,17 @@ proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 }
 
 proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  best: atomic int, ref best_task: int, ref pool: SinglePool(Node))
+  ref best: int, ref pool: SinglePool(Node))
 {
   select lb {
     when "lb1" {
-      decompose_lb1(parent, tree_loc, num_sol, best, best_task, pool);
+      decompose_lb1(parent, tree_loc, num_sol, best, pool);
     }
     when "lb1_d" {
-      decompose_lb1_d(parent, tree_loc, num_sol, best, best_task, pool);
+      decompose_lb1_d(parent, tree_loc, num_sol, best, pool);
     }
     when "lb2" {
-      decompose_lb2(parent, tree_loc, num_sol, best, best_task, pool);
+      decompose_lb2(parent, tree_loc, num_sol, best, pool);
     }
     otherwise {
       halt("DEADCODE");
@@ -300,28 +301,28 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 }
 
 // Sequential PFSP search.
-proc pfsp_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
+proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
+  var best: int = initUB;
+
   var root = new Node(jobs);
 
   var pool = new SinglePool(Node);
-
   pool.pushBack(root);
 
   var timer: stopwatch;
   timer.start();
-  var best_g: atomic int = initUB;
-  var best_t: int = initUB;
 
   while true {
     var hasWork = 0;
     var parent = pool.popBack(hasWork);
     if !hasWork then break;
-    decompose(parent, exploredTree, exploredSol, best_g, best_t, pool);
+    decompose(parent, exploredTree, exploredSol, best, pool);
   }
 
   timer.stop();
   elapsedTime = timer.elapsed();
+  optimum = best;
 
   writeln("\nExploration terminated.");
 }
@@ -331,14 +332,15 @@ proc main()
   check_parameters();
   print_settings();
 
+  var optimum: int;
   var exploredTree: uint = 0;
   var exploredSol: uint = 0;
 
   var elapsedTime: real;
 
-  pfsp_search(exploredTree, exploredSol, elapsedTime);
+  pfsp_search(optimum, exploredTree, exploredSol, elapsedTime);
 
-  print_results(exploredTree, exploredSol, elapsedTime);
+  print_results(optimum, exploredTree, exploredSol, elapsedTime);
 
   return 0;
 }
