@@ -37,54 +37,14 @@ module Bound_johnson
       if (lb2_type == lb2_variant.LB2_LEARN) then
         this.nb_machine_pairs = (this.nb_machines*(this.nb_machines-1))/2;
 
-      this.ld = 0..#this.nb_machine_pairs*this.nb_jobs;
-      this.ad = 0..#this.nb_machine_pairs;
+      this.ld = {0..#this.nb_machine_pairs*this.nb_jobs};
+      this.ad = {0..#this.nb_machine_pairs};
     }
   }
 
-  /* johnson_bd_data* new_johnson_bd_data(const bound_data *const data)//, enum lb2_variant lb2_type)
-  {
-    johnson_bd_data *b = malloc(sizeof(johnson_bd_data));
-
-    b->nb_jobs = data->nb_jobs;
-    b->nb_machines = data->nb_machines;
-
-    enum lb2_variant lb2_type = LB2_FULL; //////////////////////////
-
-    //depends on nb of machine pairs
-    if (lb2_type == LB2_FULL)
-      b->nb_machine_pairs = (b->nb_machines*(b->nb_machines-1))/2;
-    if (lb2_type == LB2_NABESHIMA)
-      b->nb_machine_pairs = b->nb_machines-1;
-    if (lb2_type == LB2_LAGEWEG)
-      b->nb_machine_pairs = b->nb_machines-1;
-    if (lb2_type == LB2_LEARN)
-      b->nb_machine_pairs = (b->nb_machines*(b->nb_machines-1))/2;
-
-    b->lags = malloc(b->nb_machine_pairs*b->nb_jobs*sizeof(int));
-    b->johnson_schedules = malloc(b->nb_machine_pairs*b->nb_jobs*sizeof(int));
-    b->machine_pairs[0] = malloc(b->nb_machine_pairs*sizeof(int));
-    b->machine_pairs[1] = malloc(b->nb_machine_pairs*sizeof(int));
-    b->machine_pair_order = malloc(b->nb_machine_pairs*sizeof(int));
-
-    return b;
-  } */
-
-  /* void free_johnson_bd_data(johnson_bd_data* b)
-  {
-    if (b) {
-      free(b->lags);
-      free(b->johnson_schedules);
-      free(b->machine_pairs[0]);
-      free(b->machine_pairs[1]);
-      free(b->machine_pair_order);
-      free(b);
-    }
-  } */
-
   proc fill_machine_pairs(ref b: johnson_bd_data/*, enum lb2_variant lb2_type*/): void
   {
-    var lb2_type = lb2_variant.LB2_FULL;
+    var lb2_type = lb2_variant.LB2_LEARN;
 
     select (lb2_type) {
       when lb2_variant.LB2_FULL {}
@@ -120,18 +80,18 @@ module Bound_johnson
   }
 
   // term q_iuv in [Lageweg'78]
-  proc fill_lags(const lb1: bound_data, ref lb2: johnson_bd_data): void
+  proc fill_lags(const lb1_p_times: [] int, ref lb2: johnson_bd_data): void
   {
-    var N = lb1.nb_jobs;
+    const N = lb2.nb_jobs;
 
     for i in 0..#lb2.nb_machine_pairs {
-      var m1 = lb2.machine_pairs[0][i];
-      var m2 = lb2.machine_pairs[1][i];
+      const m1 = lb2.machine_pairs[0][i];
+      const m2 = lb2.machine_pairs[1][i];
 
       for j in 0..#N {
-        lb2.lags[i * N + j] = 0;
+        /* lb2.lags[i * N + j] = 0; */
         for k in (m1+1)..(m2-1) {
-          lb2.lags[i * N + j] += lb1.p_times[k * N + j];
+          lb2.lags[i * N + j] += lb1_p_times[k * N + j];
         }
       }
     }
@@ -175,11 +135,10 @@ module Bound_johnson
   //  p_1i = PTM[m1][i] + lags[s][i]
   //  p_2i = PTM[m2][i] + lags[s][i]
   //using Johnson's algorithm [Johnson, S. M. (1954). Optimal two-and three-stage production schedules with setup times included.closed access Naval research logistics quarterly, 1(1), 61–68.]
-  proc fill_johnson_schedules(const lb1: bound_data, ref lb2: johnson_bd_data): void
+  proc fill_johnson_schedules(const lb1_p_times: [] int, ref lb2: johnson_bd_data): void
   {
-    const N = lb1.nb_jobs;
-    const p_times = lb1.p_times;
-    const lags = lb2.lags;
+    const N = lb2.nb_jobs;
+    const ref lags = lb2.lags;
 
     var tmp: [0..#N] johnson_job;
 
@@ -191,8 +150,8 @@ module Bound_johnson
       //partition N jobs into 2 sets {j|p_1j < p_2j} and {j|p_1j >= p_2j}
       for i in 0..#N {
         tmp[i].job = i;
-        tmp[i].ptm1 = p_times[m1*N + i] + lags[k*N + i];
-        tmp[i].ptm2 = p_times[m2*N + i] + lags[k*N + i];
+        tmp[i].ptm1 = lb1_p_times[m1*N + i] + lags[k*N + i];
+        tmp[i].ptm2 = lb1_p_times[m2*N + i] + lags[k*N + i];
 
         if (tmp[i].ptm1 < tmp[i].ptm2) {
           tmp[i].partition = 0;
@@ -212,24 +171,22 @@ module Bound_johnson
 
   proc set_flags(const permutation: [] int, const limit1: int, const limit2: int, const N: int, ref flags: [] int): void
   {
-    for i in 0..#N do
-      flags[i] = 0;
     for j in 0..limit1 do
       flags[permutation[j]] = 1;
     for j in limit2..(N-1) do
       flags[permutation[j]] = 1;
   }
 
-  inline proc compute_cmax_johnson(const bd: bound_data, const jhnsn: johnson_bd_data, const flag: [] int, ref tmp0: int, ref tmp1: int, ma0: int, ma1: int, ind: int): int
+  inline proc compute_cmax_johnson(const bd_p_times: [] int, const jhnsn: johnson_bd_data, const flag: [] int, ref tmp0: int, ref tmp1: int, ma0: int, ma1: int, ind: int): int
   {
-    var nb_jobs = bd.nb_jobs;
+    const nb_jobs = jhnsn.nb_jobs;
 
     for j in 0..#nb_jobs {
       var job = jhnsn.johnson_schedules[ind*nb_jobs + j];
       // j-loop is on unscheduled jobs... (==0 if jobCour is unscheduled)
       if (flag[job] == 0) {
-        var ptm0 = bd.p_times[ma0*nb_jobs + job];
-        var ptm1 = bd.p_times[ma1*nb_jobs + job];
+        var ptm0 = bd_p_times[ma0*nb_jobs + job];
+        var ptm1 = bd_p_times[ma1*nb_jobs + job];
         var lag = jhnsn.lags[ind*nb_jobs + job];
         // add job on ma0 and ma1
         tmp0 += ptm0;
@@ -241,7 +198,7 @@ module Bound_johnson
     return tmp1;
   }
 
-  proc lb_makespan(const bd: bound_data, const jhnsn: johnson_bd_data, const flag: [] int, const front: [] int, const back: [] int, const minCmax: int): int
+  proc lb_makespan(const bd_p_times: [] int, const jhnsn: johnson_bd_data, const flag: [] int, const front: [] int, const back: [] int, const minCmax: int): int
   {
     var lb = 0;
 
@@ -255,7 +212,7 @@ module Bound_johnson
       var tmp0 = front[ma0];
       var tmp1 = front[ma1];
 
-      compute_cmax_johnson(bd, jhnsn, flag, tmp0, tmp1, ma0, ma1, i);
+      compute_cmax_johnson(bd_p_times, jhnsn, flag, tmp0, tmp1, ma0, ma1, i);
 
       tmp1 = max(tmp1 + back[ma1], tmp0 + back[ma0]);
 
@@ -270,7 +227,7 @@ module Bound_johnson
   }
 
   //allows variable nb of machine pairs and get machine pair the realized best lb
-  proc lb_makespan_learn(const bd: bound_data, const jhnsn: johnson_bd_data, const flag: [] int, const front: [] int, const back: [] int, const minCmax: int, const nb_pairs: int, ref best_index: int): int
+  proc lb_makespan_learn(const bd_p_times: [] int, const jhnsn: johnson_bd_data, const flag: [] int, const front: [] int, const back: [] int, const minCmax: int, const nb_pairs: int, ref best_index: int): int
   {
     var lb = 0;
 
@@ -283,7 +240,7 @@ module Bound_johnson
       var tmp0 = front[ma0];
       var tmp1 = front[ma1];
 
-      compute_cmax_johnson(bd, jhnsn, flag, tmp0, tmp1, ma0, ma1, i);
+      compute_cmax_johnson(bd_p_times, jhnsn, flag, tmp0, tmp1, ma0, ma1, i);
 
       tmp1 = max(tmp1 + back[ma1], tmp0 + back[ma0]);
 
@@ -303,8 +260,8 @@ module Bound_johnson
 
   proc lb2_bound(const lb1_data: bound_data, const lb2_data: johnson_bd_data, const permutation: [] int, const limit1: int, const limit2: int, const best_cmax: int): int
   {
-    const N = lb1_data.nb_jobs;
-    const M = lb1_data.nb_machines;
+    const N = lb2_data.nb_jobs;
+    const M = lb2_data.nb_machines;
 
     var front: [0..#M] int;
     var back: [0..#M] int;
@@ -315,14 +272,7 @@ module Bound_johnson
     var flags: [0..#N] int;
     set_flags(permutation, limit1, limit2, N, flags);
 
-    return lb_makespan(lb1_data, lb2_data, flags, front, back, best_cmax);
-  }
-
-  inline proc swap(ref a: int, ref b: int): void
-  {
-    var tmp = a;
-    a = b;
-    b = tmp;
+    return lb_makespan(lb1_data.p_times, lb2_data, flags, front, back, best_cmax);
   }
 
   proc lb2_children_bounds(const lb1_data: bound_data, const lb2_data: johnson_bd_data, const permutation: [] int, const limit1: int, const limit2: int, ref lb_begin: [] int, ref lb_end: [] int, const best_cmax: int, const direction: int): void
@@ -338,9 +288,9 @@ module Bound_johnson
         for i in (limit1+1)..(limit2-1) {
           var job = tmp_perm[i];
 
-          swap(tmp_perm[i], tmp_perm[limit1 + 1]);
+          tmp_perm[i] <=> tmp_perm[limit1 + 1];
           lb_begin[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1+1, limit2, best_cmax);
-          swap(tmp_perm[i], tmp_perm[limit1 + 1]);
+          tmp_perm[i] <=> tmp_perm[limit1 + 1];
         }
       }
       when 0
@@ -348,13 +298,13 @@ module Bound_johnson
         for i in (limit1+1)..(limit2-1) {
           var job = tmp_perm[i];
 
-          swap(tmp_perm[i], tmp_perm[limit1 + 1]);
+          tmp_perm[i] <=> tmp_perm[limit1 + 1];
           lb_begin[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1+1, limit2, best_cmax);
-          swap(tmp_perm[i], tmp_perm[limit1 + 1]);
+          tmp_perm[i] <=> tmp_perm[limit1 + 1];
 
-          swap(tmp_perm[i], tmp_perm[limit2 - 1]);
+          tmp_perm[i] <=> tmp_perm[limit2 - 1];
           lb_end[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1, limit2-1, best_cmax);
-          swap(tmp_perm[i], tmp_perm[limit2 - 1]);
+          tmp_perm[i] <=> tmp_perm[limit2 - 1];
         }
       }
       when 1
@@ -362,9 +312,9 @@ module Bound_johnson
         for i in (limit1+1)..(limit2-1) {
           var job = tmp_perm[i];
 
-          swap(tmp_perm[i], tmp_perm[limit2 - 1]);
+          tmp_perm[i] <=> tmp_perm[limit2 - 1];
           lb_end[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1, limit2-1, best_cmax);
-          swap(tmp_perm[i], tmp_perm[limit2 - 1]);
+          tmp_perm[i] <=> tmp_perm[limit2 - 1];
         }
       }
     }

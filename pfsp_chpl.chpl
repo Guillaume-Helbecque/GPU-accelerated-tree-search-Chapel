@@ -73,8 +73,8 @@ fill_min_heads_tails(lbound1);
 
 var lbound2 = new johnson_bd_data(lbound1);
 fill_machine_pairs(lbound2/*, LB2_FULL*/);
-fill_lags(lbound1, lbound2);
-fill_johnson_schedules(lbound1, lbound2);
+fill_lags(lbound1.p_times, lbound2);
+fill_johnson_schedules(lbound1.p_times, lbound2);
 
 const branchingSide = if (br == "fwd") then BEGIN
                       else if (br == "bwd") then END
