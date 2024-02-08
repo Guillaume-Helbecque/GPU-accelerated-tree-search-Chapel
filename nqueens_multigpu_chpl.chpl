@@ -64,8 +64,7 @@ proc print_settings()
   writeln("=================================================");
 }
 
-proc print_results(const exploredTree: uint,
-  const exploredSol: uint, const timer: real)
+proc print_results(const exploredTree: uint, const exploredSol: uint, const timer: real)
 {
   writeln("\n=================================================");
   writeln("Size of the explored tree: ", exploredTree);

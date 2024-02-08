@@ -14,41 +14,40 @@ use Taillard;
 Implementation of PFSP Nodes.
 *******************************************************************************/
 
-record Node
+record Node {
+  var depth: int;
+  var limit1: int; // right limit
+  var limit2: int; // left limit
+  var pd: domain(1);
+  var prmu: [pd] int; //c_array(c_int, JobsMax);
+
+  // default-initializer
+  proc init()
+  {}
+
+  // root-initializer
+  proc init(jobs)
   {
-    var depth: int;
-    var limit1: int; // right limit
-    var limit2: int; // left limit
-    var pd: domain(1);
-    var prmu: [pd] int; //c_array(c_int, JobsMax);
-
-    // default-initializer
-    proc init()
-    {}
-
-    // root-initializer
-    proc init(jobs)
-    {
-      this.limit1 = -1;
-      this.limit2 = jobs;
-      this.pd = {0..#jobs};
-      /* init this; */
-      this.prmu = 0..#jobs;
-    }
-
-    // copy-initializer
-    proc init(other: Node)
-    {
-      this.depth  = other.depth;
-      this.limit1 = other.limit1;
-      this.limit2 = other.limit2;
-      this.pd     = other.pd;
-      this.prmu   = other.prmu;
-    }
-
-    proc deinit()
-    {}
+    this.limit1 = -1;
+    this.limit2 = jobs;
+    this.pd = {0..#jobs};
+    /* init this; */
+    this.prmu = 0..#jobs;
   }
+
+  // copy-initializer
+  proc init(other: Node)
+  {
+    this.depth  = other.depth;
+    this.limit1 = other.limit1;
+    this.limit2 = other.limit2;
+    this.pd     = other.pd;
+    this.prmu   = other.prmu;
+  }
+
+  proc deinit()
+  {}
+}
 
 /*******************************************************************************
 Implementation of the sequential PFSP search.
