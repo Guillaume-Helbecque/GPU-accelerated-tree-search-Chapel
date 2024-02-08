@@ -67,11 +67,11 @@ const id = inst[2..]:int;
 const jobs = taillard_get_nb_jobs(id);
 const machines = taillard_get_nb_machines(id);
 
-var lbound1 = new bound_data(jobs, machines);
+var lbound1 = new lb1_bound_data(jobs, machines);
 taillard_get_processing_times(lbound1.p_times, id);
 fill_min_heads_tails(lbound1);
 
-var lbound2 = new johnson_bd_data(lbound1);
+var lbound2 = new lb2_bound_data(lbound1);
 fill_machine_pairs(lbound2/*, LB2_FULL*/);
 fill_lags(lbound1.p_times, lbound2);
 fill_johnson_schedules(lbound1.p_times, lbound2);

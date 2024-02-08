@@ -1,6 +1,6 @@
 module Bound_simple
 {
-  record bound_data
+  record lb1_bound_data
   {
     var ptd: domain(1);
     var p_times: [ptd] int;
@@ -10,12 +10,12 @@ module Bound_simple
     var nb_jobs: int;
     var nb_machines: int;
 
-    proc init(_jobs: int, _machines: int)
+    proc init(jobs: int, machines: int)
     {
-      this.ptd = {0..#(_jobs*_machines)};
-      this.md = {0..#_machines};
-      this.nb_jobs = _jobs;
-      this.nb_machines = _machines;
+      this.ptd = {0..#(jobs*machines)};
+      this.md = {0..#machines};
+      this.nb_jobs = jobs;
+      this.nb_machines = machines;
     }
   }
 
@@ -37,7 +37,7 @@ module Bound_simple
     }
   }
 
-  proc schedule_front(const data: bound_data, const permut: [] int, const limit1: int, ref front: [] int): void
+  proc schedule_front(const data: lb1_bound_data, const permutation: [] int, const limit1: int, ref front: [] int): void
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -49,11 +49,11 @@ module Bound_simple
     }
 
     for i in 0..limit1 {
-      add_forward(permut[i], p_times, N, M, front);
+      add_forward(permutation[i], p_times, N, M, front);
     }
   }
 
-  proc schedule_back(const data: bound_data, const permut: [] int, const limit2: int, ref back: [] int): void
+  proc schedule_back(const data: lb1_bound_data, const permutation: [] int, const limit2: int, ref back: [] int): void
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -65,11 +65,11 @@ module Bound_simple
     }
 
     for k in limit2..(N-1) by -1 {
-      add_backward(permut[k], p_times, N, M, back);
+      add_backward(permutation[k], p_times, N, M, back);
     }
   }
 
-  proc eval_solution(const data: bound_data, const permutation: [] int): int
+  proc eval_solution(const data: lb1_bound_data, const permutation: [] int): int
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -81,14 +81,14 @@ module Bound_simple
     return tmp[M-1];
   }
 
-  proc sum_unscheduled(const data: bound_data, const permut: [] int, const limit1: int, const limit2: int, ref remain: [] int): void
+  proc sum_unscheduled(const data: lb1_bound_data, const permutation: [] int, const limit1: int, const limit2: int, ref remain: [] int): void
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
     const ref p_times = data.p_times;
 
     for k in (limit1+1)..(limit2-1) {
-      const job = permut[k];
+      const job = permutation[k];
       for j in 0..#M {
         remain[j] += p_times[j * N + job];
       }
@@ -111,7 +111,7 @@ module Bound_simple
     return lb;
   }
 
-  proc lb1_bound(const data: bound_data, const permut: [] int, const limit1: int, const limit2: int): int
+  proc lb1_bound(const data: lb1_bound_data, const permutation: [] int, const limit1: int, const limit2: int): int
   {
     const M = data.nb_machines;
 
@@ -119,14 +119,14 @@ module Bound_simple
     var back: [0..#M] int;
     var remain: [0..#M] int;
 
-    schedule_front(data, permut, limit1, front);
-    schedule_back(data, permut, limit2, back);
-    sum_unscheduled(data, permut, limit1, limit2, remain);
+    schedule_front(data, permutation, limit1, front);
+    schedule_back(data, permutation, limit2, back);
+    sum_unscheduled(data, permutation, limit1, limit2, remain);
 
     return machine_bound_from_parts(front, back, remain, M);
   }
 
-  proc lb1_children_bounds(const data: bound_data, const permutation: [] int, const limit1: int, const limit2: int, ref lb_begin: [] int, ref lb_end: [] int, prio_begin, prio_end, const direction: int): void
+  proc lb1_children_bounds(const data: lb1_bound_data, const permutation: [] int, const limit1: int, const limit2: int, ref lb_begin: [] int, ref lb_end: [] int, prio_begin, prio_end, const direction: int): void
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -181,7 +181,7 @@ module Bound_simple
   // NB2: front, remain and back need to be set before calling this
   // NB3: also compute total idle time added to partial schedule (can be used a criterion for job ordering)
   // nOps : m*(3 add+2 max)  ---> O(m)
-  proc add_front_and_bound(const data: bound_data, const job: int, const front: [] int, const back: [] int, const remain: [] int, delta_idle): int
+  proc add_front_and_bound(const data: lb1_bound_data, const job: int, const front: [] int, const back: [] int, const remain: [] int, delta_idle): int
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -209,7 +209,7 @@ module Bound_simple
   }
 
   // ... same for back
-  proc add_back_and_bound(const data: bound_data, const job: int, const front: [] int, const back: [] int, const remain: [] int, delta_idle): int
+  proc add_back_and_bound(const data: lb1_bound_data, const job: int, const front: [] int, const back: [] int, const remain: [] int, delta_idle): int
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -238,7 +238,7 @@ module Bound_simple
     return lb;
   }
 
-  proc fill_min_heads_tails(ref data: bound_data): void
+  proc fill_min_heads_tails(ref data: lb1_bound_data): void
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
