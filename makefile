@@ -12,7 +12,7 @@ CHPL_PFSP_SOURCES := pfsp_chpl.chpl #pfsp_gpu_chpl.chpl pfsp_multigpu_chpl.chpl
 CHPL_NQUEENS_OBJECTS := $(CHPL_NQUEENS_SOURCES:.chpl=.o)
 CHPL_PFSP_OBJECTS := $(CHPL_PFSP_SOURCES:.chpl=.o)
 
-# Library path
+# Library paths
 CHPL_NQUEENS_LIBPATH :=
 CHPL_PFSP_LIBPATH := -M lib/pfsp
 
