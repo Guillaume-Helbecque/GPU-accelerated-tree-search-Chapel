@@ -9,19 +9,21 @@ module Pool_ext
 
   config param CAPACITY = 1024;
 
-  record SinglePool {
+  record SinglePool_ext {
+    type eltType;
     var dom: domain(1);
-    var elements: [dom] Node;
+    var elements: [dom] eltType;
     var capacity: int;
     var front: int;
     var size: int;
 
-    proc init() {
+    proc init(type elemType) {
+      this.eltType = elemType;
       this.dom = 0..#CAPACITY;
       this.capacity = CAPACITY;
     }
 
-    proc ref pushBack(node: Node) {
+    proc ref pushBack(node: eltType) {
       if (this.front + this.size >= this.capacity) {
         this.capacity *=2;
         this.dom = 0..#this.capacity;
@@ -38,7 +40,7 @@ module Pool_ext
         return this.elements[this.front + this.size];
       }
 
-      var default: Node;
+      var default: eltType;
       return default;
     }
 
@@ -51,7 +53,7 @@ module Pool_ext
         return elt;
       }
 
-      var default: Node;
+      var default: eltType;
       return default;
     }
   }

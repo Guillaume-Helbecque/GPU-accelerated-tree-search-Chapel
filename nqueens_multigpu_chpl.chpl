@@ -93,7 +93,7 @@ proc isSafe(const board, const queen_num, const row_pos): uint(8)
 }
 
 // Evaluate and generate children nodes on CPU.
-proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref pool: SinglePool(Node))
+proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref pool: SinglePool_ext(Node))
 {
   const depth = parent.depth;
 
@@ -148,7 +148,7 @@ proc evaluate_gpu(const parents_d: [] Node, const size)
 
 // Generate children nodes (evaluated by GPU) on CPU.
 proc generate_children(const ref parents: [] Node, const size: int, const ref labels: [] uint(8),
-  ref exploredTree: uint, ref exploredSol: uint, ref pool: SinglePool(Node))
+  ref exploredTree: uint, ref exploredSol: uint, ref pool: SinglePool_ext(Node))
 {
   for i in 0..#size  {
     const parent = parents[i];
@@ -175,7 +175,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 {
   var root = new Node(N);
 
-  var pool = new SinglePool(Node);
+  var pool = new SinglePool_ext(Node);
 
   pool.pushBack(root);
 
@@ -220,7 +220,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     ref eachExploredTree, ref eachExploredSol) {
 
     var tree, sol: uint;
-    var pool_loc = new SinglePool(Node);
+    var pool_loc = new SinglePool_ext(Node);
 
     // each task gets its chunk
     pool_loc.elements[0..#c] = pool.elements[gpuID+f.. by D #c];
