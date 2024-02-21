@@ -113,6 +113,7 @@ module Bound_simple
   }
 
   param NUM_MACHINES = 10;
+  param NUM_JOBS = 10;
 
   proc lb1_bound(const data: lb1_bound_data, const permutation, const limit1: int, const limit2: int): int
   {
@@ -129,14 +130,14 @@ module Bound_simple
     return machine_bound_from_parts(front, back, remain, NUM_MACHINES);
   }
 
-  proc lb1_children_bounds(const data: lb1_bound_data, const permutation, const limit1: int, const limit2: int, ref lb_begin: [] int, ref lb_end: [] int, prio_begin, prio_end, const direction: int): void
+  proc lb1_children_bounds(const data: lb1_bound_data, const permutation, const limit1: int, const limit2: int, ref lb_begin, ref lb_end, /*prio_begin, prio_end,*/ const direction: int): void
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
 
-    var front: [0..#M] int;
-    var back: [0..#M] int;
-    var remain: [0..#M] int;
+    var front: NUM_MACHINES*int; //[0..#M] int;
+    var back: NUM_MACHINES*int; //[0..#M] int;
+    var remain: NUM_MACHINES*int; //[0..#M] int;
 
     schedule_front(data, permutation, limit1, front);
     schedule_back(data, permutation, limit2, back);
@@ -145,35 +146,39 @@ module Bound_simple
     select (direction)  {
       when -1 //begin
       {
-        lb_begin = 0;
-        if (prio_begin != nil) then prio_begin = 0;
+        for i in 0..#NUM_JOBS do
+          lb_begin[i] = 0;
+        /* if (prio_begin != nil) then prio_begin = 0; */
 
         for i in (limit1+1)..(limit2-1) {
           var job = permutation[i];
-          lb_begin[job] = add_front_and_bound(data, job, front, back, remain, prio_begin);
+          lb_begin[job] = add_front_and_bound(data, job, front, back, remain/*, prio_begin*/);
         }
       }
       when 0 //begin-end
       {
-        lb_begin = 0;
-        lb_end = 0;
-        if (prio_begin != nil) then prio_begin = 0;
-        if (prio_end != nil) then prio_end = 0;
+        for i in 0..#NUM_JOBS do
+          lb_begin[i] = 0;
+        for i in 0..#NUM_JOBS do
+          lb_end[i] = 0;
+        /* if (prio_begin != nil) then prio_begin = 0;
+        if (prio_end != nil) then prio_end = 0; */
 
         for i in (limit1+1)..(limit2-1) {
           var job = permutation[i];
-          lb_begin[job] = add_front_and_bound(data, job, front, back, remain, prio_begin);
-          lb_end[job] = add_back_and_bound(data, job, front, back, remain, prio_end);
+          lb_begin[job] = add_front_and_bound(data, job, front, back, remain/*, prio_begin*/);
+          lb_end[job] = add_back_and_bound(data, job, front, back, remain/*, prio_end*/);
         }
       }
       when 1 //end
       {
-        lb_end = 0;
-        if (prio_end != nil) then prio_end = 0;
+        for i in 0..#NUM_JOBS do
+          lb_end[i] = 0;
+        /* if (prio_end != nil) then prio_end = 0; */
 
         for i in (limit1+1)..(limit2-1) {
           var job = permutation[i];
-          lb_end[job] = add_back_and_bound(data, job, front, back, remain, prio_end);
+          lb_end[job] = add_back_and_bound(data, job, front, back, remain/*, prio_end*/);
         }
       }
     }
@@ -184,7 +189,7 @@ module Bound_simple
   // NB2: front, remain and back need to be set before calling this
   // NB3: also compute total idle time added to partial schedule (can be used a criterion for job ordering)
   // nOps : m*(3 add+2 max)  ---> O(m)
-  proc add_front_and_bound(const data: lb1_bound_data, const job: int, const front: [] int, const back: [] int, const remain: [] int, delta_idle): int
+  proc add_front_and_bound(const data: lb1_bound_data, const job: int, const front, const back, const remain/*, delta_idle*/): int
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -204,15 +209,15 @@ module Bound_simple
     }
 
     //can pass NULL
-    if (delta_idle != nil) {
+    /* if (delta_idle != nil) {
       delta_idle[job] = idle;
-    }
+    } */
 
     return lb;
   }
 
   // ... same for back
-  proc add_back_and_bound(const data: lb1_bound_data, const job: int, const front: [] int, const back: [] int, const remain: [] int, delta_idle): int
+  proc add_back_and_bound(const data: lb1_bound_data, const job: int, const front, const back, const remain/*, delta_idle*/): int
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -234,9 +239,9 @@ module Bound_simple
     }
 
     //can pass NULL
-    if (delta_idle != nil) {
+    /* if (delta_idle != nil) {
       delta_idle[job] = idle;
-    }
+    } */
 
     return lb;
   }

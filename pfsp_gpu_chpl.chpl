@@ -243,7 +243,7 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   }
 }
 
-/* proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
+proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
   var lb_begin: [0..#jobs] int = noinit; // = allocate(c_int, this.jobs);
@@ -252,8 +252,8 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   var prio_end = allocate(c_int, this.jobs); */
   var beginEnd = branchingSide;
 
-  lb1_children_bounds(lbound1, parent.prmu, parent.limit1, parent.limit2,
-    lb_begin, lb_end, nil, nil, beginEnd);
+  lb1_children_bounds(lbound1!.lb1_bound, parent.prmu, parent.limit1, parent.limit2,
+    lb_begin, lb_end, /*nil, nil,*/ beginEnd);
 
   if (branchingSide == BEGINEND) {
     beginEnd = branchingRule(lb_begin, lb_end, parent.depth, best);
@@ -293,7 +293,7 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 
   /* deallocate(lb_begin); deallocate(lb_end); */
   /* deallocate(prio_begin); deallocate(prio_end); */
-} */
+}
 
 proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
@@ -333,7 +333,7 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
       decompose_lb1(parent, tree_loc, num_sol, best, pool);
     }
     when "lb1_d" {
-      /* decompose_lb1_d(parent, tree_loc, num_sol, best, pool); */
+      decompose_lb1_d(parent, tree_loc, num_sol, best, pool);
     }
     when "lb2" {
       decompose_lb2(parent, tree_loc, num_sol, best, pool);
@@ -370,17 +370,39 @@ proc evaluate_gpu_lb1(const parents_d: [] Node, const size, const lbound1_d)
 }
 
 // Evaluate a bulk of parent nodes on GPU using lb1_d.
-/* proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size)
+proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size, const best, const lbound1_d)
 {
-  var bounds: [0..#size] uint(8) = noinit;
+  var bounds: [0..#size] int = noinit;
 
   @assertOnGpu
   foreach threadId in 0..#size {
-    // TODO
+    const parentId = threadId / jobs;
+    const k = threadId % jobs;
+    var parent = parents_d[parentId];
+    const depth = parent.depth;
+    var prmu = parent.prmu;
+
+    var lb_begin: MAX_JOBS*int; //[0..#size] int = noinit;
+    var lb_end: MAX_JOBS*int; //[0..#size] int = noinit;
+
+    var beginEnd = BEGIN; //branchingSide;
+
+    lb1_children_bounds(lbound1_d!.lb1_bound, parent.prmu, parent.limit1, parent.limit2,
+      lb_begin, lb_end, /*nil, nil,*/ beginEnd);
+
+    /* NOTE: branchingRules not GPU eligible */
+    /* if (branchingSide == BEGINEND) {
+      beginEnd = branchingRule(lb_begin, lb_end, parent.depth, best);
+    } */
+
+    if ((k >= parent.limit1+1) && (k <= parent.limit2-1)) {
+      const job = parent.prmu[k];
+      bounds[threadId] = (beginEnd == BEGIN) * lb_begin[job] + (beginEnd == END) * lb_end[job];
+    }
   }
 
   return bounds;
-} */
+}
 
 // Evaluate a bulk of parent nodes on GPU using lb2.
 proc evaluate_gpu_lb2(const parents_d: [] Node, const size, const best, const lbound1_d, const lbound2_d)
@@ -412,9 +434,9 @@ proc evaluate_gpu(const parents_d: [] Node, const size, const best, const lbound
     when "lb1" {
       return evaluate_gpu_lb1(parents_d, size, lbound1_d);
     }
-    /* when "lb1_d" {
-      return evaluate_gpu_lb1_d(parents_d, size);
-    } */
+    when "lb1_d" {
+      return evaluate_gpu_lb1_d(parents_d, size, best, lbound1_d);
+    }
     when "lb2" {
       return evaluate_gpu_lb2(parents_d, size, best, lbound1_d, lbound2_d);
     }
