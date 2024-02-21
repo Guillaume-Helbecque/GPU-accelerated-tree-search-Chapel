@@ -132,8 +132,8 @@ module Bound_simple
 
   proc lb1_children_bounds(const data: lb1_bound_data, const permutation, const limit1: int, const limit2: int, ref lb_begin/*, ref lb_end, prio_begin, prio_end, const direction: int*/): void
   {
-    const N = data.nb_jobs;
-    const M = data.nb_machines;
+    /* const N = data.nb_jobs;
+    const M = data.nb_machines; */
 
     var front: NUM_MACHINES*int; //[0..#M] int;
     var back: NUM_MACHINES*int; //[0..#M] int;

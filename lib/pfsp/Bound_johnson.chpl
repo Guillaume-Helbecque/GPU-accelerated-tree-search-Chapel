@@ -264,8 +264,8 @@ module Bound_johnson
 
   proc lb2_bound(const lb1_data: lb1_bound_data, const lb2_data: lb2_bound_data, const permutation, const limit1: int, const limit2: int, const best_cmax: int): int
   {
-    const N = lb2_data.nb_jobs;
-    const M = lb2_data.nb_machines;
+    /* const N = lb2_data.nb_jobs;
+    const M = lb2_data.nb_machines; */
 
     var front: NUM_MACHINES*int; //[0..#M] int;
     var back: NUM_MACHINES* int; //[0..#M] int;
@@ -274,7 +274,7 @@ module Bound_johnson
     schedule_back(lb1_data, permutation, limit2, back);
 
     var flags: NUM_JOBS*int; //[0..#N] int;
-    set_flags(permutation, limit1, limit2, N, flags);
+    set_flags(permutation, limit1, limit2, NUM_JOBS, flags);
 
     return lb_makespan(lb1_data.p_times, lb2_data, flags, front, back, best_cmax);
   }

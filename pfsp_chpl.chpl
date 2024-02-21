@@ -16,7 +16,7 @@ Implementation of PFSP Nodes.
 
 record Node {
   var depth: int;
-  var limit1: int; // right limit
+  var limit1: int; // left limit
   var pd: domain(1);
   var prmu: [pd] int; //c_array(c_int, JobsMax);
 
@@ -41,9 +41,6 @@ record Node {
     this.pd     = other.pd;
     this.prmu   = other.prmu;
   }
-
-  proc deinit()
-  {}
 }
 
 /*******************************************************************************
@@ -148,8 +145,6 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
   var lb_begin: [0..#jobs] int = noinit; // = allocate(c_int, this.jobs);
-  /* var prio_begin = allocate(c_int, this.jobs);
-  var prio_end = allocate(c_int, this.jobs); */
 
   lb1_children_bounds(lbound1, parent.prmu, parent.limit1, jobs, lb_begin);
 
@@ -176,8 +171,7 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     }
   }
 
-  /* deallocate(lb_begin); deallocate(lb_end); */
-  /* deallocate(prio_begin); deallocate(prio_end); */
+  /* deallocate(lb_begin); */
 }
 
 proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,

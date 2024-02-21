@@ -21,7 +21,7 @@ config param MAX_JOBS = 20;
 
 record Node {
   var depth: int;
-  var limit1: int; // right limit
+  var limit1: int; // left limit
   var prmu: MAX_JOBS*int; //c_array(c_int, JobsMax);
 
   // default-initializer
@@ -48,9 +48,6 @@ record Node {
     this.limit2 = other.limit2;
     this.prmu   = other.prmu;
   } */
-
-  /* proc deinit()
-  {} */
 }
 
 /*******************************************************************************
@@ -165,7 +162,7 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     child.depth += 1;
 
     var lowerbound = lb1_bound(lbound1!.lb1_bound, child.prmu, child.limit1, jobs);
-    /* writeln(lowerbound); */
+
     if (child.depth == jobs) { // if child leaf
       num_sol += 1;
 
@@ -185,8 +182,6 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
   var lb_begin: [0..#jobs] int = noinit; // = allocate(c_int, this.jobs);
-  /* var prio_begin = allocate(c_int, this.jobs);
-  var prio_end = allocate(c_int, this.jobs); */
 
   lb1_children_bounds(lbound1!.lb1_bound, parent.prmu, parent.limit1, jobs, lb_begin);
 
@@ -215,8 +210,7 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     }
   }
 
-  /* deallocate(lb_begin); deallocate(lb_end); */
-  /* deallocate(prio_begin); deallocate(prio_end); */
+  /* deallocate(lb_begin); */
 }
 
 proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
@@ -287,8 +281,6 @@ proc evaluate_gpu_lb1(const parents_d: [] Node, const size, const lbound1_d)
     }
   }
 
-  /* writeln(bounds); */
-
   return bounds;
 }
 
@@ -307,8 +299,7 @@ proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size, const best, const 
 
     var lb_begin: MAX_JOBS*int; //[0..#size] int = noinit;
 
-    lb1_children_bounds(lbound1_d!.lb1_bound, parent.prmu, parent.limit1, jobs,
-      lb_begin/*, lb_end, nil, nil, BEGIN*/);
+    lb1_children_bounds(lbound1_d!.lb1_bound, parent.prmu, parent.limit1, jobs, lb_begin);
 
     if (k >= parent.limit1+1) {
       const job = parent.prmu[k];
@@ -424,10 +415,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   while true {
     var hasWork = 0;
     var parent = pool.popBack(hasWork);
-    if !hasWork then {
-      writeln("pool size = ", pool.size);
-      break;
-    }
+    if !hasWork then break;
 
     decompose(parent, exploredTree, exploredSol, best, pool);
 
@@ -435,8 +423,6 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
     // If 'poolSize' is sufficiently large, we offload the pool on GPU.
     if (poolSize >= m) {
-      writeln("ENTER GPU WITH ", poolSize, " PARENT NODES");
-
       var parents: [0..#poolSize] Node = noinit;
       for i in 0..#poolSize {
         var hasWork = 0;
