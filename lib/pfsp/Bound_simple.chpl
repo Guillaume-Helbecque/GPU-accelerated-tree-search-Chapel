@@ -19,7 +19,7 @@ module Bound_simple
     }
   }
 
-  inline proc add_forward(const job: int, const p_times: [] int, const nb_jobs: int, const nb_machines: int, ref front: [] int): void
+  inline proc add_forward(const job: int, const p_times: [] int, const nb_jobs: int, const nb_machines: int, ref front): void
   {
     front[0] += p_times[job];
     for j in 1..(nb_machines-1) {
@@ -27,7 +27,7 @@ module Bound_simple
     }
   }
 
-  inline proc add_backward(const job: int, const p_times: [] int, const nb_jobs: int, const nb_machines: int, ref back: [] int): void
+  inline proc add_backward(const job: int, const p_times: [] int, const nb_jobs: int, const nb_machines: int, ref back): void
   {
     var j = nb_machines - 1;
 
@@ -37,14 +37,15 @@ module Bound_simple
     }
   }
 
-  proc schedule_front(const data: lb1_bound_data, const permutation: [] int, const limit1: int, ref front: [] int): void
+  proc schedule_front(const data: lb1_bound_data, const permutation, const limit1: int, ref front): void
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
     const ref p_times = data.p_times;
 
     if (limit1 == -1) {
-      front = data.min_heads;
+      for i in 0..#M do
+        front[i] = data.min_heads[i];
       return;
     }
 
@@ -53,14 +54,15 @@ module Bound_simple
     }
   }
 
-  proc schedule_back(const data: lb1_bound_data, const permutation: [] int, const limit2: int, ref back: [] int): void
+  proc schedule_back(const data: lb1_bound_data, const permutation, const limit2: int, ref back): void
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
     const ref p_times = data.p_times;
 
     if (limit2 == N) {
-      back = data.min_tails;
+      for i in 0..#M do
+        back[i] = data.min_tails[i];
       return;
     }
 
@@ -69,7 +71,7 @@ module Bound_simple
     }
   }
 
-  proc eval_solution(const data: lb1_bound_data, const permutation: [] int): int
+  proc eval_solution(const data: lb1_bound_data, const permutation): int
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -81,7 +83,7 @@ module Bound_simple
     return tmp[M-1];
   }
 
-  proc sum_unscheduled(const data: lb1_bound_data, const permutation: [] int, const limit1: int, const limit2: int, ref remain: [] int): void
+  proc sum_unscheduled(const data: lb1_bound_data, const permutation, const limit1: int, const limit2: int, ref remain): void
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -95,8 +97,7 @@ module Bound_simple
     }
   }
 
-  proc machine_bound_from_parts(const front: [] int, const back: [] int, const remain: [] int,
-    const nb_machines: int): int
+  proc machine_bound_from_parts(const front, const back, const remain, const nb_machines: int): int
   {
     var tmp0 = front[0] + remain[0];
     var lb = tmp0 + back[0]; // LB on machine 0
@@ -111,22 +112,24 @@ module Bound_simple
     return lb;
   }
 
-  proc lb1_bound(const data: lb1_bound_data, const permutation: [] int, const limit1: int, const limit2: int): int
-  {
-    const M = data.nb_machines;
+  param NUM_MACHINES = 10;
 
-    var front: [0..#M] int;
-    var back: [0..#M] int;
-    var remain: [0..#M] int;
+  proc lb1_bound(const data: lb1_bound_data, const permutation, const limit1: int, const limit2: int): int
+  {
+    /* const M = data.nb_machines; */
+
+    var front: NUM_MACHINES*int; //[0..#M] int;
+    var back: NUM_MACHINES*int; //[0..#M] int;
+    var remain: NUM_MACHINES*int; //[0..#M] int;
 
     schedule_front(data, permutation, limit1, front);
     schedule_back(data, permutation, limit2, back);
     sum_unscheduled(data, permutation, limit1, limit2, remain);
 
-    return machine_bound_from_parts(front, back, remain, M);
+    return machine_bound_from_parts(front, back, remain, NUM_MACHINES);
   }
 
-  proc lb1_children_bounds(const data: lb1_bound_data, const permutation: [] int, const limit1: int, const limit2: int, ref lb_begin: [] int, ref lb_end: [] int, prio_begin, prio_end, const direction: int): void
+  proc lb1_children_bounds(const data: lb1_bound_data, const permutation, const limit1: int, const limit2: int, ref lb_begin: [] int, ref lb_end: [] int, prio_begin, prio_end, const direction: int): void
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
