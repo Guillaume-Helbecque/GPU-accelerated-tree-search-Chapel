@@ -130,7 +130,7 @@ module Bound_simple
     return machine_bound_from_parts(front, back, remain, NUM_MACHINES);
   }
 
-  proc lb1_children_bounds(const data: lb1_bound_data, const permutation, const limit1: int, const limit2: int, ref lb_begin, ref lb_end, /*prio_begin, prio_end,*/ const direction: int): void
+  proc lb1_children_bounds(const data: lb1_bound_data, const permutation, const limit1: int, const limit2: int, ref lb_begin/*, ref lb_end, prio_begin, prio_end, const direction: int*/): void
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -143,9 +143,9 @@ module Bound_simple
     schedule_back(data, permutation, limit2, back);
     sum_unscheduled(data, permutation, limit1, limit2, remain);
 
-    select (direction)  {
+    /* select (direction)  {
       when -1 //begin
-      {
+      { */
         for i in 0..#NUM_JOBS do
           lb_begin[i] = 0;
         /* if (prio_begin != nil) then prio_begin = 0; */
@@ -154,7 +154,7 @@ module Bound_simple
           var job = permutation[i];
           lb_begin[job] = add_front_and_bound(data, job, front, back, remain/*, prio_begin*/);
         }
-      }
+      /* }
       when 0 //begin-end
       {
         for i in 0..#NUM_JOBS do
@@ -181,7 +181,7 @@ module Bound_simple
           lb_end[job] = add_back_and_bound(data, job, front, back, remain/*, prio_end*/);
         }
       }
-    }
+    } */
   }
 
   // adds job to partial schedule in front and computes lower bound on optimal cost

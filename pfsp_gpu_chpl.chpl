@@ -22,7 +22,6 @@ config param MAX_JOBS = 20;
 record Node {
   var depth: int;
   var limit1: int; // right limit
-  var limit2: int; // left limit
   var prmu: MAX_JOBS*int; //c_array(c_int, JobsMax);
 
   // default-initializer
@@ -33,7 +32,6 @@ record Node {
   proc init(jobs)
   {
     this.limit1 = -1;
-    this.limit2 = jobs;
     init this;
     for i in 0..#jobs do this.prmu[i] = i;
   }
@@ -61,10 +59,6 @@ Implementation of the single-GPU PFSP search.
 
 config const m = 25;
 config const M = 50000;
-
-param BEGIN: int    =-1;
-param BEGINEND: int = 0;
-param END: int      = 1;
 
 config const inst: string = "ta14"; // instance
 config const lb: string   = "lb1";  // lower bound function
@@ -105,10 +99,6 @@ fill_machine_pairs(lbound2!.lb2_bound/*, LB2_FULL*/);
 fill_lags(lbound1!.lb1_bound.p_times, lbound2!.lb2_bound);
 fill_johnson_schedules(lbound1!.lb1_bound.p_times, lbound2!.lb2_bound);
 
-const branchingSide = if (br == "fwd") then BEGIN
-                      else if (br == "bwd") then END
-                      else BEGINEND;
-
 const initUB = if (ub == "opt") then taillard_get_best_ub(id)
                else max(int);
 
@@ -120,7 +110,11 @@ proc check_parameters()
 
   const allowedUpperBounds = ["opt", "inf"];
   const allowedLowerBounds = ["lb1", "lb1_d", "lb2"];
-  const allowedBranchingRules = ["fwd", "bwd", "alt", "maxSum", "minMin", "minBranch"];
+  /*
+    NOTE: Backward branching is discarded because it increases a lot the implementation
+    complexity and does not add much contribution.
+  */
+  const allowedBranchingRules = ["fwd"];
 
   if (inst[0..1] != "ta" || id < 1 || id > 120) then
     halt("Error: instance not recognized");
@@ -159,69 +153,13 @@ proc print_results(const optimum: int, const exploredTree: uint, const exploredS
 }
 
 // Evaluate and generate children nodes on CPU.
-
-inline proc branchingRule(const lb_begin, const lb_end, const depth, const best)
-{
-  var branch = br;
-
-  while true {
-    select br {
-      when "alt" {
-        if (depth % 2 == 0) then return BEGIN;
-        else return END;
-      }
-      when "maxSum" {
-        var sum1, sum2 = 0;
-        for i in 0..#jobs {
-          sum1 += lb_begin[i];
-          sum2 += lb_end[i];
-        }
-        if (sum1 >= sum2) then return BEGIN;
-        else return END;
-      }
-      when "minMin" {
-        var min0 = max(int);
-        for k in 0..#jobs {
-          if lb_begin[k] then min0 = min(lb_begin[k], min0);
-          if lb_end[k] then min0 = min(lb_end[k], min0);
-        }
-        var c1, c2 = 0;
-        for k in 0..#jobs {
-          if (lb_begin[k] == min0) then c1 += 1;
-          if (lb_end[k] == min0) then c2 += 1;
-        }
-        if (c1 < c2) then return BEGIN;
-        else if (c1 == c2) then branch = "minBranch";
-        else return END;
-      }
-      when "minBranch" {
-        var c, s: int;
-        for i in 0..#jobs {
-          if (lb_begin[i] >= best) then c += 1;
-          if (lb_end[i] >= best) then c -= 1;
-          s += (lb_begin[i] - lb_end[i]);
-        }
-        if (c > 0) then return BEGIN;
-        else if (c < 0) then return END;
-        else {
-          if (s < 0) then return END;
-          else return BEGIN;
-        }
-      }
-      otherwise halt("Error - Unsupported branching rule");
-    }
-  }
-  halt("DEADCODE");
-}
-
 proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
-  for i in parent.limit1+1..parent.limit2-1 {
+  for i in parent.limit1+1..(jobs-1) {
     var child = new Node();
     child.depth = parent.depth;
     child.limit1 = parent.limit1 + 1;
-    child.limit2 = parent.limit2; ////////////////////////////////
     child.prmu = parent.prmu;
     child.prmu[child.depth] <=> child.prmu[i];
     child.depth += 1;
@@ -247,21 +185,14 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
   var lb_begin: [0..#jobs] int = noinit; // = allocate(c_int, this.jobs);
-  var lb_end: [0..#jobs] int = noinit; // = allocate(c_int, this.jobs);
   /* var prio_begin = allocate(c_int, this.jobs);
   var prio_end = allocate(c_int, this.jobs); */
-  var beginEnd = branchingSide;
 
-  lb1_children_bounds(lbound1!.lb1_bound, parent.prmu, parent.limit1, parent.limit2,
-    lb_begin, lb_end, /*nil, nil,*/ beginEnd);
+  lb1_children_bounds(lbound1!.lb1_bound, parent.prmu, parent.limit1, jobs, lb_begin);
 
-  if (branchingSide == BEGINEND) {
-    beginEnd = branchingRule(lb_begin, lb_end, parent.depth, best);
-  }
-
-  for i in parent.limit1+1..parent.limit2-1 {
+  for i in parent.limit1+1..(jobs-1) {
     const job = parent.prmu[i];
-    const lb = (beginEnd == BEGIN) * lb_begin[job] + (beginEnd == END) * lb_end[job];
+    const lb = lb_begin[job];
 
     if (parent.depth + 1 == jobs) { // if child leaf
       num_sol += 1;
@@ -274,16 +205,9 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
         var child = new Node();
         child.depth = parent.depth + 1;
         child.limit1 = parent.limit1;
-        child.limit2 = parent.limit2;
         child.prmu = parent.prmu;
-
-        if (beginEnd == BEGIN) {
-          child.limit1 += 1;
-          child.prmu[child.limit1] <=> child.prmu[i];
-        } else if (beginEnd == END) {
-          child.limit2 -= 1;
-          child.prmu[child.limit2] <=> child.prmu[i];
-        }
+        child.limit1 += 1;
+        child.prmu[child.limit1] <=> child.prmu[i];
 
         pool.pushBack(child);
         tree_loc += 1;
@@ -298,11 +222,10 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
-  for i in parent.limit1+1..parent.limit2-1 {
+  for i in parent.limit1+1..(jobs-1) {
     var child = new Node();
     child.depth = parent.depth;
     child.limit1 = parent.limit1 + 1;
-    child.limit2 = parent.limit2; ////////////////////////////////
     child.prmu = parent.prmu;
     child.prmu[child.depth] <=> child.prmu[i];
     child.depth += 1;
@@ -357,7 +280,7 @@ proc evaluate_gpu_lb1(const parents_d: [] Node, const size, const lbound1_d)
     const depth = parent.depth;
     var prmu = parent.prmu;
 
-    if ((k >= parent.limit1+1) && (k <= parent.limit2-1)) {
+    if (k >= parent.limit1+1) {
       prmu[depth] <=> prmu[k];
       bounds[threadId] = lb1_bound(lbound1_d!.lb1_bound, prmu, parent.limit1+1, jobs);
       prmu[depth] <=> prmu[k];
@@ -383,21 +306,13 @@ proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size, const best, const 
     var prmu = parent.prmu;
 
     var lb_begin: MAX_JOBS*int; //[0..#size] int = noinit;
-    var lb_end: MAX_JOBS*int; //[0..#size] int = noinit;
 
-    var beginEnd = BEGIN; //branchingSide;
+    lb1_children_bounds(lbound1_d!.lb1_bound, parent.prmu, parent.limit1, jobs,
+      lb_begin/*, lb_end, nil, nil, BEGIN*/);
 
-    lb1_children_bounds(lbound1_d!.lb1_bound, parent.prmu, parent.limit1, parent.limit2,
-      lb_begin, lb_end, /*nil, nil,*/ beginEnd);
-
-    /* NOTE: branchingRules not GPU eligible */
-    /* if (branchingSide == BEGINEND) {
-      beginEnd = branchingRule(lb_begin, lb_end, parent.depth, best);
-    } */
-
-    if ((k >= parent.limit1+1) && (k <= parent.limit2-1)) {
+    if (k >= parent.limit1+1) {
       const job = parent.prmu[k];
-      bounds[threadId] = (beginEnd == BEGIN) * lb_begin[job] + (beginEnd == END) * lb_end[job];
+      bounds[threadId] = lb_begin[job];
     }
   }
 
@@ -417,7 +332,7 @@ proc evaluate_gpu_lb2(const parents_d: [] Node, const size, const best, const lb
     const depth = parent.depth;
     var prmu = parent.prmu;
 
-    if ((k >= parent.limit1+1) && (k <= parent.limit2-1)) {
+    if (k >= parent.limit1+1) {
       prmu[depth] <=> prmu[k];
       bounds[threadId] = lb2_bound(lbound1_d!.lb1_bound, lbound2_d!.lb2_bound, prmu, parent.limit1+1, jobs, best);
       prmu[depth] <=> prmu[k];
@@ -454,7 +369,7 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref bo
     const parent = parents[i];
     const depth = parent.depth;
 
-    for j in parent.limit1+1..parent.limit2-1 {
+    for j in parent.limit1+1..(jobs-1) {
       const lowerbound = bounds[j + i * jobs];
 
       if (depth + 1 == jobs) { // if child leaf
@@ -470,7 +385,6 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref bo
           child.prmu[parent.depth] <=> child.prmu[j];
           child.depth = parent.depth + 1;
           child.limit1 = parent.limit1 + 1;
-          child.limit2 = parent.limit2; ////////////////////////////////
 
           pool.pushBack(child);
           exploredTree += 1;
