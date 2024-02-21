@@ -75,7 +75,7 @@ const id = inst[2..]:int;
 const jobs = taillard_get_nb_jobs(id);
 const machines = taillard_get_nb_machines(id);
 
-class WrapperClass {
+class WrapperClassLB1 {
   forwarding var lb1_bound: lb1_bound_data;
 
   proc init(jobs: int, machines: int)
@@ -84,16 +84,26 @@ class WrapperClass {
   }
 }
 
-type Wrapper = owned WrapperClass?;
+class WrapperClassLB2 {
+  forwarding var lb2_bound: lb2_bound_data;
 
-var lbound1 = new Wrapper(jobs, machines); //lb1_bound_data(jobs, machines);
+  proc init(const lb1_data: lb1_bound_data)
+  {
+    this.lb2_bound = new lb2_bound_data(lb1_data);
+  }
+}
+
+type WrapperLB1 = owned WrapperClassLB1?;
+type WrapperLB2 = owned WrapperClassLB2?;
+
+var lbound1 = new WrapperLB1(jobs, machines); //lb1_bound_data(jobs, machines);
 taillard_get_processing_times(lbound1!.lb1_bound.p_times, id);
 fill_min_heads_tails(lbound1!.lb1_bound);
 
-/* var lbound2 = new lb2_bound_data(lbound1);
-fill_machine_pairs(lbound2/*, LB2_FULL*/);
-fill_lags(lbound1.p_times, lbound2);
-fill_johnson_schedules(lbound1.p_times, lbound2); */
+var lbound2 = new WrapperLB2(lbound1!.lb1_bound);
+fill_machine_pairs(lbound2!.lb2_bound/*, LB2_FULL*/);
+fill_lags(lbound1!.lb1_bound.p_times, lbound2!.lb2_bound);
+fill_johnson_schedules(lbound1!.lb1_bound.p_times, lbound2!.lb2_bound);
 
 const branchingSide = if (br == "fwd") then BEGIN
                       else if (br == "bwd") then END
@@ -285,18 +295,19 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   /* deallocate(prio_begin); deallocate(prio_end); */
 } */
 
-/* proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
+proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
   for i in parent.limit1+1..parent.limit2-1 {
     var child = new Node();
-    child.prmu[child.depth] <=> child.prmu[i];
-    child.depth = parent.depth + 1;
+    child.depth = parent.depth;
     child.limit1 = parent.limit1 + 1;
     child.limit2 = parent.limit2; ////////////////////////////////
     child.prmu = parent.prmu;
+    child.prmu[child.depth] <=> child.prmu[i];
+    child.depth += 1;
 
-    var lowerbound = lb2_bound(lbound1, lbound2, child.prmu, child.limit1, jobs, best);
+    var lowerbound = lb2_bound(lbound1!.lb1_bound, lbound2!.lb2_bound, child.prmu, child.limit1, jobs, best);
 
     if (child.depth == jobs) { // if child leaf
       num_sol += 1;
@@ -311,7 +322,7 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
       }
     }
   }
-} */
+}
 
 // Evaluate and generate children nodes on CPU.
 proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
@@ -325,7 +336,7 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
       /* decompose_lb1_d(parent, tree_loc, num_sol, best, pool); */
     }
     when "lb2" {
-      /* decompose_lb2(parent, tree_loc, num_sol, best, pool); */
+      decompose_lb2(parent, tree_loc, num_sol, best, pool);
     }
     otherwise {
       halt("DEADCODE");
@@ -372,7 +383,7 @@ proc evaluate_gpu_lb1(const parents_d: [] Node, const size, const lbound1_d)
 } */
 
 // Evaluate a bulk of parent nodes on GPU using lb2.
-/* proc evaluate_gpu_lb2(const parents_d: [] Node, const size, const best)
+proc evaluate_gpu_lb2(const parents_d: [] Node, const size, const best, const lbound1_d, const lbound2_d)
 {
   var bounds: [0..#size] int = noinit;
 
@@ -384,18 +395,18 @@ proc evaluate_gpu_lb1(const parents_d: [] Node, const size, const lbound1_d)
     const depth = parent.depth;
     var prmu = parent.prmu;
 
-    if ((k >= parent.limit1+1) || (k <= parent.limit2-1)) {
-      prmu[depth+1] <=> prmu[k];
-      bounds[threadId] = lb2_bound(lbound1, lbound2, prmu, parent.limit1+1, jobs, best);
-      prmu[depth+1] <=> prmu[k];
+    if ((k >= parent.limit1+1) && (k <= parent.limit2-1)) {
+      prmu[depth] <=> prmu[k];
+      bounds[threadId] = lb2_bound(lbound1_d!.lb1_bound, lbound2_d!.lb2_bound, prmu, parent.limit1+1, jobs, best);
+      prmu[depth] <=> prmu[k];
     }
   }
 
   return bounds;
-} */
+}
 
 // Evaluate a bulk of parent nodes on GPU.
-proc evaluate_gpu(const parents_d: [] Node, const size, const best, const lbound1_d)
+proc evaluate_gpu(const parents_d: [] Node, const size, const best, const lbound1_d, const lbound2_d)
 {
   select lb {
     when "lb1" {
@@ -404,9 +415,9 @@ proc evaluate_gpu(const parents_d: [] Node, const size, const best, const lbound
     /* when "lb1_d" {
       return evaluate_gpu_lb1_d(parents_d, size);
     } */
-    /* when "lb2" {
-      return evaluate_gpu_lb2(parents_d, size, best);
-    } */
+    when "lb2" {
+      return evaluate_gpu_lb2(parents_d, size, best, lbound1_d, lbound2_d);
+    }
     otherwise {
       halt("DEADCODE");
     }
@@ -461,11 +472,17 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   timer.start();
 
   var lbound1_d: lbound1.type;
+  var lbound2_d: lbound2.type;
 
   on here.gpus[0] {
-    lbound1_d = new Wrapper(jobs, machines);
+    lbound1_d = new WrapperLB1(jobs, machines);
     taillard_get_processing_times(lbound1_d!.lb1_bound.p_times, id);
     fill_min_heads_tails(lbound1_d!.lb1_bound);
+
+    lbound2_d = new WrapperLB2(lbound1_d!.lb1_bound);
+    fill_machine_pairs(lbound2_d!.lb2_bound/*, LB2_FULL*/);
+    fill_lags(lbound1_d!.lb1_bound.p_times, lbound2_d!.lb2_bound);
+    fill_johnson_schedules(lbound1_d!.lb1_bound.p_times, lbound2_d!.lb2_bound);
   }
 
   while true {
@@ -501,7 +518,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
       on here.gpus[0] {
         const parents_d = parents; // host-to-device
-        bounds = evaluate_gpu(parents_d, numBounds, best, lbound1_d);
+        bounds = evaluate_gpu(parents_d, numBounds, best, lbound1_d, lbound2_d);
       }
 
       /*

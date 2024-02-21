@@ -170,7 +170,7 @@ module Bound_johnson
     }
   }
 
-  proc set_flags(const permutation: [] int, const limit1: int, const limit2: int, const N: int, ref flags: [] int): void
+  proc set_flags(const permutation, const limit1: int, const limit2: int, const N: int, ref flags): void
   {
     for j in 0..limit1 do
       flags[permutation[j]] = 1;
@@ -178,7 +178,7 @@ module Bound_johnson
       flags[permutation[j]] = 1;
   }
 
-  inline proc compute_cmax_johnson(const lb1_p_times: [] int, const lb2_data: lb2_bound_data, const flag: [] int, ref tmp0: int, ref tmp1: int, ma0: int, ma1: int, ind: int): int
+  inline proc compute_cmax_johnson(const lb1_p_times: [] int, const lb2_data: lb2_bound_data, const flag, ref tmp0: int, ref tmp1: int, ma0: int, ma1: int, ind: int): int
   {
     const nb_jobs = lb2_data.nb_jobs;
 
@@ -199,7 +199,7 @@ module Bound_johnson
     return tmp1;
   }
 
-  proc lb_makespan(const lb1_p_times: [] int, const lb2_data: lb2_bound_data, const flag: [] int, const front: [] int, const back: [] int, const minCmax: int): int
+  proc lb_makespan(const lb1_p_times: [] int, const lb2_data: lb2_bound_data, const flag, const front, const back, const minCmax: int): int
   {
     var lb = 0;
 
@@ -259,24 +259,27 @@ module Bound_johnson
     return lb;
   }
 
-  proc lb2_bound(const lb1_data: lb1_bound_data, const lb2_data: lb2_bound_data, const permutation: [] int, const limit1: int, const limit2: int, const best_cmax: int): int
+  param NUM_MACHINES = 10;
+  param NUM_JOBS = 20;
+
+  proc lb2_bound(const lb1_data: lb1_bound_data, const lb2_data: lb2_bound_data, const permutation, const limit1: int, const limit2: int, const best_cmax: int): int
   {
     const N = lb2_data.nb_jobs;
     const M = lb2_data.nb_machines;
 
-    var front: [0..#M] int;
-    var back: [0..#M] int;
+    var front: NUM_MACHINES*int; //[0..#M] int;
+    var back: NUM_MACHINES* int; //[0..#M] int;
 
     schedule_front(lb1_data, permutation, limit1, front);
     schedule_back(lb1_data, permutation, limit2, back);
 
-    var flags: [0..#N] int;
+    var flags: NUM_JOBS*int; //[0..#N] int;
     set_flags(permutation, limit1, limit2, N, flags);
 
     return lb_makespan(lb1_data.p_times, lb2_data, flags, front, back, best_cmax);
   }
 
-  proc lb2_children_bounds(const lb1_data: lb1_bound_data, const lb2_data: lb2_bound_data, const permutation: [] int, const limit1: int, const limit2: int, ref lb_begin: [] int, ref lb_end: [] int, const best_cmax: int, const direction: int): void
+  proc lb2_children_bounds(const lb1_data: lb1_bound_data, const lb2_data: lb2_bound_data, const permutation, const limit1: int, const limit2: int, ref lb_begin: [] int, ref lb_end: [] int, const best_cmax: int, const direction: int): void
   {
     const N = lb1_data.nb_jobs;
 
