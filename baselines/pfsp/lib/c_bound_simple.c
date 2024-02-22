@@ -160,7 +160,7 @@ lb1_bound(const bound_data* const data, const int * const permut, const int limi
   return machine_bound_from_parts(front, back, remain, nb_machines);
 }
 
-void lb1_children_bounds(const bound_data *const data, const int *const permutation, const int limit1, const int limit2, int *const lb_begin, int *const lb_end, int *const prio_begin, int *const prio_end, const int direction)
+void lb1_children_bounds(const bound_data *const data, const int *const permutation, const int limit1, const int limit2, int *const lb_begin/*, int *const lb_end, int *const prio_begin, int *const prio_end, const int direction*/)
 {
   int N = data->nb_jobs;
   int M = data->nb_machines;
@@ -173,44 +173,44 @@ void lb1_children_bounds(const bound_data *const data, const int *const permutat
   schedule_back(data, permutation, limit2, back);
   sum_unscheduled(data, permutation, limit1, limit2, remain);
 
-  switch (direction)  {
-    case -1: //begin
-    {
+  // switch (direction)  {
+  //   case -1: //begin
+  //   {
       memset(lb_begin, 0, N*sizeof(int));
-      if (prio_begin) memset(prio_begin, 0, N*sizeof(int));
+      // if (prio_begin) memset(prio_begin, 0, N*sizeof(int));
 
       for (int i = limit1+1; i < limit2; i++) {
         int job = permutation[i];
-        lb_begin[job] = add_front_and_bound(data, job, front, back, remain, prio_begin);
+        lb_begin[job] = add_front_and_bound(data, job, front, back, remain/*, prio_begin*/);
       }
-      break;
-    }
-    case 0: //begin-end
-    {
-      memset(lb_begin, 0, N*sizeof(int));
-      memset(lb_end, 0, N*sizeof(int));
-      if (prio_begin) memset(prio_begin, 0, N*sizeof(int));
-      if (prio_end) memset(prio_end, 0, N*sizeof(int));
-
-      for (int i = limit1+1; i < limit2; i++) {
-        int job = permutation[i];
-        lb_begin[job] = add_front_and_bound(data, job, front, back, remain, prio_begin);
-        lb_end[job] = add_back_and_bound(data, job, front, back, remain, prio_end);
-      }
-      break;
-    }
-    case 1: //end
-    {
-      memset(lb_end, 0, N*sizeof(int));
-      if (prio_end) memset(prio_end, 0, N*sizeof(int));
-
-      for (int i = limit1+1; i < limit2; i++) {
-        int job = permutation[i];
-        lb_end[job] = add_back_and_bound(data, job, front, back, remain, prio_end);
-      }
-      break;
-    }
-  }
+  //     break;
+  //   }
+  //   case 0: //begin-end
+  //   {
+  //     memset(lb_begin, 0, N*sizeof(int));
+  //     memset(lb_end, 0, N*sizeof(int));
+  //     if (prio_begin) memset(prio_begin, 0, N*sizeof(int));
+  //     if (prio_end) memset(prio_end, 0, N*sizeof(int));
+  //
+  //     for (int i = limit1+1; i < limit2; i++) {
+  //       int job = permutation[i];
+  //       lb_begin[job] = add_front_and_bound(data, job, front, back, remain, prio_begin);
+  //       lb_end[job] = add_back_and_bound(data, job, front, back, remain, prio_end);
+  //     }
+  //     break;
+  //   }
+  //   case 1: //end
+  //   {
+  //     memset(lb_end, 0, N*sizeof(int));
+  //     if (prio_end) memset(prio_end, 0, N*sizeof(int));
+  //
+  //     for (int i = limit1+1; i < limit2; i++) {
+  //       int job = permutation[i];
+  //       lb_end[job] = add_back_and_bound(data, job, front, back, remain, prio_end);
+  //     }
+  //     break;
+  //   }
+  // }
 }
 
 // adds job to partial schedule in front and computes lower bound on optimal cost
@@ -219,7 +219,7 @@ void lb1_children_bounds(const bound_data *const data, const int *const permutat
 // NB3: also compute total idle time added to partial schedule (can be used a criterion for job ordering)
 // nOps : m*(3 add+2 max)  ---> O(m)
 int
-add_front_and_bound(const bound_data* const data, const int job, const int * const front, const int * const back, const int * const remain, int *delta_idle)
+add_front_and_bound(const bound_data* const data, const int job, const int * const front, const int * const back, const int * const remain/*, int *delta_idle*/)
 {
   int nb_jobs = data->nb_jobs;
   int nb_machines = data->nb_machines;
@@ -239,9 +239,9 @@ add_front_and_bound(const bound_data* const data, const int job, const int * con
   }
 
   //can pass NULL
-  if (delta_idle) {
-    delta_idle[job] = idle;
-  }
+  // if (delta_idle) {
+  //   delta_idle[job] = idle;
+  // }
 
   return lb;
 }

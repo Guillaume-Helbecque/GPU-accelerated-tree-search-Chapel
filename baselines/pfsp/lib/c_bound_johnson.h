@@ -45,7 +45,7 @@ int lb_makespan(const bound_data* const bd, const johnson_bd_data* const jhnsn, 
 
 int lb_makespan_learn(const bound_data* const bd, const johnson_bd_data* const jhnsn, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int* best_index);
 
-int lb2_bound(const bound_data* const lb1_data, const johnson_bd_data* const lb2_data, const int* const permutation, const int limit1, const int limit2,const int best_cmax);
+int lb2_bound(const bound_data* const lb1_data, const johnson_bd_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, const int best_cmax);
 
 void lb2_children_bounds(const bound_data* const lb1_data, const johnson_bd_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, const int best_cmax, const int direction);
 

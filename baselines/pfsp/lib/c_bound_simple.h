@@ -41,7 +41,7 @@ void sum_unscheduled(const bound_data* const data, const int* const permut, cons
 
 int machine_bound_from_parts(const int* const front, const int* const back, const int* const remain,const int nb_machines);
 
-int add_front_and_bound(const bound_data* const data, const int job, const int * const front, const int * const back, const int * const remain, int* delta_idle);
+int add_front_and_bound(const bound_data* const data, const int job, const int * const front, const int * const back, const int * const remain/*, int* delta_idle*/);
 
 int add_back_and_bound(const bound_data* const data, const int job, const int * const front, const int * const back, const int * const remain, int* delta_idle);
 
@@ -50,7 +50,7 @@ int eval_solution(const bound_data* const data, const int* const permutation);
 
 int lb1_bound(const bound_data* const data, const int * const permut, const int limit1, const int limit2);
 
-void lb1_children_bounds(const bound_data* const data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, int* const prio_begin, int* const prio_end, const int direction);
+void lb1_children_bounds(const bound_data* const data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin/*, int* const lb_end, int* const prio_begin, int* const prio_end, const int direction*/);
 
 // #ifdef __cplusplus
 // }
