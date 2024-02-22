@@ -5,12 +5,12 @@
 #include "c_bound_simple.h"
 #include "c_bound_johnson.h"
 
-johnson_bd_data* new_johnson_bd_data(const bound_data *const data/*, enum lb2_variant lb2_type*/)
+lb2_bound_data* new_johnson_bd_data(const lb1_bound_data *const lb1_data/*, enum lb2_variant lb2_type*/)
 {
-  johnson_bd_data *b = malloc(sizeof(johnson_bd_data));
+  lb2_bound_data *b = malloc(sizeof(lb2_bound_data));
 
-  b->nb_jobs = data->nb_jobs;
-  b->nb_machines = data->nb_machines;
+  b->nb_jobs = lb1_data->nb_jobs;
+  b->nb_machines = lb1_data->nb_machines;
 
   enum lb2_variant lb2_type = LB2_FULL; //////////////////////////
 
@@ -33,22 +33,22 @@ johnson_bd_data* new_johnson_bd_data(const bound_data *const data/*, enum lb2_va
   return b;
 }
 
-void free_johnson_bd_data(johnson_bd_data* b)
+void free_johnson_bd_data(lb2_bound_data* lb2_data)
 {
-  if (b) {
-    free(b->lags);
-    free(b->johnson_schedules);
-    free(b->machine_pairs[0]);
-    free(b->machine_pairs[1]);
-    free(b->machine_pair_order);
-    free(b);
+  if (lb2_data) {
+    free(lb2_data->lags);
+    free(lb2_data->johnson_schedules);
+    free(lb2_data->machine_pairs[0]);
+    free(lb2_data->machine_pairs[1]);
+    free(lb2_data->machine_pair_order);
+    free(lb2_data);
   }
 }
 
-void fill_machine_pairs(johnson_bd_data* b/*, enum lb2_variant lb2_type*/)
+void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/)
 {
-  if (!b) {
-    printf("allocate johnson_bd_data first\n");
+  if (!lb2_data) {
+    printf("allocate lb2_bound_data first\n");
     exit(-1);
   }
 
@@ -59,11 +59,11 @@ void fill_machine_pairs(johnson_bd_data* b/*, enum lb2_variant lb2_type*/)
     case LB2_LEARN:
     {
       unsigned c = 0;
-      for (int i = 0; i < b->nb_machines-1; i++) {
-        for (int j = i+1; j < b->nb_machines; j++) {
-          b->machine_pairs[0][c] = i;
-          b->machine_pairs[1][c] = j;
-          b->machine_pair_order[c] = c;
+      for (int i = 0; i < lb2_data->nb_machines-1; i++) {
+        for (int j = i+1; j < lb2_data->nb_machines; j++) {
+          lb2_data->machine_pairs[0][c] = i;
+          lb2_data->machine_pairs[1][c] = j;
+          lb2_data->machine_pair_order[c] = c;
           c++;
         }
       }
@@ -71,19 +71,19 @@ void fill_machine_pairs(johnson_bd_data* b/*, enum lb2_variant lb2_type*/)
     }
     case LB2_NABESHIMA:
     {
-      for (int i = 0; i < b->nb_machines-1; i++) {
-        b->machine_pairs[0][i] = i;
-        b->machine_pairs[1][i] = i+1;
-        b->machine_pair_order[i] = i;
+      for (int i = 0; i < lb2_data->nb_machines-1; i++) {
+        lb2_data->machine_pairs[0][i] = i;
+        lb2_data->machine_pairs[1][i] = i+1;
+        lb2_data->machine_pair_order[i] = i;
       }
       break;
     }
     case LB2_LAGEWEG:
     {
-      for (int i = 0; i < b->nb_machines-1; i++) {
-        b->machine_pairs[0][i] = i;
-        b->machine_pairs[1][i] = b->nb_machines-1;
-        b->machine_pair_order[i] = i;
+      for (int i = 0; i < lb2_data->nb_machines-1; i++) {
+        lb2_data->machine_pairs[0][i] = i;
+        lb2_data->machine_pairs[1][i] = lb2_data->nb_machines-1;
+        lb2_data->machine_pair_order[i] = i;
       }
       break;
     }
@@ -91,18 +91,18 @@ void fill_machine_pairs(johnson_bd_data* b/*, enum lb2_variant lb2_type*/)
 }
 
 // term q_iuv in [Lageweg'78]
-void fill_lags(const bound_data *const lb1, const johnson_bd_data *const lb2)
+void fill_lags(const lb1_bound_data *const lb1_data, const lb2_bound_data *const lb2_data)
 {
-  int N = lb1->nb_jobs;
+  int N = lb1_data->nb_jobs;
 
-  for (int i = 0; i < lb2->nb_machine_pairs; i++) {
-    int m1 = lb2->machine_pairs[0][i];
-    int m2 = lb2->machine_pairs[1][i];
+  for (int i = 0; i < lb2_data->nb_machine_pairs; i++) {
+    int m1 = lb2_data->machine_pairs[0][i];
+    int m2 = lb2_data->machine_pairs[1][i];
 
     for (int j = 0; j < N; j++) {
-      lb2->lags[i * N + j] = 0;
+      lb2_data->lags[i * N + j] = 0;
       for (int k = m1 + 1; k < m2; k++) {
-        lb2->lags[i * N + j] += lb1->p_times[k * N + j];
+        lb2_data->lags[i * N + j] += lb1_data->p_times[k * N + j];
       }
     }
   }
@@ -143,18 +143,18 @@ int johnson_comp(const void * elem1, const void * elem2)
 //  p_1i = PTM[m1][i] + lags[s][i]
 //  p_2i = PTM[m2][i] + lags[s][i]
 //using Johnson's algorithm [Johnson, S. M. (1954). Optimal two-and three-stage production schedules with setup times included.closed access Naval research logistics quarterly, 1(1), 61–68.]
-void fill_johnson_schedules(const bound_data *const lb1, const johnson_bd_data *const lb2)
+void fill_johnson_schedules(const lb1_bound_data *const lb1_data, const lb2_bound_data *const lb2_data)
 {
-  const int N = lb1->nb_jobs;
-  const int* const p_times = lb1->p_times;
-  const int* const lags = lb2->lags;
+  const int N = lb1_data->nb_jobs;
+  const int* const p_times = lb1_data->p_times;
+  const int* const lags = lb2_data->lags;
 
   johnson_job tmp[N];
 
   //for all machine-pairs
-  for (int k = 0; k < lb2->nb_machine_pairs; k++) {
-    int m1 = lb2->machine_pairs[0][k];
-    int m2 = lb2->machine_pairs[1][k];
+  for (int k = 0; k < lb2_data->nb_machine_pairs; k++) {
+    int m1 = lb2_data->machine_pairs[0][k];
+    int m2 = lb2_data->machine_pairs[1][k];
 
     //partition N jobs into 2 sets {j|p_1j < p_2j} and {j|p_1j >= p_2j}
     for (int i = 0; i < N; i++) {
@@ -172,7 +172,7 @@ void fill_johnson_schedules(const bound_data *const lb1, const johnson_bd_data *
     qsort(tmp, sizeof(tmp)/sizeof(*tmp), sizeof(*tmp), johnson_comp);
     //save optimal schedule for 2-machine problem
     for (int i = 0; i < N; i++) {
-      lb2->johnson_schedules[k*N + i] = tmp[i].job;
+      lb2_data->johnson_schedules[k*N + i] = tmp[i].job;
     }
   }
 }
@@ -187,17 +187,17 @@ void set_flags(const int *const permutation, const int limit1, const int limit2,
     flags[permutation[j]] = 1;
 }
 
-inline int compute_cmax_johnson(const bound_data* const bd, const johnson_bd_data* const jhnsn, const int* const flag, int *tmp0, int *tmp1, int ma0, int ma1, int ind)
+inline int compute_cmax_johnson(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const flag, int *tmp0, int *tmp1, int ma0, int ma1, int ind)
 {
-  int nb_jobs = bd->nb_jobs;
+  int nb_jobs = lb1_data->nb_jobs;
 
   for (int j = 0; j < nb_jobs; j++) {
-    int job = jhnsn->johnson_schedules[ind*nb_jobs + j];
+    int job = lb2_data->johnson_schedules[ind*nb_jobs + j];
     // j-loop is on unscheduled jobs... (==0 if jobCour is unscheduled)
     if (flag[job] == 0) {
-      int ptm0 = bd->p_times[ma0*nb_jobs + job];
-      int ptm1 = bd->p_times[ma1*nb_jobs + job];
-      int lag = jhnsn->lags[ind*nb_jobs + job];
+      int ptm0 = lb1_data->p_times[ma0*nb_jobs + job];
+      int ptm1 = lb1_data->p_times[ma1*nb_jobs + job];
+      int lag = lb2_data->lags[ind*nb_jobs + job];
       // add job on ma0 and ma1
       *tmp0 += ptm0;
       *tmp1 = MAX(*tmp1,*tmp0 + lag);
@@ -208,25 +208,25 @@ inline int compute_cmax_johnson(const bound_data* const bd, const johnson_bd_dat
   return *tmp1;
 }
 
-int lb_makespan(const bound_data* const bd, const johnson_bd_data* const jhnsn, const int* const flag, const int* const front, const int* const back, const int minCmax)
+int lb_makespan(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax)
 {
   int lb = 0;
 
   // for all machine-pairs : O(m^2) m*(m-1)/2
-  for (int l = 0; l < jhnsn->nb_machine_pairs; l++) {
-    int i = jhnsn->machine_pair_order[l];
+  for (int l = 0; l < lb2_data->nb_machine_pairs; l++) {
+    int i = lb2_data->machine_pair_order[l];
 
-    int ma0 = jhnsn->machine_pairs[0][i];
-    int ma1 = jhnsn->machine_pairs[1][i];
+    int ma0 = lb2_data->machine_pairs[0][i];
+    int ma1 = lb2_data->machine_pairs[1][i];
 
     int tmp0 = front[ma0];
     int tmp1 = front[ma1];
 
-    compute_cmax_johnson(bd, jhnsn, flag, &tmp0, &tmp1, ma0, ma1, i);
+    compute_cmax_johnson(lb1_data, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i);
 
     tmp1 = MAX(tmp1 + back[ma1], tmp0 + back[ma0]);
 
-    lb = MAX(lb,tmp1);
+    lb = MAX(lb, tmp1);
 
     if (lb > minCmax) {
       break;
@@ -237,20 +237,20 @@ int lb_makespan(const bound_data* const bd, const johnson_bd_data* const jhnsn, 
 }
 
 //allows variable nb of machine pairs and get machine pair the realized best lb
-int lb_makespan_learn(const bound_data* const bd, const johnson_bd_data* const jhnsn, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int *best_index)
+int lb_makespan_learn(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int *best_index)
 {
   int lb = 0;
 
   for (int l = 0; l < nb_pairs; l++) {
-    int i = jhnsn->machine_pair_order[l];
+    int i = lb2_data->machine_pair_order[l];
 
-    int ma0 = jhnsn->machine_pairs[0][i];
-    int ma1 = jhnsn->machine_pairs[1][i];
+    int ma0 = lb2_data->machine_pairs[0][i];
+    int ma1 = lb2_data->machine_pairs[1][i];
 
     int tmp0 = front[ma0];
     int tmp1 = front[ma1];
 
-    compute_cmax_johnson(bd, jhnsn, flag, &tmp0, &tmp1, ma0, ma1, i);
+    compute_cmax_johnson(lb1_data, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i);
 
     tmp1 = MAX(tmp1 + back[ma1], tmp0 + back[ma0]);
 
@@ -268,7 +268,7 @@ int lb_makespan_learn(const bound_data* const bd, const johnson_bd_data* const j
   return lb;
 }
 
-int lb2_bound(const bound_data* const lb1_data, const johnson_bd_data* const lb2_data, const int* const permutation, const int limit1, const int limit2,const int best_cmax)
+int lb2_bound(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2,const int best_cmax)
 {
   const int N = lb1_data->nb_jobs;
   const int M = lb1_data->nb_machines;
@@ -292,7 +292,7 @@ inline void swap(int *a, int *b)
   *b = tmp;
 }
 
-void lb2_children_bounds(const bound_data* const lb1_data, const johnson_bd_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, const int best_cmax, const int direction)
+void lb2_children_bounds(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, const int best_cmax, const int direction)
 {
   const int N = lb1_data->nb_jobs;
 

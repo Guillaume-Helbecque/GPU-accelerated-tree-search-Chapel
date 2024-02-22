@@ -157,7 +157,7 @@ inline void swap(int* a, int* b)
 }
 
 // Evaluate and generate children nodes on CPU.
-void decompose_lb1(const int jobs, const bound_data* const lbound1, const Node parent,
+void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const Node parent,
   int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool* pool)
 {
   for (int i = parent.limit1+1; i < jobs; i++) {
@@ -184,7 +184,7 @@ void decompose_lb1(const int jobs, const bound_data* const lbound1, const Node p
   }
 }
 
-void decompose_lb1_d(const int jobs, const bound_data* const lbound1, const Node parent,
+void decompose_lb1_d(const int jobs, const lb1_bound_data* const lbound1, const Node parent,
   int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool* pool)
 {
   int* lb_begin = (int*)malloc(jobs * sizeof(int));
@@ -218,7 +218,7 @@ void decompose_lb1_d(const int jobs, const bound_data* const lbound1, const Node
   free(lb_begin);
 }
 
-void decompose_lb2(const int jobs, const bound_data* const lbound1, const johnson_bd_data* const lbound2,
+void decompose_lb2(const int jobs, const lb1_bound_data* const lbound1, const lb2_bound_data* const lbound2,
   const Node parent, int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol,
   SinglePool* pool)
 {
@@ -247,7 +247,7 @@ void decompose_lb2(const int jobs, const bound_data* const lbound1, const johnso
 }
 
 void decompose(const int jobs, const int lb, int* best,
-  const bound_data* const lbound1, const johnson_bd_data* const lbound2, const Node parent,
+  const lb1_bound_data* const lbound1, const lb2_bound_data* const lbound2, const Node parent,
   unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool* pool)
 {
   switch (lb) {
@@ -278,12 +278,12 @@ void pfsp_search(const int inst, const int lb, const int br, int* best,
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
 
-  bound_data* lbound1;
+  lb1_bound_data* lbound1;
   lbound1 = new_bound_data(jobs, machines);
   taillard_get_processing_times(lbound1->p_times, inst);
   fill_min_heads_tails(lbound1);
 
-  johnson_bd_data* lbound2;
+  lb2_bound_data* lbound2;
   lbound2 = new_johnson_bd_data(lbound1);
   fill_machine_pairs(lbound2/*, LB2_FULL*/);
   fill_lags(lbound1, lbound2);
