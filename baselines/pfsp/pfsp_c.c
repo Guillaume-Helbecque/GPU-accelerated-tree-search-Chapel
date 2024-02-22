@@ -7,13 +7,12 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
 #include <time.h>
 
 #include "lib/c_bound_simple.h"
 #include "lib/c_bound_johnson.h"
 #include "lib/c_taillard.h"
-
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 /*******************************************************************************
 Implementation of PFSP Nodes.
@@ -89,49 +88,51 @@ void deleteSinglePool(SinglePool* pool)
 Implementation of the sequential PFSP search.
 *******************************************************************************/
 
-// void parse_parameters(int argc, char* argv[], int* N, int* G, int* m, int* M)
-// {
-//   *N = 14;
-//   *G = 1;
-//   *m = 25;
-//   *M = 50000;
-//
-//   int opt, value;
-//
-//   while ((opt = getopt(argc, argv, "N:g:m:M:")) != -1) {
-//     value = atoi(optarg);
-//
-//     if (value <= 0) {
-//       printf("All parameters must be positive integers.\n");
-//       exit(EXIT_FAILURE);
-//     }
-//
-//     switch (opt) {
-//       case 'N':
-//         *N = value;
-//         break;
-//       case 'g':
-//         *G = value;
-//         break;
-//       case 'm':
-//         *m = value;
-//         break;
-//       case 'M':
-//         *M = value;
-//         break;
-//       default:
-//         fprintf(stderr, "Usage: %s -N value -g value -m value -M value\n", argv[0]);
-//         exit(EXIT_FAILURE);
-//     }
-//   }
-// }
+void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* br, int* ub)
+{
+  *inst = 14;
+  *lb = 1;
+  *br = 1;
+  *ub = 1;
 
-void print_settings(const int inst, const int machines, const int jobs)
+  int opt, value;
+
+  while ((opt = getopt(argc, argv, "i:l:b:u:")) != -1) {
+    value = atoi(optarg);
+
+    if (value < 0) {
+      printf("All parameters must be positive or zero integers.\n");
+      exit(EXIT_FAILURE);
+    }
+
+    switch (opt) {
+      case 'i':
+        *inst = value;
+        break;
+      case 'l':
+        *lb = value;
+        break;
+      case 'b':
+        *br = value;
+        break;
+      case 'u':
+        *ub = value;
+        break;
+      default:
+        fprintf(stderr, "Usage: %s -i value -l value -b value -u value\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+  }
+}
+
+void print_settings(const int inst, const int machines, const int jobs, const int lb)
 {
   printf("\n=================================================\n");
-  printf("Resolution of PFSP Taillard's instance: %d (m = %d, n = %d) using C+CUDA\n", inst, machines, jobs);
+  printf("Resolution of PFSP Taillard's instance: %d (m = %d, n = %d) using sequential C\n", inst, machines, jobs);
   printf("Initial upper bound: opt\n");
-  printf("Lower bound function: lb1\n");
+  if (lb == 0) printf("Lower bound function: lb1_d\n");
+  else if (lb == 1) printf("Lower bound function: lb1\n");
+  else /* (lb == 2) */ printf("Lower bound function: lb2\n");
   printf("Branching rule: fwd\n");
   printf("=================================================\n");
 }
@@ -143,14 +144,14 @@ void print_results(const int optimum, const unsigned long long int exploredTree,
   printf("Size of the explored tree: %llu\n", exploredTree);
   printf("Number of explored solutions: %llu\n", exploredSol);
   /* TODO: Add 'is_better' */
-  printf("Optimal makespan: %d", optimum);
+  printf("Optimal makespan: %d\n", optimum);
   printf("Elapsed time: %.4f [s]\n", timer);
   printf("=================================================\n");
 }
 
 inline void swap(int* a, int* b)
 {
-  uint8_t tmp = *b;
+  int tmp = *b;
   *b = *a;
   *a = tmp;
 }
@@ -187,28 +188,29 @@ void decompose(const int jobs, const int lb, int* best,
   const bound_data* const lbound1, const johnson_bd_data* const lbound2, const Node parent,
   unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool* pool)
 {
-  // switch (lb) {
-  //   case "lb1" : {
+  switch (lb) {
+    case 1 : { // lb1
       decompose_lb1(jobs, lbound1, parent, best, tree_loc, num_sol, pool);
-  //     break;
-  //   }
-  //   case "lb1_d" : {
-  //     decompose_lb1_d(parent, tree_loc, num_sol, best, pool);
-  //     break;
-  //   }
-  //   case "lb2" : {
-  //     decompose_lb2(parent, tree_loc, num_sol, best, pool);
-  //     break;
-  //   }
-  //   default :
-  //     halt("DEADCODE");
-  //   }
-  // }
+      break;
+    }
+    case 0 : { // lb1_d
+      // decompose_lb1_d(parent, tree_loc, num_sol, best, pool);
+      break;
+    }
+    case 2 : { // lb2
+      // decompose_lb2(parent, tree_loc, num_sol, best, pool);
+      break;
+    }
+    default : {
+      fprintf(stderr, "Error: Wrong lower bound given\n");
+      exit(EXIT_FAILURE);
+    }
+  }
 }
 
 // Sequential N-Queens search.
-void pfsp_search(const int inst, const int lb, const int br, const int ub,
-  int* best, unsigned long long int* exploredTree, unsigned long long int* exploredSol,
+void pfsp_search(const int inst, const int lb, const int br, int* best,
+  unsigned long long int* exploredTree, unsigned long long int* exploredSol,
   double* elapsedTime)
 {
   int jobs = taillard_get_nb_jobs(inst);
@@ -246,32 +248,30 @@ void pfsp_search(const int inst, const int lb, const int br, const int ub,
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
   *elapsedTime = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 
-  printf("\nExploration terminated.");
+  printf("\nExploration terminated.\n");
 
   deleteSinglePool(&pool);
+  free_bound_data(lbound1);
+  free_johnson_bd_data(lbound2);
 }
 
 int main(int argc, char* argv[])
 {
-  // char* inst, lb, br, ub;
-  // parse_parameters(argc, argv, &lb, &br, &ub);
-  int inst = 14;
-  int lb = 1;
-  int br = 1;
-  int ub = 1;
+  int inst, lb, br, ub;
+  parse_parameters(argc, argv, &inst, &lb, &br, &ub);
 
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
 
-  print_settings(inst, machines, jobs);
+  print_settings(inst, machines, jobs, lb);
 
-  int optimum = 1377; // opt for ta14
+  int optimum = ub * taillard_get_best_ub(inst) + (1 - ub) * INT_MAX;
   unsigned long long int exploredTree = 0;
   unsigned long long int exploredSol = 0;
 
   double elapsedTime;
 
-  pfsp_search(inst, lb, br, ub, &optimum, &exploredTree, &exploredSol, &elapsedTime);
+  pfsp_search(inst, lb, br, &optimum, &exploredTree, &exploredSol, &elapsedTime);
 
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
 

@@ -11,9 +11,13 @@ extern "C" {
 
 extern long time_seeds[120];
 
+extern int optimal[120];
+
 int taillard_get_nb_jobs(const int id);
 
 int taillard_get_nb_machines(const int id);
+
+int taillard_get_best_ub(const int id);
 
 long unif(long * seed, long low, long high);
 
