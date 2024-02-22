@@ -32,18 +32,18 @@ lb2_bound_data* new_johnson_bd_data(const lb1_bound_data *const lb1_data/*, enum
 void free_johnson_bd_data(lb2_bound_data* lb2_data);
 
 void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/);
-void fill_lags(const lb1_bound_data *const lb1_data, const lb2_bound_data *const lb2_data);
-void fill_johnson_schedules(const lb1_bound_data *const lb1_data, const lb2_bound_data *const lb2_data);
+void fill_lags(const int *const lb1_p_times, const lb2_bound_data *const lb2_data);
+void fill_johnson_schedules(const int *const lb1_p_times, const lb2_bound_data *const lb2_data);
 
 //helper
 void set_flags(const int *const permutation, const int limit1, const int limit2, const int N, int* flags);
 
 //-------------compute lower bounds-------------
-int compute_cmax_johnson(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const flag, int* tmp0, int* tmp1, int ma0, int ma1, int ind);
+int compute_cmax_johnson(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, int* tmp0, int* tmp1, int ma0, int ma1, int ind);
 
-int lb_makespan(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax);
+int lb_makespan(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax);
 
-int lb_makespan_learn(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int* best_index);
+int lb_makespan_learn(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int* best_index);
 
 int lb2_bound(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, const int best_cmax);
 

@@ -286,8 +286,8 @@ void pfsp_search(const int inst, const int lb, const int br, int* best,
   lb2_bound_data* lbound2;
   lbound2 = new_johnson_bd_data(lbound1);
   fill_machine_pairs(lbound2/*, LB2_FULL*/);
-  fill_lags(lbound1, lbound2);
-  fill_johnson_schedules(lbound1, lbound2);
+  fill_lags(lbound1->p_times, lbound2);
+  fill_johnson_schedules(lbound1->p_times, lbound2);
 
   Node root;
   initRoot(&root, jobs);

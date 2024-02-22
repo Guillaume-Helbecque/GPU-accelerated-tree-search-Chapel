@@ -48,8 +48,6 @@ add_backward(const int job, const int * const p_times, const int nb_jobs, const 
   }
 }
 
-// void
-// schedule_front(const int* const p_times, const int* const min_heads, const int N, const int M, const int * const permut, const int limit1, int * front)
 void
 schedule_front(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, int * front)
 {
@@ -70,8 +68,6 @@ schedule_front(const lb1_bound_data* const lb1_data, const int * const permutati
   }
 }
 
-// void
-// schedule_back(const int* const p_times, const int* const min_tails, const int N, const int M, const int * const permut, const int limit2, int * back)
 void
 schedule_back(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit2, int * back)
 {
@@ -95,8 +91,8 @@ schedule_back(const lb1_bound_data* const lb1_data, const int * const permutatio
 
 int eval_solution(const lb1_bound_data* const lb1_data, const int* const permutation)
 {
-  int N = lb1_data->nb_jobs;
-  int M = lb1_data->nb_machines;
+  const int N = lb1_data->nb_jobs;
+  const int M = lb1_data->nb_machines;
   int tmp[N];
 
   for(int i = 0; i < N; i++) {
@@ -111,15 +107,15 @@ int eval_solution(const lb1_bound_data* const lb1_data, const int* const permuta
 void
 sum_unscheduled(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, const int limit2, int * remain)
 {
-  int nb_jobs = lb1_data->nb_jobs;
-  int nb_machines = lb1_data->nb_machines;
-  int *p_times = lb1_data->p_times;
+  const int nb_jobs = lb1_data->nb_jobs;
+  const int nb_machines = lb1_data->nb_machines;
+  const int * const p_times = lb1_data->p_times;
 
   for (int j = 0; j < nb_machines; j++) {
     remain[j] = 0;
   }
   for (int k = limit1 + 1; k < limit2; k++) {
-    int job = permutation[k];
+    const int job = permutation[k];
     for (int j = 0; j < nb_machines; j++) {
       remain[j] += p_times[j * nb_jobs + job];
     }

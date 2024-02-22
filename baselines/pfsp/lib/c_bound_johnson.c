@@ -91,18 +91,18 @@ void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/)
 }
 
 // term q_iuv in [Lageweg'78]
-void fill_lags(const lb1_bound_data *const lb1_data, const lb2_bound_data *const lb2_data)
+void fill_lags(const int *const lb1_p_times, const lb2_bound_data *const lb2_data)
 {
-  int N = lb1_data->nb_jobs;
+  const int N = lb2_data->nb_jobs;
 
   for (int i = 0; i < lb2_data->nb_machine_pairs; i++) {
-    int m1 = lb2_data->machine_pairs[0][i];
-    int m2 = lb2_data->machine_pairs[1][i];
+    const int m1 = lb2_data->machine_pairs[0][i];
+    const int m2 = lb2_data->machine_pairs[1][i];
 
     for (int j = 0; j < N; j++) {
       lb2_data->lags[i * N + j] = 0;
       for (int k = m1 + 1; k < m2; k++) {
-        lb2_data->lags[i * N + j] += lb1_data->p_times[k * N + j];
+        lb2_data->lags[i * N + j] += lb1_p_times[k * N + j];
       }
     }
   }
@@ -143,10 +143,9 @@ int johnson_comp(const void * elem1, const void * elem2)
 //  p_1i = PTM[m1][i] + lags[s][i]
 //  p_2i = PTM[m2][i] + lags[s][i]
 //using Johnson's algorithm [Johnson, S. M. (1954). Optimal two-and three-stage production schedules with setup times included.closed access Naval research logistics quarterly, 1(1), 61–68.]
-void fill_johnson_schedules(const lb1_bound_data *const lb1_data, const lb2_bound_data *const lb2_data)
+void fill_johnson_schedules(const int *const lb1_p_times, const lb2_bound_data *const lb2_data)
 {
-  const int N = lb1_data->nb_jobs;
-  const int* const p_times = lb1_data->p_times;
+  const int N = lb2_data->nb_jobs;
   const int* const lags = lb2_data->lags;
 
   johnson_job tmp[N];
@@ -159,8 +158,8 @@ void fill_johnson_schedules(const lb1_bound_data *const lb1_data, const lb2_boun
     //partition N jobs into 2 sets {j|p_1j < p_2j} and {j|p_1j >= p_2j}
     for (int i = 0; i < N; i++) {
       tmp[i].job = i;
-      tmp[i].ptm1 = p_times[m1*N + i] + lags[k*N + i];
-      tmp[i].ptm2 = p_times[m2*N + i] + lags[k*N + i];
+      tmp[i].ptm1 = lb1_p_times[m1*N + i] + lags[k*N + i];
+      tmp[i].ptm2 = lb1_p_times[m2*N + i] + lags[k*N + i];
 
       if (tmp[i].ptm1 < tmp[i].ptm2) {
         tmp[i].partition = 0;
@@ -187,16 +186,16 @@ void set_flags(const int *const permutation, const int limit1, const int limit2,
     flags[permutation[j]] = 1;
 }
 
-inline int compute_cmax_johnson(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const flag, int *tmp0, int *tmp1, int ma0, int ma1, int ind)
+inline int compute_cmax_johnson(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, int *tmp0, int *tmp1, int ma0, int ma1, int ind)
 {
-  int nb_jobs = lb1_data->nb_jobs;
+  int nb_jobs = lb2_data->nb_jobs;
 
   for (int j = 0; j < nb_jobs; j++) {
     int job = lb2_data->johnson_schedules[ind*nb_jobs + j];
     // j-loop is on unscheduled jobs... (==0 if jobCour is unscheduled)
     if (flag[job] == 0) {
-      int ptm0 = lb1_data->p_times[ma0*nb_jobs + job];
-      int ptm1 = lb1_data->p_times[ma1*nb_jobs + job];
+      int ptm0 = lb1_p_times[ma0*nb_jobs + job];
+      int ptm1 = lb1_p_times[ma1*nb_jobs + job];
       int lag = lb2_data->lags[ind*nb_jobs + job];
       // add job on ma0 and ma1
       *tmp0 += ptm0;
@@ -208,7 +207,7 @@ inline int compute_cmax_johnson(const lb1_bound_data* const lb1_data, const lb2_
   return *tmp1;
 }
 
-int lb_makespan(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax)
+int lb_makespan(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax)
 {
   int lb = 0;
 
@@ -222,7 +221,7 @@ int lb_makespan(const lb1_bound_data* const lb1_data, const lb2_bound_data* cons
     int tmp0 = front[ma0];
     int tmp1 = front[ma1];
 
-    compute_cmax_johnson(lb1_data, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i);
+    compute_cmax_johnson(lb1_p_times, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i);
 
     tmp1 = MAX(tmp1 + back[ma1], tmp0 + back[ma0]);
 
@@ -237,7 +236,7 @@ int lb_makespan(const lb1_bound_data* const lb1_data, const lb2_bound_data* cons
 }
 
 //allows variable nb of machine pairs and get machine pair the realized best lb
-int lb_makespan_learn(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int *best_index)
+int lb_makespan_learn(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int *best_index)
 {
   int lb = 0;
 
@@ -250,7 +249,7 @@ int lb_makespan_learn(const lb1_bound_data* const lb1_data, const lb2_bound_data
     int tmp0 = front[ma0];
     int tmp1 = front[ma1];
 
-    compute_cmax_johnson(lb1_data, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i);
+    compute_cmax_johnson(lb1_p_times, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i);
 
     tmp1 = MAX(tmp1 + back[ma1], tmp0 + back[ma0]);
 
@@ -282,7 +281,7 @@ int lb2_bound(const lb1_bound_data* const lb1_data, const lb2_bound_data* const 
   int flags[N];
   set_flags(permutation, limit1, limit2, N, flags);
 
-  return lb_makespan(lb1_data, lb2_data, flags, front, back, best_cmax);
+  return lb_makespan(lb1_data->p_times, lb2_data, flags, front, back, best_cmax);
 }
 
 inline void swap(int *a, int *b)
