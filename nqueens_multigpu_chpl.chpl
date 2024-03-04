@@ -194,11 +194,11 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     decompose(parent, exploredTree, exploredSol, pool);
   }
   timer.stop();
-  var t = timer.elapsed();
+  const res1 = (timer.elapsed(), exploredTree, exploredSol);
   writeln("\nInitial search on CPU completed");
-  writeln("Size of the explored tree: ", exploredTree);
-  writeln("Number of explored solutions: ", exploredSol);
-  writeln("Elapsed time: ", t, " [s]\n");
+  writeln("Size of the explored tree: ", res1[1]);
+  writeln("Number of explored solutions: ", res1[2]);
+  writeln("Elapsed time: ", res1[0], " [s]\n");
 
   /*
     Step 2: We continue the search on GPU in a depth-first manner, until there
@@ -276,15 +276,15 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     eachExploredSol[gpuID] = sol;
   }
   timer.stop();
-  t = timer.elapsed() - t;
 
   exploredTree += (+ reduce eachExploredTree);
   exploredSol += (+ reduce eachExploredSol);
 
+  const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
   writeln("Search on GPU completed");
-  writeln("Size of the explored tree: ", exploredTree);
-  writeln("Number of explored solutions: ", exploredSol);
-  writeln("Elapsed time: ", t, " [s]\n");
+  writeln("Size of the explored tree: ", res2[1]);
+  writeln("Number of explored solutions: ", res2[2]);
+  writeln("Elapsed time: ", res2[0], " [s]\n");
 
   /*
     Step 3: We complete the depth-first search on CPU.
@@ -299,10 +299,11 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   }
   timer.stop();
   elapsedTime = timer.elapsed();
+  const res3 = (elapsedTime, exploredTree, exploredSol) - res1 - res2;
   writeln("Search on CPU completed");
-  writeln("Size of the explored tree: ", exploredTree);
-  writeln("Number of explored solutions: ", exploredSol);
-  writeln("Elapsed time: ", elapsedTime - t, " [s]");
+  writeln("Size of the explored tree: ", res3[1]);
+  writeln("Number of explored solutions: ", res3[2]);
+  writeln("Elapsed time: ", res3[0], " [s]");
 
   writeln("\nExploration terminated.");
 }

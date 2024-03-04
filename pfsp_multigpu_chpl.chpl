@@ -412,11 +412,11 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     decompose(lbound1_p, lbound2_p, parent, exploredTree, exploredSol, best, pool);
   }
   timer.stop();
-  var t = timer.elapsed();
+  const res1 = (timer.elapsed(), exploredTree, exploredSol);
   writeln("\nInitial search on CPU completed");
-  writeln("Size of the explored tree: ", exploredTree);
-  writeln("Number of explored solutions: ", exploredSol);
-  writeln("Elapsed time: ", t, " [s]\n");
+  writeln("Size of the explored tree: ", res1[1]);
+  writeln("Number of explored solutions: ", res1[2]);
+  writeln("Elapsed time: ", res1[0], " [s]\n");
 
   /*
     Step 2: We continue the search on GPU in a depth-first manner, until there
@@ -525,16 +525,16 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     eachBest[gpuID] = best_l;
   }
   timer.stop();
-  t = timer.elapsed() - t;
 
   exploredTree += (+ reduce eachExploredTree);
   exploredSol += (+ reduce eachExploredSol);
   best = (min reduce eachBest);
 
+  const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
   writeln("Search on GPU completed");
-  writeln("Size of the explored tree: ", exploredTree);
-  writeln("Number of explored solutions: ", exploredSol);
-  writeln("Elapsed time: ", t, " [s]\n");
+  writeln("Size of the explored tree: ", res2[1]);
+  writeln("Number of explored solutions: ", res2[2]);
+  writeln("Elapsed time: ", res2[0], " [s]\n");
 
   /*
     Step 3: We complete the depth-first search on CPU.
@@ -549,10 +549,13 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   }
   timer.stop();
   elapsedTime = timer.elapsed();
+  const res3 = (elapsedTime, exploredTree, exploredSol) - res1 - res2;
   writeln("Search on CPU completed");
-  writeln("Size of the explored tree: ", exploredTree);
-  writeln("Number of explored solutions: ", exploredSol);
-  writeln("Elapsed time: ", elapsedTime - t, " [s]");
+  writeln("Size of the explored tree: ", res3[1]);
+  writeln("Number of explored solutions: ", res3[2]);
+  writeln("Elapsed time: ", res3[0], " [s]");
+
+  optimum = best;
 
   writeln("\nExploration terminated.");
 }
