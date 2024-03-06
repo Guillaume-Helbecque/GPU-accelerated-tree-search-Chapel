@@ -36,6 +36,8 @@ In order to compile and execute the CUDA-based code on AMD GPU architectures, we
 The [chpl_config](./chpl_config/) directory contains several Chapel environment configuration scripts.
 The latter can serve as templates and can be (and should be) adapted to the target system.
 
+**Note:** The code is implemented using Chapel 1.33.0 and is not expected to compile and run with older or newer versions.
+
 ### Compilation
 
 All the code is compiled using the provided makefiles.
