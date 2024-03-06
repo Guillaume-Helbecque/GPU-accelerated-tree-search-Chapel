@@ -219,7 +219,7 @@ __global__ void evaluate_gpu(const int N, const int G, const Node* parents_d, ui
   }
 }
 
-// Generate children nodes (evaluated by GPU) on CPU.
+// Generate children nodes (evaluated on GPU) on CPU.
 void generate_children(const int N, const Node* parents, const int size, const uint8_t* labels,
   unsigned long long int* exploredTree, unsigned long long int* exploredSol, SinglePool* pool)
 {
@@ -243,7 +243,7 @@ void generate_children(const int N, const Node* parents, const int size, const u
   }
 }
 
-// Single-core single-GPU N-Queens search.
+// Single-GPU N-Queens search.
 void nqueens_search(const int N, const int G, const int m, const int M,
   unsigned long long int* exploredTree, unsigned long long int* exploredSol,
   double* elapsedTime)

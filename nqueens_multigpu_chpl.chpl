@@ -94,7 +94,7 @@ record SinglePool {
 }
 
 /*******************************************************************************
-Implementation of the multi-core multi-GPU N-Queens search.
+Implementation of the multi-GPU N-Queens search.
 *******************************************************************************/
 
 config const N = 14;
@@ -201,7 +201,7 @@ proc evaluate_gpu(const parents_d: [] Node, const size)
   return labels;
 }
 
-// Generate children nodes (evaluated by GPU) on CPU.
+// Generate children nodes (evaluated on GPU) on CPU.
 proc generate_children(const ref parents: [] Node, const size: int, const ref labels: [] uint(8),
   ref exploredTree: uint, ref exploredSol: uint, ref pool: SinglePool)
 {
@@ -225,7 +225,7 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref la
   }
 }
 
-// Multi-core multi-GPU N-Queens search.
+// Multi-GPU N-Queens search.
 proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
   var root = new Node(N);
@@ -308,7 +308,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
         }
 
         /*
-          Each task 0 generates and inserts its children nodes to the pool.
+          Each task generates and inserts its children nodes to the pool.
         */
         generate_children(parents, poolSize, labels, tree, sol, pool_loc);
       }
@@ -372,19 +372,19 @@ proc main()
 
   var elapsedTime: real;
 
-  /* startGpuDiagnostics(); */
+  startGpuDiagnostics();
 
   nqueens_search(exploredTree, exploredSol, elapsedTime);
 
-  /* stopGpuDiagnostics(); */
+  stopGpuDiagnostics();
 
   print_results(exploredTree, exploredSol, elapsedTime);
 
-  /* writeln("GPU diagnostics:");
+  writeln("GPU diagnostics:");
   writeln("   kernel_launch: ", getGpuDiagnostics().kernel_launch);
   writeln("   host_to_device: ", getGpuDiagnostics().host_to_device);
   writeln("   device_to_host: ", getGpuDiagnostics().device_to_host);
-  writeln("   device_to_device: ", getGpuDiagnostics().device_to_device); */
+  writeln("   device_to_device: ", getGpuDiagnostics().device_to_device);
 
   return 0;
 }
