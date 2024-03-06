@@ -23,28 +23,25 @@ The following Chapel implementations are available from the main directory:
 - `nqueens_multigpu_chpl.chpl`: multi-GPU version.
 
 In addition, the [baselines](./baselines/) directory contains the CUDA-based counterparts:
-- `nqueens_c.c`: sequential C version;
-- `nqueens_gpu_cuda.cu`: single-GPU version;
-- `nqueens_multigpu_cuda.cu`: multi-GPU version.
+- `nqueens_c.c`: sequential version (C);
+- `nqueens_gpu_cuda.cu`: single-GPU version (C+CUDA);
+- `nqueens_multigpu_cuda.cu`: multi-GPU version (C+OpenMP+CUDA).
 
 In order to compile and execute the CUDA-based code on AMD GPU architectures, we use the `hipify-perl` tool which translates it into portable HIP C++ automatically.
 
 ## Getting started
 
-### Setting the Chapel environment
+### Setting the environment configuration
 
 The [chpl_config](./chpl_config/) directory contains several Chapel environment configuration scripts.
 The latter can serve as templates and can be (and should be) adapted to the target system.
 
 **Note:** The code is implemented using Chapel 1.33.0 and is not expected to compile and run with older or newer versions.
+By default, the target architecture for CUDA code generation is set to `sm_70`, and to `gfx906` for AMD.
 
-### Compilation
+### Compilation & execution
 
 All the code is compiled using the provided makefiles.
-
-**Note:** By default, the target architecture for CUDA code generation is set to `sm_70`, and to `gfx906` for AMD.
-
-### Command-line options
 
 The following command-line options are supported:
 - `N`: number of queens (default: 14);
