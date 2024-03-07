@@ -39,8 +39,26 @@ module Bound_johnson
 
       this.ld = {0..#this.nb_machine_pairs*this.nb_jobs};
       this.ad = {0..#this.nb_machine_pairs};
+
+      init this;
+
+      fill_machine_pairs(this/*, LB2_FULL*/);
+      fill_lags(lb1_data.p_times, this);
+      fill_johnson_schedules(lb1_data.p_times, this);
     }
   }
+
+  /* NOTE: This wrapper allows one to store persistent data on the GPU memory. */
+  class WrapperClassLB2 {
+    forwarding var lb2_bound: lb2_bound_data;
+
+    proc init(const lb1_data: lb1_bound_data)
+    {
+      this.lb2_bound = new lb2_bound_data(lb1_data);
+    }
+  }
+
+  type WrapperLB2 = owned WrapperClassLB2?;
 
   proc fill_machine_pairs(ref lb2_data: lb2_bound_data/*, enum lb2_variant lb2_type*/): void
   {

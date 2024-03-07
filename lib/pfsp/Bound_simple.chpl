@@ -19,6 +19,18 @@ module Bound_simple
     }
   }
 
+  /* NOTE: This wrapper allows one to store persistent data on the GPU memory. */
+  class WrapperClassLB1 {
+    forwarding var lb1_bound: lb1_bound_data;
+
+    proc init(jobs: int, machines: int)
+    {
+      this.lb1_bound = new lb1_bound_data(jobs, machines);
+    }
+  }
+
+  type WrapperLB1 = owned WrapperClassLB1?;
+
   inline proc add_forward(const job: int, const p_times: [] int, const nb_jobs: int, const nb_machines: int, ref front): void
   {
     front[0] += p_times[job];

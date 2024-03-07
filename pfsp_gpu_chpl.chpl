@@ -66,35 +66,11 @@ const id = inst[2..]:int;
 const jobs = taillard_get_nb_jobs(id);
 const machines = taillard_get_nb_machines(id);
 
-class WrapperClassLB1 {
-  forwarding var lb1_bound: lb1_bound_data;
-
-  proc init(jobs: int, machines: int)
-  {
-    this.lb1_bound = new lb1_bound_data(jobs, machines);
-  }
-}
-
-class WrapperClassLB2 {
-  forwarding var lb2_bound: lb2_bound_data;
-
-  proc init(const lb1_data: lb1_bound_data)
-  {
-    this.lb2_bound = new lb2_bound_data(lb1_data);
-  }
-}
-
-type WrapperLB1 = owned WrapperClassLB1?;
-type WrapperLB2 = owned WrapperClassLB2?;
-
 var lbound1 = new WrapperLB1(jobs, machines); //lb1_bound_data(jobs, machines);
 taillard_get_processing_times(lbound1!.lb1_bound.p_times, id);
 fill_min_heads_tails(lbound1!.lb1_bound);
 
-var lbound2 = new WrapperLB2(lbound1!.lb1_bound);
-fill_machine_pairs(lbound2!.lb2_bound/*, LB2_FULL*/);
-fill_lags(lbound1!.lb1_bound.p_times, lbound2!.lb2_bound);
-fill_johnson_schedules(lbound1!.lb1_bound.p_times, lbound2!.lb2_bound);
+const lbound2 = new WrapperLB2(lbound1!.lb1_bound);
 
 const initUB = if (ub == "opt") then taillard_get_best_ub(id)
                else max(int);
@@ -407,9 +383,6 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     fill_min_heads_tails(lbound1_d!.lb1_bound);
 
     lbound2_d = new WrapperLB2(lbound1_d!.lb1_bound);
-    fill_machine_pairs(lbound2_d!.lb2_bound/*, LB2_FULL*/);
-    fill_lags(lbound1_d!.lb1_bound.p_times, lbound2_d!.lb2_bound);
-    fill_johnson_schedules(lbound1_d!.lb1_bound.p_times, lbound2_d!.lb2_bound);
   }
 
   while true {
