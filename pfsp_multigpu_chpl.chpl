@@ -73,7 +73,7 @@ const initUB = if (ub == "opt") then taillard_get_best_ub(id)
 proc check_parameters()
 {
   if ((m <= 0) || (M <= 0) || (D <= 0)) {
-    halt("Error: m and M must be positive integers.\n");
+    halt("Error: m, M, and D must be positive integers.\n");
   }
 
   const allowedUpperBounds = ["opt", "inf"];
@@ -255,26 +255,31 @@ proc evaluate_gpu_lb1(const parents_d: [] Node, const size, const lbound1_d)
   return bounds;
 }
 
+/*
+  NOTE: This lower bound evaluates all the children of a given parent at the same time.
+  Therefore, the GPU loop is on the parent nodes and not on the children ones, in contrast
+  to the other lower bounds.
+*/
 // Evaluate a bulk of parent nodes on GPU using lb1_d.
 proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size, const best, const lbound1_d)
 {
   var bounds: [0..#size] int = noinit;
 
   @assertOnGpu
-  foreach threadId in 0..#size {
-    const parentId = threadId / jobs;
-    const k = threadId % jobs;
+  foreach parentId in 0..#(size/jobs) {
     var parent = parents_d[parentId];
     const depth = parent.depth;
     var prmu = parent.prmu;
 
     var lb_begin: MAX_JOBS*int; //[0..#size] int = noinit;
 
-    lb1_children_bounds(lbound1_d, parent.prmu, parent.limit1, jobs, lb_begin);
+    lb1_children_bounds(lbound1_d!.lb1_bound, parent.prmu, parent.limit1, jobs, lb_begin);
 
-    if (k >= parent.limit1+1) {
-      const job = parent.prmu[k];
-      bounds[threadId] = lb_begin[job];
+    for k in 0..#jobs {
+      if (k >= parent.limit1+1) {
+        const job = parent.prmu[k];
+        bounds[parentId*jobs+k] = lb_begin[job];
+      }
     }
   }
 
