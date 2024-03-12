@@ -22,11 +22,10 @@ config param MAX_JOBS = 20;
 record Node {
   var depth: int;
   var limit1: int; // left limit
-  var prmu: MAX_JOBS*int; //c_array(c_int, JobsMax);
+  var prmu: MAX_JOBS*int;
 
   // default-initializer
-  proc init()
-  {}
+  proc init() {}
 
   // root-initializer
   proc init(jobs)
@@ -152,7 +151,7 @@ proc decompose_lb1(const lb1_data, const parent: Node, ref tree_loc: uint, ref n
 proc decompose_lb1_d(const lb1_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool_ext(Node))
 {
-  var lb_begin: [0..#jobs] int = noinit; // = allocate(c_int, this.jobs);
+  var lb_begin: MAX_JOBS*int;
 
   lb1_children_bounds(lb1_data, parent.prmu, parent.limit1, jobs, lb_begin);
 
@@ -180,8 +179,6 @@ proc decompose_lb1_d(const lb1_data, const parent: Node, ref tree_loc: uint, ref
       }
     }
   }
-
-  /* deallocate(lb_begin); */
 }
 
 proc decompose_lb2(const lb1_data, const lb2_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
