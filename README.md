@@ -1,8 +1,7 @@
 # GPU-accelerated tree-search in Chapel
 
 This repository contains the implementation of a GPU-accelerated tree-search algorithm in Chapel.
-The latter is instantiated on the backtracking method to solve instances of the N-Queens problem.
-This well-known problem serves as a proof-of-concept that motivates further improvements in solving combinatorial optimization problems.
+The latter is instantiated on the backtracking method to solve instances of the N-Queens problem (proof-of-concept) and on the Branch-and-Bound method to solve Taillard's instances of the permutation flowshop scheduling problem (PFSP).
 For comparison purpose, CUDA-based counterpart implementations are also provided.
 
 ## Design
@@ -18,16 +17,18 @@ This process is repeated until the pool is empty.
 ## Implementation
 
 The following Chapel implementations are available from the main directory:
-- `nqueens_chpl.chpl`: sequential version;
-- `nqueens_gpu_chpl.chpl`: single-GPU version;
-- `nqueens_multigpu_chpl.chpl`: multi-GPU version.
+- `[nqueens/pfsp]_chpl.chpl`: sequential version;
+- `[nqueens/pfsp]_gpu_chpl.chpl`: single-GPU version;
+- `[nqueens/pfsp]_multigpu_chpl.chpl`: multi-GPU version.
 
 In addition, the [baselines](./baselines/) directory contains the CUDA-based counterparts:
-- `nqueens_c.c`: sequential version (C);
+- `[nqueens/pfsp]_c.c`: sequential version (C);
 - `nqueens_gpu_cuda.cu`: single-GPU version (C+CUDA);
 - `nqueens_multigpu_cuda.cu`: multi-GPU version (C+OpenMP+CUDA).
 
 In order to compile and execute the CUDA-based code on AMD GPU architectures, we use the `hipify-perl` tool which translates it into portable HIP C++ automatically.
+
+**Note**: The PFSP instantiation for the CUDA-based counterparts is not yet supported.
 
 ## Getting started
 
@@ -36,21 +37,27 @@ In order to compile and execute the CUDA-based code on AMD GPU architectures, we
 The [chpl_config](./chpl_config/) directory contains several Chapel environment configuration scripts.
 The latter can serve as templates and can be (and should be) adapted to the target system.
 
-**Note:** The code is implemented using Chapel 1.33.0 and is not expected to compile and run with older or newer versions.
+**Note:** The code is implemented using Chapel 1.33.0 and might not compile and run with older or newer versions.
 By default, the target architecture for CUDA code generation is set to `sm_70`, and to `gfx906` for AMD.
 
 ### Compilation & execution
 
 All the code is compiled using the provided makefiles.
 
-The following command-line options are supported:
-- `N`: number of queens (default: 14);
-- `g`: number of safety check(s) per evaluation (default: 1);
+Common command-line options:
 - `m`: minimum number of elements to offload on a GPU device (default: 25);
 - `M`: maximum number of elements to offload on a GPU device (default: 50,000);
 - `D`: number of GPU device(s) (only in multi-GPU setting - default: 1).
 
-All these values must be positive integers.
+Problem-specific command-line options:
+- N-Queens:
+    - `N`: number of queens (default: 14);
+    - `g`: number of safety check(s) per evaluation (default: 1);
+- PFSP:
+    - `inst`: Taillard's instance (default: ta14);
+    - `lb`: lower bound function (default: lb1);
+    - `br`: branching rule (default: fwd);
+    - `ub`: upper bound initialization (default: opt);
 
 ### Examples
 
