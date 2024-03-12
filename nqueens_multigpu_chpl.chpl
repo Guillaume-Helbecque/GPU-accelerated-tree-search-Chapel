@@ -3,6 +3,8 @@
 */
 
 use Time;
+
+use Pool_ext;
 use GpuDiagnostics;
 
 config const BLOCK_SIZE = 512;
@@ -38,62 +40,6 @@ record Node {
 }
 
 /*******************************************************************************
-Implementation of a dynamic-sized single pool data structure.
-Its initial capacity is 1024, and we reallocate a new container with double
-the capacity when it is full. Since we perform only DFS, it only supports
-'pushBack' and 'popBack' operations.
-*******************************************************************************/
-
-config param CAPACITY = 1024;
-
-record SinglePool {
-  var dom: domain(1);
-  var elements: [dom] Node;
-  var capacity: int;
-  var front: int;
-  var size: int;
-
-  proc init() {
-    this.dom = 0..#CAPACITY;
-    this.capacity = CAPACITY;
-  }
-
-  proc ref pushBack(node: Node) {
-    if (this.front + this.size >= this.capacity) {
-      this.capacity *=2;
-      this.dom = 0..#this.capacity;
-    }
-
-    this.elements[this.front + this.size] = node;
-    this.size += 1;
-  }
-
-  proc ref popBack(ref hasWork: int) {
-    if (this.size > 0) {
-      hasWork = 1;
-      this.size -= 1;
-      return this.elements[this.front + this.size];
-    }
-
-    var default: Node;
-    return default;
-  }
-
-  proc ref popFront(ref hasWork: int) {
-    if (this.size > 0) {
-      hasWork = 1;
-      const elt = this.elements[this.front];
-      this.front += 1;
-      this.size -= 1;
-      return elt;
-    }
-
-    var default: Node;
-    return default;
-  }
-}
-
-/*******************************************************************************
 Implementation of the multi-GPU N-Queens search.
 *******************************************************************************/
 
@@ -118,8 +64,7 @@ proc print_settings()
   writeln("=================================================");
 }
 
-proc print_results(const exploredTree: uint,
-  const exploredSol: uint, const timer: real)
+proc print_results(const exploredTree: uint, const exploredSol: uint, const timer: real)
 {
   writeln("\n=================================================");
   writeln("Size of the explored tree: ", exploredTree);
@@ -148,7 +93,7 @@ proc isSafe(const board, const queen_num, const row_pos): uint(8)
 }
 
 // Evaluate and generate children nodes on CPU.
-proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref pool: SinglePool)
+proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref pool: SinglePool_ext(Node))
 {
   const depth = parent.depth;
 
@@ -203,7 +148,7 @@ proc evaluate_gpu(const parents_d: [] Node, const size)
 
 // Generate children nodes (evaluated on GPU) on CPU.
 proc generate_children(const ref parents: [] Node, const size: int, const ref labels: [] uint(8),
-  ref exploredTree: uint, ref exploredSol: uint, ref pool: SinglePool)
+  ref exploredTree: uint, ref exploredSol: uint, ref pool: SinglePool_ext(Node))
 {
   for i in 0..#size  {
     const parent = parents[i];
@@ -230,7 +175,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 {
   var root = new Node(N);
 
-  var pool = new SinglePool();
+  var pool = new SinglePool_ext(Node);
 
   pool.pushBack(root);
 
@@ -249,11 +194,11 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     decompose(parent, exploredTree, exploredSol, pool);
   }
   timer.stop();
-  var t = timer.elapsed();
+  const res1 = (timer.elapsed(), exploredTree, exploredSol);
   writeln("\nInitial search on CPU completed");
-  writeln("Size of the explored tree: ", exploredTree);
-  writeln("Number of explored solutions: ", exploredSol);
-  writeln("Elapsed time: ", t, " [s]\n");
+  writeln("Size of the explored tree: ", res1[1]);
+  writeln("Number of explored solutions: ", res1[2]);
+  writeln("Elapsed time: ", res1[0], " [s]\n");
 
   /*
     Step 2: We continue the search on GPU in a depth-first manner, until there
@@ -275,7 +220,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     ref eachExploredTree, ref eachExploredSol) {
 
     var tree, sol: uint;
-    var pool_loc = new SinglePool();
+    var pool_loc = new SinglePool_ext(Node);
 
     // each task gets its chunk
     pool_loc.elements[0..#c] = pool.elements[gpuID+f.. by D #c];
@@ -331,15 +276,15 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     eachExploredSol[gpuID] = sol;
   }
   timer.stop();
-  t = timer.elapsed() - t;
 
   exploredTree += (+ reduce eachExploredTree);
   exploredSol += (+ reduce eachExploredSol);
 
+  const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
   writeln("Search on GPU completed");
-  writeln("Size of the explored tree: ", exploredTree);
-  writeln("Number of explored solutions: ", exploredSol);
-  writeln("Elapsed time: ", t, " [s]\n");
+  writeln("Size of the explored tree: ", res2[1]);
+  writeln("Number of explored solutions: ", res2[2]);
+  writeln("Elapsed time: ", res2[0], " [s]\n");
 
   /*
     Step 3: We complete the depth-first search on CPU.
@@ -354,10 +299,11 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   }
   timer.stop();
   elapsedTime = timer.elapsed();
+  const res3 = (elapsedTime, exploredTree, exploredSol) - res1 - res2;
   writeln("Search on CPU completed");
-  writeln("Size of the explored tree: ", exploredTree);
-  writeln("Number of explored solutions: ", exploredSol);
-  writeln("Elapsed time: ", elapsedTime - t, " [s]");
+  writeln("Size of the explored tree: ", res3[1]);
+  writeln("Number of explored solutions: ", res3[2]);
+  writeln("Elapsed time: ", res3[0], " [s]");
 
   writeln("\nExploration terminated.");
 }

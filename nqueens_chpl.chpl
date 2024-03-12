@@ -4,6 +4,8 @@
 
 use Time;
 
+use Pool;
+
 /*******************************************************************************
 Implementation of N-Queens Nodes.
 *******************************************************************************/
@@ -35,48 +37,6 @@ record Node {
 }
 
 /*******************************************************************************
-Implementation of a dynamic-sized single pool data structure.
-Its initial capacity is 1024, and we reallocate a new container with double
-the capacity when it is full. Since we perform only DFS, it only supports
-'pushBack' and 'popBack' operations.
-*******************************************************************************/
-
-config param CAPACITY = 1024;
-
-record SinglePool {
-  var dom: domain(1);
-  var elements: [dom] Node;
-  var capacity: int;
-  var size: int;
-
-  proc init() {
-    this.dom = 0..#CAPACITY;
-    this.capacity = CAPACITY;
-  }
-
-  proc ref pushBack(node: Node) {
-    if (this.size >= this.capacity) {
-      this.capacity *=2;
-      this.dom = 0..#this.capacity;
-    }
-
-    this.elements[this.size] = node;
-    this.size += 1;
-  }
-
-  proc ref popBack(ref hasWork: int) {
-    if (this.size > 0) {
-      hasWork = 1;
-      this.size -= 1;
-      return this.elements[this.size];
-    }
-
-    var default: Node;
-    return default;
-  }
-}
-
-/*******************************************************************************
 Implementation of the sequential N-Queens search.
 *******************************************************************************/
 
@@ -100,8 +60,7 @@ proc print_settings()
   writeln("=================================================");
 }
 
-proc print_results(const exploredTree: uint,
-  const exploredSol: uint, const timer: real)
+proc print_results(const exploredTree: uint, const exploredSol: uint, const timer: real)
 {
   writeln("\n=================================================");
   writeln("Size of the explored tree: ", exploredTree);
@@ -130,7 +89,7 @@ proc isSafe(const board, const queen_num, const row_pos): uint(8)
 }
 
 // Evaluate and generate children nodes on CPU.
-proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref pool: SinglePool)
+proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref pool: SinglePool(Node))
 {
   const depth = parent.depth;
 
@@ -155,7 +114,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 {
   var root = new Node(N);
 
-  var pool = new SinglePool();
+  var pool = new SinglePool(Node);
 
   pool.pushBack(root);
 
