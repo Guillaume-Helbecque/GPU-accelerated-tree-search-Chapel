@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
+#include <getopt.h>
 #include <time.h>
 
 #include "lib/c_bound_simple.h"
@@ -88,48 +89,68 @@ void deleteSinglePool(SinglePool* pool)
 Implementation of the sequential PFSP search.
 *******************************************************************************/
 
-void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* br, int* ub)
+void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub)
 {
   *inst = 14;
   *lb = 1;
-  *br = 1;
   *ub = 1;
+  /*
+    NOTE: Only forward branching is considered because other strategies increase a
+    lot the implementation complexity and do not add much contribution.
+  */
+
+  // Define long options
+  static struct option long_options[] = {
+    {"inst", required_argument, NULL, 'i'},
+    {"lb", required_argument, NULL, 'l'},
+    {"ub", required_argument, NULL, 'u'},
+    {NULL, 0, NULL, 0} // Terminate options array
+  };
 
   int opt, value;
+  int option_index = 0;
 
-  while ((opt = getopt(argc, argv, "i:l:b:u:")) != -1) {
+  while ((opt = getopt_long(argc, argv, "i:l:u:", long_options, &option_index)) != -1) {
     value = atoi(optarg);
-
-    if (value < 0) {
-      printf("All parameters must be positive or zero integers.\n");
-      exit(EXIT_FAILURE);
-    }
 
     switch (opt) {
       case 'i':
+        if (value < 1 || value > 120) {
+          fprintf(stderr, "Error: unsupported Taillard's instance\n");
+          exit(EXIT_FAILURE);
+        }
         *inst = value;
         break;
+
       case 'l':
+        if (value < 0 || value > 2) {
+          fprintf(stderr, "Error: unsupported lower bound function\n");
+          exit(EXIT_FAILURE);
+        }
         *lb = value;
         break;
-      case 'b':
-        *br = value;
-        break;
+
       case 'u':
+        if (value != 0 && value != 1) {
+          fprintf(stderr, "Error: unsupported upper bound initialization\n");
+          exit(EXIT_FAILURE);
+        }
         *ub = value;
         break;
+
       default:
-        fprintf(stderr, "Usage: %s -i value -l value -b value -u value\n", argv[0]);
+        fprintf(stderr, "Usage: %s --inst <value> --lb <value> --ub <value>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
   }
 }
 
-void print_settings(const int inst, const int machines, const int jobs, const int lb)
+void print_settings(const int inst, const int machines, const int jobs, const int ub, const int lb)
 {
   printf("\n=================================================\n");
-  printf("Resolution of PFSP Taillard's instance: %d (m = %d, n = %d) using sequential C\n", inst, machines, jobs);
-  printf("Initial upper bound: opt\n");
+  printf("Resolution of PFSP Taillard's instance: ta%d (m = %d, n = %d) using sequential C\n", inst, machines, jobs);
+  if (ub == 0) printf("Initial upper bound: inf\n");
+  else /* if (ub == 1) */ printf("Initial upper bound: opt\n");
   if (lb == 0) printf("Lower bound function: lb1_d\n");
   else if (lb == 1) printf("Lower bound function: lb1\n");
   else /* (lb == 2) */ printf("Lower bound function: lb2\n");
@@ -251,27 +272,22 @@ void decompose(const int jobs, const int lb, int* best,
   unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool* pool)
 {
   switch (lb) {
-    case 1 : { // lb1
-      decompose_lb1(jobs, lbound1, parent, best, tree_loc, num_sol, pool);
-      break;
-    }
-    case 0 : { // lb1_d
+    case 0: // lb1_d
       decompose_lb1_d(jobs, lbound1, parent, best, tree_loc, num_sol, pool);
       break;
-    }
-    case 2 : { // lb2
+
+    case 1: // lb1
+      decompose_lb1(jobs, lbound1, parent, best, tree_loc, num_sol, pool);
+      break;
+
+    case 2: // lb2
       decompose_lb2(jobs, lbound1, lbound2, parent, best, tree_loc, num_sol, pool);
       break;
-    }
-    default : {
-      fprintf(stderr, "Error: Wrong lower bound given\n");
-      exit(EXIT_FAILURE);
-    }
   }
 }
 
 // Sequential N-Queens search.
-void pfsp_search(const int inst, const int lb, const int br, int* best,
+void pfsp_search(const int inst, const int lb, int* best,
   unsigned long long int* exploredTree, unsigned long long int* exploredSol,
   double* elapsedTime)
 {
@@ -319,21 +335,21 @@ void pfsp_search(const int inst, const int lb, const int br, int* best,
 
 int main(int argc, char* argv[])
 {
-  int inst, lb, br, ub;
-  parse_parameters(argc, argv, &inst, &lb, &br, &ub);
+  int inst, lb, ub;
+  parse_parameters(argc, argv, &inst, &lb, &ub);
 
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
 
-  print_settings(inst, machines, jobs, lb);
+  print_settings(inst, machines, jobs, ub, lb);
 
-  int optimum = ub * taillard_get_best_ub(inst) + (1 - ub) * INT_MAX;
+  int optimum = (ub == 1) ? taillard_get_best_ub(inst) : INT_MAX;
   unsigned long long int exploredTree = 0;
   unsigned long long int exploredSol = 0;
 
   double elapsedTime;
 
-  pfsp_search(inst, lb, br, &optimum, &exploredTree, &exploredSol, &elapsedTime);
+  pfsp_search(inst, lb, &optimum, &exploredTree, &exploredSol, &elapsedTime);
 
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
 

@@ -45,54 +45,47 @@ record Node {
 Implementation of the sequential PFSP search.
 *******************************************************************************/
 
-config const inst: string = "ta14"; // instance
-config const lb: string   = "lb1";  // lower bound function
-config const br: string   = "fwd";  // branching rules
-config const ub: string   = "opt";  // initial upper bound
+config const inst: int = 14; // instance
+config const lb: int = 1; // lower bound function
+config const ub: int = 1; // initial upper bound
+/*
+  NOTE: Only forward branching is considered because other strategies increase a
+  lot the implementation complexity and do not add much contribution.
+*/
 
-const id = inst[2..]:int;
-const jobs = taillard_get_nb_jobs(id);
-const machines = taillard_get_nb_machines(id);
+const jobs = taillard_get_nb_jobs(inst);
+const machines = taillard_get_nb_machines(inst);
 
 var lbound1 = new lb1_bound_data(jobs, machines);
-taillard_get_processing_times(lbound1.p_times, id);
+taillard_get_processing_times(lbound1.p_times, inst);
 fill_min_heads_tails(lbound1);
 
 const lbound2 = new lb2_bound_data(lbound1);
 
-const initUB = if (ub == "opt") then taillard_get_best_ub(id)
-               else max(int);
+const initUB = if (ub == 1) then taillard_get_best_ub(inst) else max(int);
 
 proc check_parameters()
 {
-  const allowedUpperBounds = ["opt", "inf"];
-  const allowedLowerBounds = ["lb1", "lb1_d", "lb2"];
-  /*
-    NOTE: Backward branching is discarded because it increases a lot the implementation
-    complexity and does not add much contribution.
-  */
-  const allowedBranchingRules = ["fwd"];
+  if (inst < 1 || inst > 120) then
+    halt("Error: unsupported Taillard's instance");
 
-  if (inst[0..1] != "ta" || id < 1 || id > 120) then
-    halt("Error: instance not recognized");
-
-  if (allowedLowerBounds.find(lb) == -1) then
+  if (lb < 0 || lb > 2) then
     halt("Error: unsupported lower bound function");
 
-  if (allowedBranchingRules.find(br) == -1) then
-    halt("Error: unsupported branching rule");
-
-  if (allowedUpperBounds.find(ub) == -1) then
+  if (ub != 0 && ub != 1) then
     halt("Error: unsupported upper bound initialization");
 }
 
 proc print_settings(): void
 {
   writeln("\n=================================================");
-  writeln("Resolution of PFSP Taillard's instance: ", inst, " (m = ", machines, ", n = ", jobs, ")");
-  writeln("Initial upper bound: ", ub);
-  writeln("Lower bound function: ", lb);
-  writeln("Branching rule: ", br);
+  writeln("Resolution of PFSP Taillard's instance: ta", inst, " (m = ", machines, ", n = ", jobs, ")");
+  if (ub == 0) then writeln("Initial upper bound: inf");
+  else /* if (ub == 1) */ writeln("Initial upper bound: opt");
+  if (lb == 0) then writeln("Lower bound function: lb1_d");
+  else if (lb == 1) then writeln("Lower bound function: lb1");
+  else /* if (lb == 2) */ writeln("Lower bound function: lb2");
+  writeln("Branching rule: fwd");
   writeln("=================================================");
 }
 
@@ -145,16 +138,16 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 
   for i in parent.limit1+1..(jobs-1) {
     const job = parent.prmu[i];
-    const lb = lb_begin[job];
+    const lowerbound = lb_begin[job];
 
     if (parent.depth + 1 == jobs) { // if child leaf
       num_sol += 1;
 
-      if (lb < best) { // if child feasible
-        best = lb;
+      if (lowerbound < best) { // if child feasible
+        best = lowerbound;
       }
     } else { // if not leaf
-      if (lb < best) { // if child feasible
+      if (lowerbound < best) { // if child feasible
         var child = new Node(parent);
         child.depth += 1;
         child.limit1 += 1;
@@ -197,17 +190,14 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
   select lb {
-    when "lb1" {
-      decompose_lb1(parent, tree_loc, num_sol, best, pool);
-    }
-    when "lb1_d" {
+    when 0 {
       decompose_lb1_d(parent, tree_loc, num_sol, best, pool);
     }
-    when "lb2" {
-      decompose_lb2(parent, tree_loc, num_sol, best, pool);
+    when 1 {
+      decompose_lb1(parent, tree_loc, num_sol, best, pool);
     }
-    otherwise {
-      halt("DEADCODE");
+    otherwise { // 2
+      decompose_lb2(parent, tree_loc, num_sol, best, pool);
     }
   }
 }

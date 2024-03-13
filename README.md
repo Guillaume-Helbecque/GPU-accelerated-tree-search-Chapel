@@ -54,10 +54,9 @@ Problem-specific command-line options:
     - `N`: number of queens (default: 14);
     - `g`: number of safety check(s) per evaluation (default: 1);
 - PFSP:
-    - `inst`: Taillard's instance (default: ta14);
-    - `lb`: lower bound function (default: lb1);
-    - `br`: branching rule (default: fwd);
-    - `ub`: upper bound initialization (default: opt);
+    - `inst`: Taillard's instance index (1 to 120 - default: 14);
+    - `lb`: lower bound function (0 (lb1_d), 1 (lb1), or 2 (lb2) - default: 1);
+    - `ub`: upper bound initialization (0 (inf) or 1 (opt) - default: 1).
 
 ### Examples
 
