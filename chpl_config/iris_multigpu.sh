@@ -7,7 +7,7 @@
 #SBATCH -p gpu
 #SBATCH -G 4
 
-# Configuration of Chapel for GPU-accelerated multi-core experiments on the Iris
+# Configuration of Chapel for (multi-)GPU-accelerated experiments on the Iris
 # cluster of the Université du Luxembourg (https://hpc-docs.uni.lu/systems/iris/).
 
 # Load the foss toolchain to get access to gcc, mpi, etc...
