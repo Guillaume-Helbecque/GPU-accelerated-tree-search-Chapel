@@ -59,7 +59,8 @@ proc check_parameters()
 proc print_settings()
 {
   writeln("\n=================================================");
-  writeln("Resolution of the ", N, "-Queens instance using Chapel");
+  writeln("Multi-GPU Chapel (", D, " GPUs)\n");
+  writeln("Resolution of the ", N, "-Queens instance");
   writeln("  with ", g, " safety check(s) per evaluation");
   writeln("=================================================");
 }

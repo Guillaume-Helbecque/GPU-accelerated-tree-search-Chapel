@@ -79,6 +79,7 @@ proc check_parameters()
 proc print_settings(): void
 {
   writeln("\n=================================================");
+  writeln("Sequential Chapel\n");
   writeln("Resolution of PFSP Taillard's instance: ta", inst, " (m = ", machines, ", n = ", jobs, ")");
   if (ub == 0) then writeln("Initial upper bound: inf");
   else /* if (ub == 1) */ writeln("Initial upper bound: opt");

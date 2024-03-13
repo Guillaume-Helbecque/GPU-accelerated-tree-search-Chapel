@@ -126,7 +126,8 @@ void parse_parameters(int argc, char* argv[], int* N, int* G, int* m, int* M)
 void print_settings(const int N, const int G)
 {
   printf("\n=================================================\n");
-  printf("Resolution of the %d-Queens instance using C+CUDA\n", N);
+  printf("Single-GPU C+CUDA\n\n");
+  printf("Resolution of the %d-Queens instance\n", N);
   printf("  with %d safety check(s) per evaluation\n", G);
   printf("=================================================\n");
 }

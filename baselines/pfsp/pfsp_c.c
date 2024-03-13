@@ -148,6 +148,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub)
 void print_settings(const int inst, const int machines, const int jobs, const int ub, const int lb)
 {
   printf("\n=================================================\n");
+  printf("Sequential C\n\n");
   printf("Resolution of PFSP Taillard's instance: ta%d (m = %d, n = %d) using sequential C\n", inst, machines, jobs);
   if (ub == 0) printf("Initial upper bound: inf\n");
   else /* if (ub == 1) */ printf("Initial upper bound: opt\n");

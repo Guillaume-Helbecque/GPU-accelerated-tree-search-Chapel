@@ -143,10 +143,11 @@ void parse_parameters(int argc, char* argv[], int* N, int* G, int* m, int* M, in
   }
 }
 
-void print_settings(const int N, const int G)
+void print_settings(const int N, const int G, const int D)
 {
   printf("\n=================================================\n");
-  printf("Resolution of the %d-Queens instance using C+CUDA\n", N);
+  printf("Multi-GPU C+OpenMP+CUDA (%d GPUs)\n\n", D);
+  printf("Resolution of the %d-Queens instance\n", N);
   printf("  with %d safety check(s) per evaluation\n", G);
   printf("=================================================\n");
 }
@@ -432,7 +433,7 @@ int main(int argc, char* argv[])
 {
   int N, G, m, M, D;
   parse_parameters(argc, argv, &N, &G, &m, &M, &D);
-  print_settings(N, G);
+  print_settings(N, G, D);
 
   unsigned long long int exploredTree = 0;
   unsigned long long int exploredSol = 0;
