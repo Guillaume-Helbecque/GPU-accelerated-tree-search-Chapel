@@ -88,7 +88,7 @@ proc check_parameters()
 proc print_settings(): void
 {
   writeln("\n=================================================");
-  writeln("Distributed multi-GPU Chapel (", numLocales*D, " GPUs)\n");
+  writeln("Distributed multi-GPU Chapel (", numLocales, "x", D, " GPUs)\n");
   writeln("Resolution of PFSP Taillard's instance: ta", inst, " (m = ", machines, ", n = ", jobs, ")");
   if (ub == 0) then writeln("Initial upper bound: inf");
   else /* if (ub == 1) */ writeln("Initial upper bound: opt");
@@ -392,8 +392,8 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   var eachLocaleBest: [0..#numLocales] int = noinit;
 
   const poolSize = pool.size;
-  const c = poolSize / D;
-  const l = poolSize - (D-1)*c;
+  const c = poolSize / numLocales;
+  const l = poolSize - (numLocales-1)*c;
   const f = pool.front;
   var lock: atomic bool;
 
@@ -417,9 +417,9 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     }
 
     const poolSize_l = pool_lloc.size;
-    const c_l = poolSize / D;
-    const l_l = poolSize - (D-1)*c_l;
-    const f_l = pool.front;
+    const c_l = poolSize_l / D;
+    const l_l = poolSize_l - (D-1)*c_l;
+    const f_l = pool_lloc.front;
     /* var lock: atomic bool; */
 
     pool_lloc.front = 0;
