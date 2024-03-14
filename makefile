@@ -6,7 +6,7 @@ CHPL_COMMON_OPTS := --fast -M lib/common
 
 # Source files
 CHPL_NQUEENS_SOURCES := nqueens_chpl.chpl nqueens_gpu_chpl.chpl nqueens_multigpu_chpl.chpl
-CHPL_PFSP_SOURCES := pfsp_chpl.chpl pfsp_gpu_chpl.chpl pfsp_multigpu_chpl.chpl
+CHPL_PFSP_SOURCES := pfsp_chpl.chpl pfsp_gpu_chpl.chpl pfsp_multigpu_chpl.chpl pfsp_dist_multigpu_chpl.chpl
 
 # Object files
 CHPL_NQUEENS_OBJECTS := $(CHPL_NQUEENS_SOURCES:.chpl=.o)
