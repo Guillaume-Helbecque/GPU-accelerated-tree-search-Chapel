@@ -31,4 +31,4 @@ pfsp_%.o: pfsp_%.chpl
 .PHONY: clean
 
 clean:
-	rm -f $(CHPL_NQUEENS_OBJECTS) $(CHPL_PFSP_OBJECTS)
+	rm -f $(CHPL_NQUEENS_OBJECTS) $(CHPL_PFSP_OBJECTS) *.o_real
