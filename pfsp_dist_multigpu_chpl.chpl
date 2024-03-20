@@ -3,10 +3,12 @@
 */
 
 use Time;
+use PrivateDist;
 use GpuDiagnostics;
 
 config const BLOCK_SIZE = 512;
 
+use util;
 use Pool_ext;
 
 use Bound_johnson;
@@ -350,6 +352,10 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 {
   var best: int = initUB;
 
+  const PrivateSpace: domain(1) dmapped privateDist(); // map each index to a locale
+  var eachLocaleState: [PrivateSpace] atomic bool = BUSY;
+  var allLocalesIdleFlag: atomic bool = false;
+
   var root = new Node(jobs);
 
   var pool = new SinglePool_ext(Node);
@@ -401,10 +407,14 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   pool.size = 0;
 
   coforall (locID, loc) in zip(0..#numLocales, Locales) with (ref pool,
-    ref eachLocaleExploredTree, ref eachLocaleExploredSol, ref eachLocaleBest) do on loc {
+    ref eachLocaleExploredTree, ref eachLocaleExploredSol, ref eachLocaleBest,
+    ref eachLocaleState) do on loc {
 
     var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
     var eachBest: [0..#D] int = noinit;
+
+    var allTasksIdleFlag: atomic bool = false;
+    var eachTaskState: [0..#D] atomic bool = BUSY;
 
     var pool_lloc = new SinglePool_ext(Node);
 
@@ -426,11 +436,13 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     pool_lloc.size = 0;
 
     coforall (gpuID, gpu) in zip(0..#D, here.gpus) with (ref pool,
-      ref eachExploredTree, ref eachExploredSol, ref eachBest) {
+      ref eachExploredTree, ref eachExploredSol, ref eachBest,
+      ref eachTaskState, ref eachLocaleState) {
 
       var tree, sol: uint;
       var pool_loc = new SinglePool_ext(Node);
       var best_l = best;
+      var taskState, locState: bool = BUSY;
 
       // each task gets its chunk
       pool_loc.elements[0..#c_l] = pool_lloc.elements[gpuID+f_l.. by D #c_l];
@@ -463,6 +475,15 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         */
         var poolSize = pool_loc.size;
         if (poolSize >= m) {
+          if taskState {
+            taskState = BUSY;
+            eachTaskState[gpuID].write(BUSY);
+          }
+          if locState {
+            locState = BUSY;
+            eachLocaleState[here.id].write(BUSY);
+          }
+
           poolSize = min(poolSize, M);
           var parents: [0..#poolSize] Node = noinit;
           for i in 0..#poolSize {
@@ -490,7 +511,20 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
           generate_children(parents, poolSize, bounds, tree, sol, best_l, pool_loc);
         }
         else {
-          break;
+          if !taskState {
+            taskState = IDLE;
+            eachTaskState[gpuID].write(IDLE);
+          }
+          if allIdle(eachTaskState, allTasksIdleFlag) {
+            if !locState {
+              locState = IDLE;
+              eachLocaleState[here.id].write(IDLE);
+            }
+            if allIdle(eachLocaleState, allLocalesIdleFlag) {
+              break;
+            }
+          }
+          continue;
         }
       }
 
