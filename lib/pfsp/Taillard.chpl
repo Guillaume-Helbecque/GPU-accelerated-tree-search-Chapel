@@ -86,7 +86,7 @@ module Taillard
   {
     const N = taillard_get_nb_jobs(id);
     const M = taillard_get_nb_machines(id);
-    const time_seed = time_seeds[id];
+    var time_seed = time_seeds[id];
 
     for i in 0..#M {
       for j in 0..#N {
