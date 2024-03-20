@@ -352,7 +352,6 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 {
   var best: int = initUB;
 
-  const PrivateSpace: domain(1) dmapped privateDist(); // map each index to a locale
   var eachLocaleState: [PrivateSpace] atomic bool = BUSY;
   var allLocalesIdleFlag: atomic bool = false;
 
