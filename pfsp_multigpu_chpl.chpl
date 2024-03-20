@@ -489,6 +489,8 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   exploredSol += (+ reduce eachExploredSol);
   best = (min reduce eachBest);
 
+  writeln("workload per GPU: ", 100.0*eachExploredTree/(exploredTree-res1[1]):real);
+
   const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
   writeln("Search on GPU completed");
   writeln("Size of the explored tree: ", res2[1]);
