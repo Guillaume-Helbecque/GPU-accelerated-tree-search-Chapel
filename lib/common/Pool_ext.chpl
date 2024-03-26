@@ -11,17 +11,21 @@ module Pool_ext
 
   record SinglePool_ext {
     type eltType;
-    var dom: domain(1);
+    var dom: domain(1) = {0..#CAPACITY};
     var elements: [dom] eltType;
-    var capacity: int;
+    var capacity: int = CAPACITY;
     var front: int;
     var size: int;
 
-    proc init(type elemType) {
+    /*
+      NOTE: This initializer produce a compile-time error.
+      See Chapel GitHub issue #24677.
+    */
+    /* proc init(type elemType) {
       this.eltType = elemType;
       this.dom = 0..#CAPACITY;
       this.capacity = CAPACITY;
-    }
+    } */
 
     proc ref pushBack(node: eltType) {
       if (this.front + this.size >= this.capacity) {

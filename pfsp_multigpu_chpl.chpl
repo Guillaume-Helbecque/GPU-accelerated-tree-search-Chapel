@@ -404,12 +404,14 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   pool.front = 0;
   pool.size = 0;
 
+  var multiPool: [0..#D] SinglePool_ext(Node);
+
   coforall (gpuID, gpu) in zip(0..#D, here.gpus) with (ref pool,
     ref eachExploredTree, ref eachExploredSol, ref eachBest,
-    ref eachTaskState) {
+    ref eachTaskState, ref multiPool) {
 
     var tree, sol: uint;
-    var pool_loc = new SinglePool_ext(Node);
+    ref pool_loc = multiPool[gpuID];
     var best_l = best;
     var taskState: bool = BUSY;
 
