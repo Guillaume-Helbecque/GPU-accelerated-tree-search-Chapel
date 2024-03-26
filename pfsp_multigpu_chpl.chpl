@@ -357,7 +357,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   pool.pushBack(root);
 
   var allTasksIdleFlag: atomic bool = false;
-  var eachTaskState: [0..#here.maxTaskPar] atomic bool = BUSY;
+  var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
 
   var timer: stopwatch;
 
@@ -444,7 +444,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
       */
       var poolSize = pool_loc.size;
       if (poolSize >= m) {
-        if taskState {
+        if (taskState == IDLE) {
           taskState = BUSY;
           eachTaskState[gpuID].write(BUSY);
         }
@@ -476,7 +476,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         generate_children(parents, poolSize, bounds, tree, sol, best_l, pool_loc);
       }
       else {
-        if !taskState {
+        if (taskState == BUSY) {
           taskState = IDLE;
           eachTaskState[gpuID].write(IDLE);
         }
