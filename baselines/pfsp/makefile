@@ -13,26 +13,26 @@ HIP_PATCH_G5K    := DEVICE_LIB_PATH=/opt/rocm-4.5.0/amdgcn/bitcode/
 
 # Source files
 C_SOURCES    := pfsp_c.c
-# CUDA_SOURCES := pfsp_gpu_cuda.cu pfsp_multigpu_cuda.cu
+CUDA_SOURCES := pfsp_gpu_cuda.cu #pfsp_multigpu_cuda.cu
 
 # Object files
 C_OBJECTS    := $(C_SOURCES:.c=.o)
-# CUDA_OBJECTS := $(CUDA_SOURCES:.cu=.o)
+CUDA_OBJECTS := $(CUDA_SOURCES:.cu=.o)
 # HIP_OBJECTS  := $(CUDA_SOURCES:cuda.cu=hip.o)
 
 # Library paths
 C_PFSP_LIBPATH := lib/c_bound_simple.c lib/c_bound_johnson.c lib/c_taillard.c
 
 # Build codes
-all: $(C_OBJECTS) #$(CUDA_OBJECTS) $(HIP_OBJECTS)
+all: $(C_OBJECTS) $(CUDA_OBJECTS) $(HIP_OBJECTS)
 
 # Pattern rule for C source files
 pfsp_c.o: pfsp_c.c
 	$(C_COMPILER) $(C_COMMON_OPTS) $< -o $@ $(C_PFSP_LIBPATH)
 
 # Pattern rule for CUDA source files
-# pfsp_gpu_cuda.o: pfsp_gpu_cuda.cu
-# 	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) $< -o $@
+pfsp_gpu_cuda.o: pfsp_gpu_cuda.cu
+	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) $< -o $@
 
 # Pattern rule for hybrid OpenMP+CUDA source files
 # pfsp_multigpu_cuda.o: pfsp_multigpu_cuda.cu
