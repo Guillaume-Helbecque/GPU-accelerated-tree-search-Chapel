@@ -17,7 +17,7 @@
 
 #define BLOCK_SIZE 512
 
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
+//#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 /*******************************************************************************
 Implementation of PFSP Nodes.
@@ -93,8 +93,10 @@ void deleteSinglePool(SinglePool* pool)
 Implementation of the parallel CUDA GPU PFSP search.
 *******************************************************************************/
 
-void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub)
+void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* m, int *M)
 {
+  *m = 25;
+  *M = 50000;
   *inst = 14;
   *lb = 1;
   *ub = 1;
@@ -108,13 +110,15 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub)
     {"inst", required_argument, NULL, 'i'},
     {"lb", required_argument, NULL, 'l'},
     {"ub", required_argument, NULL, 'u'},
+    {"m", required_argument, NULL, 'm'},
+    {"M", required_argument, NULL, 'M'},
     {NULL, 0, NULL, 0} // Terminate options array
   };
 
   int opt, value;
   int option_index = 0;
 
-  while ((opt = getopt_long(argc, argv, "i:l:u:", long_options, &option_index)) != -1) {
+  while ((opt = getopt_long(argc, argv, "i:l:u:m:M", long_options, &option_index)) != -1) {
     value = atoi(optarg);
 
     switch (opt) {
@@ -142,8 +146,24 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub)
       *ub = value;
       break;
 
+    case 'm':
+      if (value < 25 || value > 100) {
+	fprintf(stderr, "Error: unsupported minimal pool for GPU initialization\n");
+	exit(EXIT_FAILURE);
+      }
+      *m = value;
+      break;
+
+    case 'M':
+      if (value < 45000 || value > 50000) {
+	fprintf(stderr, "Error: unsupported maximal pool for GPU initialization\n");
+	exit(EXIT_FAILURE);
+      }
+      *M = value;
+      break;
+
     default:
-      fprintf(stderr, "Usage: %s --inst <value> --lb <value> --ub <value>\n", argv[0]);
+      fprintf(stderr, "Usage: %s --inst <value> --lb <value> --ub <value> --m <value> --M <value>\n", argv[0]);
       exit(EXIT_FAILURE);
     }
   }
@@ -294,23 +314,24 @@ void decompose(const int jobs, const int lb, int* best,
 // Here I need to creat three functions evaluate_gpu that depend on the bounds and one that will be the responsible to decide which is going to be chosen
 
 // Evaluate a bulk of parent nodes on GPU using lb1
-__global__ int* evaluate_gpu_lb1 (const int jobs, const int size, const Node* parents_d, const lb1_bound_data* const lbound1_d, int* bounds)
+// Here I am receiving parents_d as Node* and not const Node*, because of call of function swap
+__global__ int* evaluate_gpu_lb1 (const int jobs, const int size, Node* parents_d, const lb1_bound_data* const lbound1_d, int* bounds)
 {
   int threadId = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (threadId < size) {
     const int parentId = threadId / jobs; 
     const int k = threadId % jobs; 
-    const Node parent = parents_d[parentId]; 
+    Node parent = parents_d[parentId]; 
     const uint8_t depth = parent.depth;
-    const int* prmu = parent.prmu; // I am not sure, but since parent.prmu is a table of int, a pointer should work 
+    //int* prmu = parent.prmu; // I am not sure, but since parent.prmu is a table of int, a pointer should work 
 
 
     // We evaluate all permutations by varying index k from limit1 forward
     if (k >= parent.limit1+1) {
-      swap(prmu[depth],prmu[k]);
-      bounds[threadId] = lb1_bound(lbound1_d, prmu, parent.limit1+1,jobs);
-      swap(prmu[depth],prmu[k]);
+      swap(&parent.prmu[depth],&parent.prmu[k]);
+      bounds[threadId] = lb1_bound(lbound1_d, parent.prmu, parent.limit1+1,jobs);
+      swap(&parent.prmu[depth],&parent.prmu[k]);
     }
   }
 }
@@ -322,20 +343,20 @@ __global__ int* evaluate_gpu_lb1 (const int jobs, const int size, const Node* pa
   to the other lower bounds.
 */
 // Evaluate a bulk of parent nodes on GPU using lb1_d.
-__global__ void evaluate_gpu_lb1_d(const int jobs, const int size, const int* best, const Node* parents_d, const lb1_bound_data* const lbound1_d, int* bounds)
+__global__ void evaluate_gpu_lb1_d(const int jobs, const int size, const int* best, Node* parents_d, const lb1_bound_data* const lbound1_d, int* bounds)
 {
   // How does the NOTE translates into CUDA indices for searching only the parent nodes?
   int parentId = blockIdx.x * blockDim.x + threadIdx.x; // How to manage the proper indices?
   // I think that here maybe we do not to run through the threads ? 
   if(parentId < size/jobs){ 
-    const int parent = parents_d[parentId];
-    const uint8_t depth = parent.depth;
-    const int* prmu = parent.prmu;
+    Node parent = parents_d[parentId];
+    //const uint8_t depth = parent.depth; //not needed
+    //const int* prmu = parent.prmu;
 
     // Vector of integers of size MAX_JOBS
     int lb_begin[MAX_JOBS];
     
-    lb1_children_bounds(lbound1_d, prmu, parent.limit1, jobs, lb_begin);
+    lb1_children_bounds(lbound1_d, parent.prmu, parent.limit1, jobs, lb_begin);
 
     // Going through the children for each parent node ?
     for(int k = 0; k < jobs; k++) {
@@ -348,59 +369,59 @@ __global__ void evaluate_gpu_lb1_d(const int jobs, const int size, const int* be
 }
 
 // Evaluate a bulk of parent nodes on GPU using lb2.
-__global__ void evaluate_gpu_lb2(const int jobs, const int size, const Node* parents_d, const lb1_bound_data* const lbound1_d, const lb2_bound_data* const lbound2_d, int* bounds)
+__global__ void evaluate_gpu_lb2(const int jobs, const int size, int* best, Node* parents_d, const lb1_bound_data* const lbound1_d, const lb2_bound_data* const lbound2_d, int* bounds)
 {
   int threadId = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (threadId < size) {
     const int parentId = threadId / jobs; 
     const int k = threadId % jobs; 
-    const Node parent = parents_d[parentId];
+    Node parent = parents_d[parentId];
     const uint8_t depth = parent.depth;
-    const int* prmu = parent.prmu; // I am not sure, but since parent.prmu is a table of int, a pointer should work 
+    //const int* prmu = parent.prmu; // I am not sure, but since parent.prmu is a table of int, a pointer should work 
 
 
     // We evaluate all permutations by varying index k from limit1 forward
     if (k >= parent.limit1+1) {
-      swap(prmu[depth],prmu[k]);
-      bounds[threadId] = lb2_bound(lbound1_d, lbound2_d, prmu, parent.limit1+1, jobs, best);
-      swap(prmu[depth],prmu[k]);
+      swap(&parent.prmu[depth],&parent.prmu[k]);
+      bounds[threadId] = lb2_bound(lbound1_d, lbound2_d, parent.prmu, parent.limit1+1, jobs, *best);
+      swap(&parent.prmu[depth],&parent.prmu[k]);
     }
   }
 }
 
 // Maybe the parameters are appropriate now
 int* evaluate_gpu(const int jobs, const int lb, const int size, int* best,
-		  const lb1_bound_data* const lbound1, const lb2_bound_data* const lbound2, const Node parent)
+		  const lb1_bound_data* const lbound1, const lb2_bound_data* const lbound2, Node* parent)
 {
     
   switch (lb) {
   case 0: // lb1_d
-    int bounds[size]; // Here check the size of bounds vector
-    evaluate_gpu_lb1_d(jobs, size, best, parent, lbound1, bounds);
-    return bounds;
+    int bounds_lb1_d[size]; // Here check the size of bounds vector
+    evaluate_gpu_lb1_d(jobs, size, best, parent, lbound1, bounds_lb1_d);
+    return bounds_lb1_d;
     break;
 
   case 1: // lb1
-    int bounds[size];
-    evaluate_gpu_lb1(jobs, size, parent, lbound1, bounds);
-    return bounds;
+    int bounds_lb1[size];
+    evaluate_gpu_lb1(jobs, size, parent, lbound1, bounds_lb1);
+    return bounds_lb1;
     break;
 
   case 2: // lb2
-    int bounds[size];
-    evaluate_gpu_lb2(jobs, size, best, parent, lbound1, lbound2, bounds);
-    return bounds;
+    int bounds_lb2[size];
+    evaluate_gpu_lb2(jobs, size, best, parent, lbound1, lbound2, bounds_lb2);
+    return bounds_lb2;
     break;
   }
 }
 
 // Generate children nodes (evaluated on GPU) on CPU
-void generate_children(const Node* parents, const int size, const int jobs, const int bounds,
+void generate_children(Node* parents, const int size, const int jobs, int* bounds,
 		       unsigned long long int* exploredTree, unsigned long long int* exploredSol, int* best, SinglePool* pool)
 {
   for (int i = 0; i < size; i++) {
-    const Node parent = parents[i];
+    Node parent = parents[i];
     const uint8_t depth = parent.depth;
 
     for (int j = parent.limit1+1; j < jobs; j++) {
@@ -430,7 +451,7 @@ void generate_children(const Node* parents, const int size, const int jobs, cons
 }
 
 // Single-GPU PFSP search
-void pfsp_search(const int inst, const int lb,int* best,
+void pfsp_search(const int inst, const int lb, const int m, const int M, int* best,
 		 unsigned long long int* exploredTree, unsigned long long int* exploredSol,
 		 double* elapsedTime)
 {
@@ -477,9 +498,9 @@ void pfsp_search(const int inst, const int lb,int* best,
     // When declaring mallocs inside we will have problems freeing memory
     if (poolSize >= m) {
       Node* parents = (Node*)malloc(poolSize * sizeof(Node));
-      for(int i= 0, i < poolSize, i++) {
+      for(int i= 0; i < poolSize; i++) {
 	int hasWork = 0;
-	parents[i] = pool.popBack(hasWork);
+	parents[i] = popBack(&pool,&hasWork);
 	if (!hasWork) break;
       }
 	
@@ -489,7 +510,7 @@ void pfsp_search(const int inst, const int lb,int* best,
 	something like that.
       */
       const int  numBounds = jobs * poolSize;
-      int bounds[numBounds];
+      int* bounds;//[numBounds];
 
       Node* parents_d;
       cudaMalloc(&parents_d, M * sizeof(Node));
@@ -498,7 +519,8 @@ void pfsp_search(const int inst, const int lb,int* best,
       const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
 
       // count += 1;
-      bounds = evaluate_gpu<<<nbBlocks, BLOCK_SIZE>>>(jobs, lb, poolSize, &best, lbound1_d, lbound2_d, parents_d);
+      // Here should it be lbound1_d, lbound2_d or lbound1, lbound2?
+      bounds = evaluate_gpu<<<nbBlocks, BLOCK_SIZE>>>(jobs, lb, poolSize, best, lbound1, lbound2, parents_d);
 
       // Here we do not have labels, we have the bound data
       // cudaMemcpy(labels, labels_d, numLabels * sizeof(uint8_t), cudaMemcpyDeviceToHost);
@@ -506,7 +528,7 @@ void pfsp_search(const int inst, const int lb,int* best,
       /*
 	Each task generates and inserts its children nodes to the pool.
       */
-      generate_children(parents, poolSize,jobs, bounds, exploredTree, exploredSol, best, pool);
+      generate_children(parents, poolSize,jobs, bounds, exploredTree, exploredSol, best, &pool);
     }
   }
 
@@ -528,8 +550,8 @@ void pfsp_search(const int inst, const int lb,int* best,
 
 int main(int argc, char* argv[])
 {
-  int inst, lb, ub;
-  parse_parameters(argc, argv, &inst, &lb, &ub);
+  int inst, lb, ub, m, M;
+  parse_parameters(argc, argv, &inst, &lb, &ub, &m, &M);
 
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
@@ -542,7 +564,7 @@ int main(int argc, char* argv[])
 
   double elapsedTime;
 
-  pfsp_search(inst, lb, &optimum, &exploredTree, &exploredSol, &elapsedTime);
+  pfsp_search(inst, lb, m, M, &optimum, &exploredTree, &exploredSol, &elapsedTime);
 
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
 
