@@ -169,6 +169,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
   }
 }
 
+// I need to add m and M to print_settings
 void print_settings(const int inst, const int machines, const int jobs, const int ub, const int lb)
 {
   printf("\n=================================================\n");
@@ -394,24 +395,21 @@ __global__ void evaluate_gpu_lb2(const int jobs, const int size, int* best, Node
 int* evaluate_gpu(const int jobs, const int lb, const int size, int* best,
 		  const lb1_bound_data* const lbound1, const lb2_bound_data* const lbound2, Node* parent)
 {
-    
+  int bounds[size];
   switch (lb) {
   case 0: // lb1_d
-    int bounds_lb1_d[size]; // Here check the size of bounds vector
-    evaluate_gpu_lb1_d(jobs, size, best, parent, lbound1, bounds_lb1_d);
-    return bounds_lb1_d;
+    evaluate_gpu_lb1_d(jobs, size, best, parent, lbound1, bounds);
+    return bounds;
     break;
 
   case 1: // lb1
-    int bounds_lb1[size];
-    evaluate_gpu_lb1(jobs, size, parent, lbound1, bounds_lb1);
-    return bounds_lb1;
+    evaluate_gpu_lb1(jobs, size, parent, lbound1, bounds);
+    return bounds;
     break;
 
   case 2: // lb2
-    int bounds_lb2[size];
-    evaluate_gpu_lb2(jobs, size, best, parent, lbound1, lbound2, bounds_lb2);
-    return bounds_lb2;
+    evaluate_gpu_lb2(jobs, size, best, parent, lbound1, lbound2, bounds);
+    return bounds;
     break;
   }
 }
@@ -432,17 +430,17 @@ void generate_children(Node* parents, const int size, const int jobs, int* bound
 	exploredSol += 1;
 
 	// If child feasible
-	if(lowerbound < best) &best = lowerbound;
+	if(lowerbound < *best) *best = lowerbound;
 
       } else { // If not leaf
-	if(lowerbound < best) {
+	if(lowerbound < *best) {
 	  Node child;
 	  memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
 	  swap(&child.prmu[parent.depth], &child.prmu[j]);
 	  child.depth = parent.depth + 1;
 	  child.limit1 = parent.limit1 + 1;
 	  
-	  pool.pushBack(child);
+	  pushBack(pool, child);
 	  exploredTree += 1;
 	}
       }
