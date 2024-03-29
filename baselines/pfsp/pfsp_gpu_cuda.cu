@@ -17,8 +17,6 @@
 
 #define BLOCK_SIZE 512
 
-//#define MIN(a, b) ((a) < (b) ? (a) : (b))
-
 /*******************************************************************************
 Implementation of PFSP Nodes.
 *******************************************************************************/
@@ -169,7 +167,6 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
   }
 }
 
-// I need to add m and M to print_settings
 void print_settings(const int inst, const int machines, const int jobs, const int ub, const int lb)
 {
   printf("\n=================================================\n");
@@ -312,10 +309,7 @@ void decompose(const int jobs, const int lb, int* best,
   }
 }
 
-// Here I need to creat three functions evaluate_gpu that depend on the bounds and one that will be the responsible to decide which is going to be chosen
-
 // Evaluate a bulk of parent nodes on GPU using lb1
-// Here I am receiving parents_d as Node* and not const Node*, because of call of function swap
 __global__ int* evaluate_gpu_lb1 (const int jobs, const int size, Node* parents_d, const lb1_bound_data* const lbound1_d, int* bounds)
 {
   int threadId = blockIdx.x * blockDim.x + threadIdx.x;
@@ -325,9 +319,7 @@ __global__ int* evaluate_gpu_lb1 (const int jobs, const int size, Node* parents_
     const int k = threadId % jobs; 
     Node parent = parents_d[parentId]; 
     const uint8_t depth = parent.depth;
-    //int* prmu = parent.prmu; // I am not sure, but since parent.prmu is a table of int, a pointer should work 
-
-
+  
     // We evaluate all permutations by varying index k from limit1 forward
     if (k >= parent.limit1+1) {
       swap(&parent.prmu[depth],&parent.prmu[k]);
@@ -337,7 +329,7 @@ __global__ int* evaluate_gpu_lb1 (const int jobs, const int size, Node* parents_
   }
 }
 
-
+//Still need to solve lb1_d index
 /*
   NOTE: This lower bound evaluates all the children of a given parent at the same time.
   Therefore, the GPU loop is on the parent nodes and not on the children ones, in contrast
@@ -379,9 +371,7 @@ __global__ void evaluate_gpu_lb2(const int jobs, const int size, int* best, Node
     const int k = threadId % jobs; 
     Node parent = parents_d[parentId];
     const uint8_t depth = parent.depth;
-    //const int* prmu = parent.prmu; // I am not sure, but since parent.prmu is a table of int, a pointer should work 
-
-
+  
     // We evaluate all permutations by varying index k from limit1 forward
     if (k >= parent.limit1+1) {
       swap(&parent.prmu[depth],&parent.prmu[k]);
@@ -391,25 +381,24 @@ __global__ void evaluate_gpu_lb2(const int jobs, const int size, int* best, Node
   }
 }
 
-// Maybe the parameters are appropriate now
-int* evaluate_gpu(const int jobs, const int lb, const int size, int* best,
-		  const lb1_bound_data* const lbound1, const lb2_bound_data* const lbound2, Node* parent)
+
+void evaluate_gpu(const int jobs, const int lb, const int size, const int nbBlocks, const int numBounds, int* best,
+		  const lb1_bound_data* const lbound1, const lb2_bound_data* const lbound2, Node* parent, int* bounds)
 {
-  int bounds[size];
   switch (lb) {
   case 0: // lb1_d
-    evaluate_gpu_lb1_d(jobs, size, best, parent, lbound1, bounds);
-    return bounds;
+    evaluate_gpu_lb1_d<<<nbBlocks, BLOCK_SIZE>>>(jobs, size, best, parent, lbound1, bounds);
+    return;
     break;
 
   case 1: // lb1
-    evaluate_gpu_lb1(jobs, size, parent, lbound1, bounds);
-    return bounds;
+    evaluate_gpu_lb1<<<nbBlocks, BLOCK_SIZE>>>(jobs, size, parent, lbound1, bounds);
+    return;
     break;
 
   case 2: // lb2
-    evaluate_gpu_lb2(jobs, size, best, parent, lbound1, lbound2, bounds);
-    return bounds;
+    evaluate_gpu_lb2<<<nbBlocks, BLOCK_SIZE>>>(jobs, size, best, parent, lbound1, lbound2, bounds);
+    return;
     break;
   }
 }
@@ -481,8 +470,26 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   fill_lags(lbound1->p_times, lbound2);
   fill_johnson_schedules(lbound1->p_times, lbound2);
 
-  // I might need to add some lines here to check on the lbound1_d and lbound2_d (on the devices)
-    
+  // Passing bounding data to GPU
+  // How to recover the sizes of lbound's vectors?
+  lb1_bound_data* lbound1_d;
+  cudaMalloc(&lbound1_d, );
+
+  lb2_bound_data* lbound2_d;
+  cudaMalloc(&lbound2_d, );
+	     
+  //cudaMalloc(&parents_d, M * sizeof(Node));
+  cudaMemcpy(lbound1_d, lbound1, THESIZE, cudaMemcpyHostToDevice);
+  cudaMemcpy(lbound2_d, lbound2, THESIZE, cudaMemcpyHostToDevice);
+
+  // Allocating parents vectors
+  Node* parents = (Node*)malloc(M * sizeof(Node));
+  
+  Node* parents_d;
+  cudaMalloc(&parents_d, M * sizeof(Node));
+
+  cudaDeviceSynchronize();
+  
   while (1) {
     int hasWork = 0;
     Node parent = popBack(&pool, &hasWork);
@@ -493,9 +500,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
     int poolSize = MIN(pool.size,M);
 
     // If 'poolSize' is sufficiently large, we offload the pool on GPU.
-    // When declaring mallocs inside we will have problems freeing memory
     if (poolSize >= m) {
-      Node* parents = (Node*)malloc(poolSize * sizeof(Node));
+      
       for(int i= 0; i < poolSize; i++) {
 	int hasWork = 0;
 	parents[i] = popBack(&pool,&hasWork);
@@ -507,20 +513,19 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
 	generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
 	something like that.
       */
-      const int  numBounds = jobs * poolSize;
-      int* bounds;//[numBounds];
-
-      Node* parents_d;
-      cudaMalloc(&parents_d, M * sizeof(Node));
-      cudaMemcpy(parents_d, parents, poolSize * sizeof(Node), cudaMemcpyHostToDevice);
-
+      const int  numBounds = jobs * poolSize;   
       const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
 
-      // count += 1;
-      // Here should it be lbound1_d, lbound2_d or lbound1, lbound2?
-      bounds = evaluate_gpu<<<nbBlocks, BLOCK_SIZE>>>(jobs, lb, poolSize, best, lbound1, lbound2, parents_d);
+      int bounds[poolSize];
+      cudaMemcpy(parents_d, parents, poolSize * sizeof(Node), cudaMemcpyHostToDevice);
+      cudaDeviceSynchronize();
 
+      // count += 1;
+      evaluate_gpu(jobs, lb, poolSize, nbBlocks, numBounds, best, lbound1_d, lbound2_d, parents_d,bounds);
+      cudaDeviceSynchronize();
+      
       // Here we do not have labels, we have the bound data
+      // Have to work with bounds and bounds_d
       // cudaMemcpy(labels, labels_d, numLabels * sizeof(uint8_t), cudaMemcpyDeviceToHost);
 	  
       /*
@@ -533,6 +538,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   // Attention to these free data
   // labels are represented by the bounds now and they have their own freeing functions (see below)
   cudaFree(parents_d);
+  cudaFree(lbound1_d);
+  cudaFree(lbound2_d);
+  
   free(parents);
         
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
