@@ -200,6 +200,13 @@ inline void swap(int* a, int* b)
   *a = tmp;
 }
 
+__device__ void swap_cuda(int* a, int* b)
+{
+  int tmp = *b;
+  *b = *a;
+  *a = tmp;
+}
+
 // Evaluate and generate children nodes on CPU.
 void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const Node parent,
 		   int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool* pool)
@@ -322,9 +329,9 @@ __global__ int* evaluate_gpu_lb1 (const int jobs, const int size, Node* parents_
   
     // We evaluate all permutations by varying index k from limit1 forward
     if (k >= parent.limit1+1) {
-      swap(&parent.prmu[depth],&parent.prmu[k]);
+      swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
       bounds[threadId] = lb1_bound(lbound1_d, parent.prmu, parent.limit1+1,jobs);
-      swap(&parent.prmu[depth],&parent.prmu[k]);
+      swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
     }
   }
 }
@@ -374,9 +381,9 @@ __global__ void evaluate_gpu_lb2(const int jobs, const int size, int* best, Node
   
     // We evaluate all permutations by varying index k from limit1 forward
     if (k >= parent.limit1+1) {
-      swap(&parent.prmu[depth],&parent.prmu[k]);
+      swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
       bounds[threadId] = lb2_bound(lbound1_d, lbound2_d, parent.prmu, parent.limit1+1, jobs, *best);
-      swap(&parent.prmu[depth],&parent.prmu[k]);
+      swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
     }
   }
 }
@@ -473,14 +480,14 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   // Passing bounding data to GPU
   // How to recover the sizes of lbound's vectors?
   lb1_bound_data* lbound1_d;
-  cudaMalloc(&lbound1_d, );
+  cudaMalloc(&lbound1_d, sizeof(lb1_bound_data));
 
   lb2_bound_data* lbound2_d;
-  cudaMalloc(&lbound2_d, );
+  cudaMalloc(&lbound2_d, sizeof(lb2_bound_data));
 	     
   //cudaMalloc(&parents_d, M * sizeof(Node));
-  cudaMemcpy(lbound1_d, lbound1, THESIZE, cudaMemcpyHostToDevice);
-  cudaMemcpy(lbound2_d, lbound2, THESIZE, cudaMemcpyHostToDevice);
+  cudaMemcpy(lbound1_d, lbound1, sizeof(lb1_bound_data), cudaMemcpyHostToDevice);
+  cudaMemcpy(lbound2_d, lbound2, sizeof(lb2_bound_data), cudaMemcpyHostToDevice);
 
   // Allocating parents vectors
   Node* parents = (Node*)malloc(M * sizeof(Node));
