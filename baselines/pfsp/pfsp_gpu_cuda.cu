@@ -14,6 +14,9 @@
 #include "lib/c_bound_simple.h"
 #include "lib/c_bound_johnson.h"
 #include "lib/c_taillard.h"
+#include "lib/c_bound_simple_gpu_cuda.h"
+//#include "lib/c_bound_johnson_gpu_cuda.h"
+
 
 #define BLOCK_SIZE 512
 
@@ -330,7 +333,7 @@ __global__ int* evaluate_gpu_lb1 (const int jobs, const int size, Node* parents_
     // We evaluate all permutations by varying index k from limit1 forward
     if (k >= parent.limit1+1) {
       swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
-      bounds[threadId] = lb1_bound(lbound1_d, parent.prmu, parent.limit1+1,jobs);
+      bounds[threadId] = lb1_bound_gpu(lbound1_d, parent.prmu, parent.limit1+1,jobs);
       swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
     }
   }
@@ -356,7 +359,7 @@ __global__ void evaluate_gpu_lb1_d(const int jobs, const int size, const int* be
     // Vector of integers of size MAX_JOBS
     int lb_begin[MAX_JOBS];
     
-    lb1_children_bounds(lbound1_d, parent.prmu, parent.limit1, jobs, lb_begin);
+    lb1_children_bounds_gpu(lbound1_d, parent.prmu, parent.limit1, jobs, lb_begin);
 
     // Going through the children for each parent node ?
     for(int k = 0; k < jobs; k++) {
@@ -382,7 +385,7 @@ __global__ void evaluate_gpu_lb2(const int jobs, const int size, int* best, Node
     // We evaluate all permutations by varying index k from limit1 forward
     if (k >= parent.limit1+1) {
       swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
-      bounds[threadId] = lb2_bound(lbound1_d, lbound2_d, parent.prmu, parent.limit1+1, jobs, *best);
+      // bounds[threadId] = lb2_bound_gpu(lbound1_d, lbound2_d, parent.prmu, parent.limit1+1, jobs, *best);
       swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
     }
   }
