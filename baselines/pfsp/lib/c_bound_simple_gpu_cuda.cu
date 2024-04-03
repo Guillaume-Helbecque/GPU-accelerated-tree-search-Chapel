@@ -91,7 +91,7 @@ schedule_back_gpu(const lb1_bound_data* const lb1_data, const int * const permut
   }
 }
 
-__device__ int eval_solution_gpu(const lb1_bound_data* const lb1_data, const int* const permutation)
+__device__ int eval_solution_gpu(const lb1_bound_data* lb1_data, const int* const permutation)
 {
   const int N = lb1_data->nb_jobs;
   const int M = lb1_data->nb_machines;

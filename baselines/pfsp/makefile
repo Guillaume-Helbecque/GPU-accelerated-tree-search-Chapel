@@ -33,7 +33,7 @@ pfsp_c.o: pfsp_c.c
 
 # Pattern rule for CUDA source files
 pfsp_gpu_cuda.o: pfsp_gpu_cuda.cu
-	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) $< -o $@ $(CUDA_PFSP_LIBPATH)
+	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) $(CUDA_PFSP_LIBPATH) $< -o $@
 
 # Pattern rule for hybrid OpenMP+CUDA source files
 # pfsp_multigpu_cuda.o: pfsp_multigpu_cuda.cu

@@ -11,7 +11,7 @@
 // #endif
 
 //regroup (constant) bound data
-/*struct lb1_bound_data
+struct lb1_bound_data
 {
   int *p_times;
   int *min_heads;    // for each machine k, minimum time between t=0 and start of any job
@@ -21,7 +21,7 @@
 };
 
 typedef struct lb1_bound_data lb1_bound_data;
-*/
+
 
 //----------------------prepare bound data----------------------
 /*
