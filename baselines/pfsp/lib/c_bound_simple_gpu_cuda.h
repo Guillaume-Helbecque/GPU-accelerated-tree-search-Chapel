@@ -28,27 +28,27 @@ typedef struct lb1_bound_data lb1_bound_data;
 __device__ lb1_bound_data* new_bound_data(int _jobs, int _machines);
 __device__ void free_bound_data(lb1_bound_data* lb1_data);
 */
-__device__ void fill_min_heads_tails(lb1_bound_data* lb1_data);
+__device__ void fill_min_heads_tails_gpu(lb1_bound_data* lb1_data);
 
 //----------------------intermediate computations----------------------
-__device__ void add_forward(const int job, const int * const p_times, const int nb_jobs, const int nb_machines, int * front);
+__device__ void add_forward_gpu(const int job, const int * const p_times, const int nb_jobs, const int nb_machines, int * front);
 
-__device__  void add_backward(const int job, const int * const p_times, const int nb_jobs, const int nb_machines, int * back);
+__device__  void add_backward_gpu(const int job, const int * const p_times, const int nb_jobs, const int nb_machines, int * back);
 
-__device__ void schedule_front(const lb1_bound_data* const lb1_data, const int* const permutation,const int limit1, int* front);
+__device__ void schedule_front_gpu(const lb1_bound_data* const lb1_data, const int* const permutation,const int limit1, int* front);
 
-__device__ void schedule_back(const lb1_bound_data* const lb1_data, const int* const permutation,const int limit2, int* back);
+__device__ void schedule_back_gpu(const lb1_bound_data* const lb1_data, const int* const permutation,const int limit2, int* back);
 
-__device__ void sum_unscheduled(const lb1_bound_data* const lb1_data, const int* const permutation, const int limit1, const int limit2, int* remain);
+__device__ void sum_unscheduled_gpu(const lb1_bound_data* const lb1_data, const int* const permutation, const int limit1, const int limit2, int* remain);
 
-__device__ int machine_bound_from_parts(const int* const front, const int* const back, const int* const remain,const int nb_machines);
+__device__ int machine_bound_from_parts_gpu(const int* const front, const int* const back, const int* const remain,const int nb_machines);
 
-__device__ int add_front_and_bound(const lb1_bound_data* const lb1_data, const int job, const int * const front, const int * const back, const int * const remain/*, int* delta_idle*/);
+__device__ int add_front_and_bound_gpu(const lb1_bound_data* const lb1_data, const int job, const int * const front, const int * const back, const int * const remain/*, int* delta_idle*/);
 
-__device__ int add_back_and_bound(const lb1_bound_data* const lb1_data, const int job, const int * const front, const int * const back, const int * const remain, int* delta_idle);
+__device__ int add_back_and_bound_gpu(const lb1_bound_data* const lb1_data, const int job, const int * const front, const int * const back, const int * const remain, int* delta_idle);
 
 //------------------evaluate (partial) schedules------------------
-__device__ int eval_solution(const lb1_bound_data* const lb1_data, const int* const permutation);
+__device__ int eval_solution_gpu(const lb1_bound_data* const lb1_data, const int* const permutation);
 
 __device__ int lb1_bound_gpu(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, const int limit2);
 

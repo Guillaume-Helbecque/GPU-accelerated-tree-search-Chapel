@@ -22,7 +22,7 @@ CUDA_OBJECTS := $(CUDA_SOURCES:.cu=.o)
 
 # Library paths
 C_PFSP_LIBPATH := lib/c_bound_simple.c lib/c_bound_johnson.c lib/c_taillard.c
-CUDA_PFSP_LIBPATH := lib/c_bound_simple_gpu_cuda.cu #lib/c_bound_johnson_gpu_cuda.cu
+CUDA_PFSP_LIBPATH := lib/c_bound_simple_gpu_cuda.cu lib/c_bound_johnson_gpu_cuda.cu
 
 # Build codes
 all: $(C_OBJECTS) $(CUDA_OBJECTS) $(HIP_OBJECTS)
@@ -52,5 +52,5 @@ pfsp_gpu_cuda.o: pfsp_gpu_cuda.cu
 # Utilities
 .PHONY: clean
 
-clean:
-	rm -f $(C_OBJECTS) #$(CUDA_OBJECTS) $(HIP_OBJECTS) *.hip
+clean:3
+	rm -f $(C_OBJECTS) $(CUDA_OBJECTS) #$(HIP_OBJECTS) *.hip

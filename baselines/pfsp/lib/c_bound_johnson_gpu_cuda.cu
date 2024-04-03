@@ -1,12 +1,13 @@
-#include <stdlib.h>
+o#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "c_bound_simple_gpu_cuda.h"
 #include "c_bound_johnson_gpu_cuda.h"
 
-__device__ lb2_bound_data* new_johnson_bd_data(const lb1_bound_data *const lb1_data/*, enum lb2_variant lb2_type*/)
-{
+
+//__device__ lb2_bound_data* new_johnson_bd_data_gpu(const lb1_bound_data *const lb1_data /*, enum lb2_variant lb2_type*/)
+/*{
   lb2_bound_data *b = malloc(sizeof(lb2_bound_data));
 
   b->nb_jobs = lb1_data->nb_jobs;
@@ -44,8 +45,8 @@ __device__ void free_johnson_bd_data(lb2_bound_data* lb2_data)
     free(lb2_data);
   }
 }
-
-__device__ void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/)
+*/
+__device__ void fill_machine_pairs_gpu(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/)
 {
   if (!lb2_data) {
     printf("allocate lb2_bound_data first\n");
@@ -91,7 +92,7 @@ __device__ void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant 
 }
 
 // term q_iuv in [Lageweg'78]
-__device__ void fill_lags(const int *const lb1_p_times, const lb2_bound_data *const lb2_data)
+__device__ void fill_lags_gpu(const int *const lb1_p_times, const lb2_bound_data *const lb2_data)
 {
   const int N = lb2_data->nb_jobs;
 
@@ -117,7 +118,7 @@ typedef struct johnson_job
 } johnson_job;
 */
 //(after partitioning) sorting jobs in ascending order with this comparator yield an optimal schedule for the associated 2-machine FSP [Johnson, S. M. (1954). Optimal two-and three-stage production schedules with setup times included.closed access Naval research logistics quarterly, 1(1), 61–68.]
-__device__ int johnson_comp(const void * elem1, const void * elem2)
+__device__ int johnson_comp_gpu(const void * elem1, const void * elem2)
 {
   johnson_job j1 = *((johnson_job*)elem1);
   johnson_job j2 = *((johnson_job*)elem2);
@@ -143,7 +144,7 @@ __device__ int johnson_comp(const void * elem1, const void * elem2)
 //  p_1i = PTM[m1][i] + lags[s][i]
 //  p_2i = PTM[m2][i] + lags[s][i]
 //using Johnson's algorithm [Johnson, S. M. (1954). Optimal two-and three-stage production schedules with setup times included.closed access Naval research logistics quarterly, 1(1), 61–68.]
-__device__ void fill_johnson_schedules(const int *const lb1_p_times, const lb2_bound_data *const lb2_data)
+__device__ void fill_johnson_schedules_gpu(const int *const lb1_p_times, const lb2_bound_data *const lb2_data)
 {
   const int N = lb2_data->nb_jobs;
   const int* const lags = lb2_data->lags;
@@ -176,7 +177,7 @@ __device__ void fill_johnson_schedules(const int *const lb1_p_times, const lb2_b
   }
 }
 
-__device__ void set_flags(const int *const permutation, const int limit1, const int limit2, const int N, int* flags)
+__device__ void set_flags_gpu(const int *const permutation, const int limit1, const int limit2, const int N, int* flags)
 {
   for (int i = 0; i < N; i++)
     flags[i] = 0;
@@ -186,7 +187,7 @@ __device__ void set_flags(const int *const permutation, const int limit1, const 
     flags[permutation[j]] = 1;
 }
 
-__device__ inline int compute_cmax_johnson(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, int *tmp0, int *tmp1, int ma0, int ma1, int ind)
+__device__ inline int compute_cmax_johnson_gpu(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, int *tmp0, int *tmp1, int ma0, int ma1, int ind)
 {
   int nb_jobs = lb2_data->nb_jobs;
 
@@ -207,7 +208,7 @@ __device__ inline int compute_cmax_johnson(const int* const lb1_p_times, const l
   return *tmp1;
 }
 
-__device__ int lb_makespan(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax)
+__device__ int lb_makespan_gpu(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax)
 {
   int lb = 0;
 
@@ -221,7 +222,7 @@ __device__ int lb_makespan(const int* const lb1_p_times, const lb2_bound_data* c
     int tmp0 = front[ma0];
     int tmp1 = front[ma1];
 
-    compute_cmax_johnson(lb1_p_times, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i);
+    compute_cmax_johnson_gpu(lb1_p_times, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i);
 
     tmp1 = MAX(tmp1 + back[ma1], tmp0 + back[ma0]);
 
@@ -236,7 +237,7 @@ __device__ int lb_makespan(const int* const lb1_p_times, const lb2_bound_data* c
 }
 
 //allows variable nb of machine pairs and get machine pair the realized best lb
-__device__ int lb_makespan_learn(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int *best_index)
+__device__ int lb_makespan_learn_gpu(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int *best_index)
 {
   int lb = 0;
 
@@ -249,7 +250,7 @@ __device__ int lb_makespan_learn(const int* const lb1_p_times, const lb2_bound_d
     int tmp0 = front[ma0];
     int tmp1 = front[ma1];
 
-    compute_cmax_johnson(lb1_p_times, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i);
+    compute_cmax_johnson_gpu(lb1_p_times, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i);
 
     tmp1 = MAX(tmp1 + back[ma1], tmp0 + back[ma0]);
 
@@ -275,23 +276,23 @@ __device__ int lb2_bound_gpu(const lb1_bound_data* const lb1_data, const lb2_bou
   int front[M];
   int back[M];
 
-  schedule_front(lb1_data, permutation, limit1, front);
-  schedule_back(lb1_data, permutation, limit2, back);
+  schedule_front_gpu(lb1_data, permutation, limit1, front);
+  schedule_back_gpu(lb1_data, permutation, limit2, back);
 
   int flags[N];
-  set_flags(permutation, limit1, limit2, N, flags);
+  set_flags_gpu(permutation, limit1, limit2, N, flags);
 
-  return lb_makespan(lb1_data->p_times, lb2_data, flags, front, back, best_cmax);
+  return lb_makespan_gpu(lb1_data->p_times, lb2_data, flags, front, back, best_cmax);
 }
 
-inline void swap(int *a, int *b)
+__device__ inline void swap(int *a, int *b)
 {
   int tmp = *a;
   *a = *b;
   *b = tmp;
 }
 
-__device__ void lb2_children_bounds(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, const int best_cmax, const int direction)
+__device__ void lb2_children_bounds_gpu(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, const int best_cmax, const int direction)
 {
   const int N = lb1_data->nb_jobs;
 
@@ -305,7 +306,7 @@ __device__ void lb2_children_bounds(const lb1_bound_data* const lb1_data, const 
         int job = tmp_perm[i];
 
         swap(&tmp_perm[i], &tmp_perm[limit1 + 1]);
-        lb_begin[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1+1, limit2, best_cmax);
+        lb_begin[job] = lb2_bound_gpu(lb1_data, lb2_data, tmp_perm, limit1+1, limit2, best_cmax);
         swap(&tmp_perm[i], &tmp_perm[limit1 + 1]);
       }
       break;
@@ -316,11 +317,11 @@ __device__ void lb2_children_bounds(const lb1_bound_data* const lb1_data, const 
         int job = tmp_perm[i];
 
         swap(&tmp_perm[i], &tmp_perm[limit1 + 1]);
-        lb_begin[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1+1, limit2, best_cmax);
+        lb_begin[job] = lb2_bound_gpu(lb1_data, lb2_data, tmp_perm, limit1+1, limit2, best_cmax);
         swap(&tmp_perm[i], &tmp_perm[limit1 + 1]);
 
         swap(&tmp_perm[i], &tmp_perm[limit2 - 1]);
-        lb_end[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1, limit2-1, best_cmax);
+        lb_end[job] = lb2_bound_gpu(lb1_data, lb2_data, tmp_perm, limit1, limit2-1, best_cmax);
         swap(&tmp_perm[i], &tmp_perm[limit2 - 1]);
       }
       break;
@@ -331,7 +332,7 @@ __device__ void lb2_children_bounds(const lb1_bound_data* const lb1_data, const 
         int job = tmp_perm[i];
 
         swap(&tmp_perm[i], &tmp_perm[limit2 - 1]);
-        lb_end[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1, limit2-1, best_cmax);
+        lb_end[job] = lb2_bound_gpu(lb1_data, lb2_data, tmp_perm, limit1, limit2-1, best_cmax);
         swap(&tmp_perm[i], &tmp_perm[limit2 - 1]);
       }
       break;

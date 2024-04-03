@@ -15,7 +15,7 @@
 #include "lib/c_bound_johnson.h"
 #include "lib/c_taillard.h"
 #include "lib/c_bound_simple_gpu_cuda.h"
-//#include "lib/c_bound_johnson_gpu_cuda.h"
+#include "lib/c_bound_johnson_gpu_cuda.h"
 
 
 #define BLOCK_SIZE 512

@@ -31,7 +31,7 @@ __device__ void free_bound_data(lb1_bound_data* lb1_data)
 */
 
 __device__ inline void
-add_forward(const int job, const int * const p_times, const int nb_jobs, const int nb_machines, int * front)
+add_forward_gpu(const int job, const int * const p_times, const int nb_jobs, const int nb_machines, int * front)
 {
   front[0] += p_times[job];
   for (int j = 1; j < nb_machines; j++) {
@@ -40,7 +40,7 @@ add_forward(const int job, const int * const p_times, const int nb_jobs, const i
 }
 
 __device__ inline void
-add_backward(const int job, const int * const p_times, const int nb_jobs, const int nb_machines, int * back)
+add_backward_gpu(const int job, const int * const p_times, const int nb_jobs, const int nb_machines, int * back)
 {
   int j = nb_machines - 1;
 
@@ -51,7 +51,7 @@ add_backward(const int job, const int * const p_times, const int nb_jobs, const 
 }
 
 __device__ void
-schedule_front(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, int * front)
+schedule_front_gpu(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, int * front)
 {
   const int N = lb1_data->nb_jobs;
   const int M = lb1_data->nb_machines;
@@ -66,12 +66,12 @@ schedule_front(const lb1_bound_data* const lb1_data, const int * const permutati
     front[i] = 0;
   }
   for (int i = 0; i < limit1 + 1; i++) {
-    add_forward(permutation[i], p_times, N, M, front);
+    add_forward_gpu(permutation[i], p_times, N, M, front);
   }
 }
 
 __device__ void
-schedule_back(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit2, int * back)
+schedule_back_gpu(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit2, int * back)
 {
   const int N = lb1_data->nb_jobs;
   const int M = lb1_data->nb_machines;
@@ -87,11 +87,11 @@ schedule_back(const lb1_bound_data* const lb1_data, const int * const permutatio
     back[i] = 0;
   }
   for (int k = N - 1; k >= limit2; k--) {
-    add_backward(permutation[k], p_times, N, M, back);
+    add_backward_gpu(permutation[k], p_times, N, M, back);
   }
 }
 
-__device__ int eval_solution(const lb1_bound_data* const lb1_data, const int* const permutation)
+__device__ int eval_solution_gpu(const lb1_bound_data* const lb1_data, const int* const permutation)
 {
   const int N = lb1_data->nb_jobs;
   const int M = lb1_data->nb_machines;
@@ -101,13 +101,13 @@ __device__ int eval_solution(const lb1_bound_data* const lb1_data, const int* co
     tmp[i] = 0;
   }
   for (int i = 0; i < N; i++) {
-    add_forward(permutation[i], lb1_data->p_times, N, M, tmp);
+    add_forward_gpu(permutation[i], lb1_data->p_times, N, M, tmp);
   }
   return tmp[M-1];
 }
 
 __device__ void
-sum_unscheduled(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, const int limit2, int * remain)
+sum_unscheduled_gpu(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, const int limit2, int * remain)
 {
   const int nb_jobs = lb1_data->nb_jobs;
   const int nb_machines = lb1_data->nb_machines;
@@ -125,7 +125,7 @@ sum_unscheduled(const lb1_bound_data* const lb1_data, const int * const permutat
 }
 
 __device__ int
-machine_bound_from_parts(const int * const front, const int * const back, const int * const remain,
+machine_bound_from_parts_gpu(const int * const front, const int * const back, const int * const remain,
   const int nb_machines)
 {
   int tmp0 = front[0] + remain[0];
@@ -150,12 +150,12 @@ lb1_bound_gpu(const lb1_bound_data* const lb1_data, const int * const permutatio
   int back[nb_machines];
   int remain[nb_machines];
 
-  schedule_front(lb1_data, permutation, limit1, front);
-  schedule_back(lb1_data, permutation, limit2, back);
+  schedule_front_gpu(lb1_data, permutation, limit1, front);
+  schedule_back_gpu(lb1_data, permutation, limit2, back);
 
-  sum_unscheduled(lb1_data, permutation, limit1, limit2, remain);
+  sum_unscheduled_gpu(lb1_data, permutation, limit1, limit2, remain);
 
-  return machine_bound_from_parts(front, back, remain, nb_machines);
+  return machine_bound_from_parts_gpu(front, back, remain, nb_machines);
 }
 
 __device__ void lb1_children_bounds_gpu(const lb1_bound_data *const lb1_data, const int *const permutation, const int limit1, const int limit2, int *const lb_begin/*, int *const lb_end, int *const prio_begin, int *const prio_end, const int direction*/)
@@ -167,9 +167,9 @@ __device__ void lb1_children_bounds_gpu(const lb1_bound_data *const lb1_data, co
   int back[M];
   int remain[M];
 
-  schedule_front(lb1_data, permutation, limit1, front);
-  schedule_back(lb1_data, permutation, limit2, back);
-  sum_unscheduled(lb1_data, permutation, limit1, limit2, remain);
+  schedule_front_gpu(lb1_data, permutation, limit1, front);
+  schedule_back_gpu(lb1_data, permutation, limit2, back);
+  sum_unscheduled_gpu(lb1_data, permutation, limit1, limit2, remain);
 
   // switch (direction)  {
   //   case -1: //begin
@@ -179,7 +179,7 @@ __device__ void lb1_children_bounds_gpu(const lb1_bound_data *const lb1_data, co
 
       for (int i = limit1+1; i < limit2; i++) {
         int job = permutation[i];
-        lb_begin[job] = add_front_and_bound(lb1_data, job, front, back, remain/*, prio_begin*/);
+        lb_begin[job] = add_front_and_bound_gpu(lb1_data, job, front, back, remain/*, prio_begin*/);
       }
   //     break;
   //   }
@@ -217,7 +217,7 @@ __device__ void lb1_children_bounds_gpu(const lb1_bound_data *const lb1_data, co
 // NB3: also compute total idle time added to partial schedule (can be used a criterion for job ordering)
 // nOps : m*(3 add+2 max)  ---> O(m)
 __device__ int
-add_front_and_bound(const lb1_bound_data* const lb1_data, const int job, const int * const front, const int * const back, const int * const remain/*, int *delta_idle*/)
+add_front_and_bound_gpu(const lb1_bound_data* const lb1_data, const int job, const int * const front, const int * const back, const int * const remain/*, int *delta_idle*/)
 {
   int nb_jobs = lb1_data->nb_jobs;
   int nb_machines = lb1_data->nb_machines;
@@ -246,7 +246,7 @@ add_front_and_bound(const lb1_bound_data* const lb1_data, const int job, const i
 
 // ... same for back
 __device__ int
-add_back_and_bound(const lb1_bound_data* const lb1_data, const int job, const int * const front, const int * const back, const int * const remain, int *delta_idle)
+add_back_and_bound_gpu(const lb1_bound_data* const lb1_data, const int job, const int * const front, const int * const back, const int * const remain, int *delta_idle)
 {
   int nb_jobs = lb1_data->nb_jobs;
   int nb_machines = lb1_data->nb_machines;
@@ -276,7 +276,7 @@ add_back_and_bound(const lb1_bound_data* const lb1_data, const int job, const in
 }
 
 __device__ void
-fill_min_heads_tails(lb1_bound_data* lb1_data)
+fill_min_heads_tails_gpu(lb1_bound_data* lb1_data)
 {
   const int nb_machines = lb1_data->nb_machines;
   const int nb_jobs = lb1_data->nb_jobs;

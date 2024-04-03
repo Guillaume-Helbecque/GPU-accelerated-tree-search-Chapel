@@ -28,26 +28,26 @@ extern "C" {
 enum lb2_variant { LB2_FULL, LB2_NABESHIMA, LB2_LAGEWEG, LB2_LEARN };
 */
 //-------prepare constant/precomputed data for johnson bound-------
-__device__ lb2_bound_data* new_johnson_bd_data(const lb1_bound_data *const lb1_data/*, enum lb2_variant lb2_type*/);
-__device__ void free_johnson_bd_data(lb2_bound_data* lb2_data);
+// __device__ lb2_bound_data* new_johnson_bd_data_gpu(const lb1_bound_data *const lb1_data/*, enum lb2_variant lb2_type*/);
+// __device__ void free_johnson_bd_data_gpu(lb2_bound_data* lb2_data);
 
-__device__ void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/);
-__device__ void fill_lags(const int *const lb1_p_times, const lb2_bound_data *const lb2_data);
-__device__ void fill_johnson_schedules(const int *const lb1_p_times, const lb2_bound_data *const lb2_data);
+__device__ void fill_machine_pairs_gpu(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/);
+__device__ void fill_lags_gpu(const int *const lb1_p_times, const lb2_bound_data *const lb2_data);
+__device__ void fill_johnson_schedules_gpu(const int *const lb1_p_times, const lb2_bound_data *const lb2_data);
 
 //helper
-__device__ void set_flags(const int *const permutation, const int limit1, const int limit2, const int N, int* flags);
+__device__ void set_flags_gpu(const int *const permutation, const int limit1, const int limit2, const int N, int* flags);
 
 //-------------compute lower bounds-------------
-__device__ int compute_cmax_johnson(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, int* tmp0, int* tmp1, int ma0, int ma1, int ind);
+__device__ int compute_cmax_johnson_gpu(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, int* tmp0, int* tmp1, int ma0, int ma1, int ind);
 
-__device__ int lb_makespan(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax);
+__device__ int lb_makespan_gpu(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax);
 
-__device__ int lb_makespan_learn(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int* best_index);
+__device__ int lb_makespan_learn_gpu(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int* best_index);
 
 __device__ int lb2_bound_gpu(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, const int best_cmax);
 
-__device__ void lb2_children_bounds(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, const int best_cmax, const int direction);
+__device__ void lb2_children_bounds_gpu(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, const int best_cmax, const int direction);
 
 #ifdef __cplusplus
 }
