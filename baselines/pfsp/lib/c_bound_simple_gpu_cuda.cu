@@ -95,8 +95,15 @@ __device__ int eval_solution_gpu(const lb1_bound_data* lb1_data, const int* cons
 {
   const int N = lb1_data->nb_jobs;
   const int M = lb1_data->nb_machines;
-  int tmp[N];
 
+  int *tmp = (int*)malloc(N * sizeof(int)); // Dynamically allocate memory for tmp
+
+  // Check if memory allocation succeeded
+  if(tmp == NULL) {
+    // Handle memory allocation failure
+    return -1; // Return an error code indicating failure
+  }
+  
   for(int i = 0; i < N; i++) {
     tmp[i] = 0;
   }
@@ -146,9 +153,15 @@ lb1_bound_gpu(const lb1_bound_data* const lb1_data, const int * const permutatio
 {
   int nb_machines = lb1_data->nb_machines;
 
-  int front[nb_machines];
-  int back[nb_machines];
-  int remain[nb_machines];
+  int *front = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for front
+  int *back = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for back
+  int *remain = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for remain
+
+  // Check if memory allocation succeeded
+  if(front == NULL || back == NULL || remain == NULL) {
+    // Handle memory allocation failure
+    return -1; // Return an error code indicating failure
+  }
 
   schedule_front_gpu(lb1_data, permutation, limit1, front);
   schedule_back_gpu(lb1_data, permutation, limit2, back);
@@ -163,9 +176,15 @@ __device__ void lb1_children_bounds_gpu(const lb1_bound_data *const lb1_data, co
   int N = lb1_data->nb_jobs;
   int M = lb1_data->nb_machines;
 
-  int front[M];
-  int back[M];
-  int remain[M];
+  int *front = (int*)malloc(M * sizeof(int)); // Dynamically allocate memory for front
+  int *back = (int*)malloc(M * sizeof(int)); // Dynamically allocate memory for back
+  int *remain = (int*)malloc(M * sizeof(int)); // Dynamically allocate memory for remain
+
+  // Check if memory allocation succeeded
+  if(front == NULL || back == NULL || remain == NULL) {
+    // Handle memory allocation failure
+    return; // Return an error code indicating failure
+  }
 
   schedule_front_gpu(lb1_data, permutation, limit1, front);
   schedule_back_gpu(lb1_data, permutation, limit2, back);
@@ -282,7 +301,13 @@ fill_min_heads_tails_gpu(lb1_bound_data* lb1_data)
   const int nb_jobs = lb1_data->nb_jobs;
   const int *const p_times = lb1_data->p_times;
 
-  int tmp[nb_machines];
+  int *tmp= (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for tmp
+  
+  // Check if memory allocation succeeded
+  if(tmp == NULL) {
+    // Handle memory allocation failure
+    return; // Return an error code indicating failure
+  }
 
   // 1/ min start times on each machine
   for (int k = 0; k < nb_machines; k++) lb1_data->min_heads[k] = INT_MAX;
