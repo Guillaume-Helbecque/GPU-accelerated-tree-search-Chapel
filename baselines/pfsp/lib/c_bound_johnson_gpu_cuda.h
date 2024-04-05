@@ -13,7 +13,7 @@ extern "C" {
 // - Jan Gmys, Mohand Mezmaz, Nouredine Melab, Daniel Tuyttens. A computationally eﬀicient Branch-and-Bound algorithm for the permutation flow-shop scheduling problem. European Journal of Operational Research, Elsevier, 2020, 284 (3), pp.814-833.10.1016/j.ejor.2020.01.039
 
 //regroup (constant) bound data
-/*typedef struct lb2_bound_data
+typedef struct lb2_bound_data
 {
   int *johnson_schedules;
   int *lags;
@@ -26,7 +26,7 @@ extern "C" {
 } lb2_bound_data;
 
 enum lb2_variant { LB2_FULL, LB2_NABESHIMA, LB2_LAGEWEG, LB2_LEARN };
-*/
+
 //-------prepare constant/precomputed data for johnson bound-------
 // __device__ lb2_bound_data* new_johnson_bd_data_gpu(const lb1_bound_data *const lb1_data/*, enum lb2_variant lb2_type*/);
 // __device__ void free_johnson_bd_data_gpu(lb2_bound_data* lb2_data);
