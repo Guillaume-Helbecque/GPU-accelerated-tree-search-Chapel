@@ -1,3 +1,4 @@
+#include "c_bound_simple.h"
 #include "c_bound_simple_gpu_cuda.h"
 
 #include <limits.h>
@@ -294,6 +295,7 @@ add_back_and_bound_gpu(const lb1_bound_data* const lb1_data, const int job, cons
   return lb;
 }
 
+/*
 __device__ void
 fill_min_heads_tails_gpu(lb1_bound_data* lb1_data)
 {
@@ -345,8 +347,8 @@ fill_min_heads_tails_gpu(lb1_bound_data* lb1_data)
       lb1_data->min_tails[k] = MIN(lb1_data->min_tails[k], tmp[k + 1]);
     }
   }
-} /* fill_min_heads_tails */
-
+}
+*/
 // #ifdef __cplusplus
 // }
 // #endif

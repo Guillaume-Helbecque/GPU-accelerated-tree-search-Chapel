@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "c_bound_simple.h"
+#include "c_bound_johnson.h"
 #include "c_bound_simple_gpu_cuda.h"
 #include "c_bound_johnson_gpu_cuda.h"
 
@@ -46,13 +48,13 @@ __device__ void free_johnson_bd_data(lb2_bound_data* lb2_data)
   }
 }
 */
-__device__ void fill_machine_pairs_gpu(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/)
+/*
+__device__ void fill_machine_pairs_gpu(lb2_bound_data* lb2_data, enum lb2_variant lb2_type)
 {
-  // I do not know if I should take this out or not
-  /*if (!lb2_data) {
+  if (!lb2_data) {
     printf("allocate lb2_bound_data first\n");
     exit(-1);
-    }*/
+    }
 
   enum lb2_variant lb2_type = LB2_FULL; //////////////////////////
 
@@ -91,7 +93,8 @@ __device__ void fill_machine_pairs_gpu(lb2_bound_data* lb2_data/*, enum lb2_vari
     }
   }
 }
-
+*/
+/*
 // term q_iuv in [Lageweg'78]
 __device__ void fill_lags_gpu(const int *const lb1_p_times, const lb2_bound_data *const lb2_data)
 {
@@ -109,7 +112,7 @@ __device__ void fill_lags_gpu(const int *const lb1_p_times, const lb2_bound_data
     }
   }
 }
-
+*/
 typedef struct johnson_job
 {
   int job; //job-id
@@ -141,51 +144,23 @@ __device__ int johnson_comp_gpu(const void * elem1, const void * elem2)
   return 0;
 }
 
-/*
-void insertion_sort(float tab[], int size)
-{
-  int i,j;
-  for (i=0; i<size; i++)
-    for (j=size-1; j>i; j--)
-      if (tab[j]<tab[j-1])
-        swap(tab,j,j-1);
-}
-
-void quicksort(float t[], int left, int right)
-{
-  int i,sep=left+1;
-  if (left<right)
-    {
-      for (i=left; i<=right; i++)
-        if (t[i]<t[left])
-          {
-            if (i!=sep)
-              swap(t,i,sep);
-            sep++;
-          }
-      if ((sep-1)!=left)
-        swap(t,left,sep-1);
-      quicksort(t,left,sep-1);
-      quicksort(t,sep,right);
-    }
-}
-*/
 //for each machine-pair (m1,m2), solve 2-machine FSP with processing times
 //  p_1i = PTM[m1][i] + lags[s][i]
 //  p_2i = PTM[m2][i] + lags[s][i]
 //using Johnson's algorithm [Johnson, S. M. (1954). Optimal two-and three-stage production schedules with setup times included.closed access Naval research logistics quarterly, 1(1), 61–68.]
-__device__ void fill_johnson_schedules_gpu(const int *const lb1_p_times, const lb2_bound_data *const lb2_data)
+/*
+void fill_johnson_schedules_gpu(const int *const lb1_p_times, const lb2_bound_data *const lb2_data)
 {
   const int N = lb2_data->nb_jobs;
   const int* const lags = lb2_data->lags;
 
-  johnson_job *tmp = (johnson_job*)malloc(N * sizeof(johnson_job)); // Dynamically allocate memory for tmp
+  johnson_job tmp[N];// = (johnson_job*)malloc(N * sizeof(johnson_job)); // Dynamically allocate memory for tmp
 
   // Check if memory allocation succeeded
-  if(tmp == NULL) {
+  //if(tmp == NULL) {
     // Handle memory allocation failure
-    return; // Return an error code indicating failure
-  }
+  // return; // Return an error code indicating failure
+  //}
 
   //for all machine-pairs
   for (int k = 0; k < lb2_data->nb_machine_pairs; k++) {
@@ -212,7 +187,7 @@ __device__ void fill_johnson_schedules_gpu(const int *const lb1_p_times, const l
     }
   }
 }
-
+*/
 __device__ void set_flags_gpu(const int *const permutation, const int limit1, const int limit2, const int N, int* flags)
 {
   for (int i = 0; i < N; i++)

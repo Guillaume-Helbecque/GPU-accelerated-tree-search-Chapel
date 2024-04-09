@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include "c_bound_simple.h"
 
 #ifndef C_BOUND_SIMPLE_GPU_CUDA_H_
 #define C_BOUND_SIMPLE_GPU_CUDA_H_
@@ -11,7 +12,7 @@
 // #endif
 
 //regroup (constant) bound data
-struct lb1_bound_data
+/*struct lb1_bound_data
 {
   int *p_times;
   int *min_heads;    // for each machine k, minimum time between t=0 and start of any job
@@ -21,14 +22,14 @@ struct lb1_bound_data
 };
 
 typedef struct lb1_bound_data lb1_bound_data;
-
+*/
 
 //----------------------prepare bound data----------------------
 /*
 __device__ lb1_bound_data* new_bound_data(int _jobs, int _machines);
 __device__ void free_bound_data(lb1_bound_data* lb1_data);
 */
-__device__ void fill_min_heads_tails_gpu(lb1_bound_data* lb1_data);
+//__device__ void fill_min_heads_tails_gpu(lb1_bound_data* lb1_data);
 
 //----------------------intermediate computations----------------------
 __device__ void add_forward_gpu(const int job, const int * const p_times, const int nb_jobs, const int nb_machines, int * front);

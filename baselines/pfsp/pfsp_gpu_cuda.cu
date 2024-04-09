@@ -1,5 +1,5 @@
 /*
-  Sequential B&B to solve Taillard instances of the PFSP in C.
+  Single CUDA GPU B&B to solve Taillard instances of the PFSP in C.
 */
 
 #include <stdio.h>
@@ -15,7 +15,7 @@
 #include "lib/c_bound_johnson.h"
 #include "lib/c_taillard.h"
 #include "lib/c_bound_simple_gpu_cuda.h"
-#include "lib/c_bound_johnson_gpu_cuda.h"
+//#include "lib/c_bound_johnson_gpu_cuda.h"
 
 
 #define BLOCK_SIZE 512
@@ -385,7 +385,7 @@ __global__ void evaluate_gpu_lb2(const int jobs, const int size, int* best, Node
     // We evaluate all permutations by varying index k from limit1 forward
     if (k >= parent.limit1+1) {
       swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
-      // bounds[threadId] = lb2_bound_gpu(lbound1_d, lbound2_d, parent.prmu, parent.limit1+1, jobs, *best);
+      //bounds[threadId] = lb2_bound_gpu(lbound1_d, lbound2_d, parent.prmu, parent.limit1+1, jobs, *best);
       swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
     }
   }
@@ -488,16 +488,18 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   lb2_bound_data* lbound2_d;
   cudaMalloc(&lbound2_d, sizeof(lb2_bound_data));
 	     
-  //cudaMalloc(&parents_d, M * sizeof(Node));
   cudaMemcpy(lbound1_d, lbound1, sizeof(lb1_bound_data), cudaMemcpyHostToDevice);
   cudaMemcpy(lbound2_d, lbound2, sizeof(lb2_bound_data), cudaMemcpyHostToDevice);
 
   // Allocating parents vectors
   Node* parents = (Node*)malloc(M * sizeof(Node));
+  int* bounds = (int*)malloc((jobs*M) * sizeof(int));
   
   Node* parents_d;
+  int* bounds_d;
   cudaMalloc(&parents_d, M * sizeof(Node));
-
+  cudaMalloc(&bounds_d, (jobs*M) * sizeof(int));
+  
   cudaDeviceSynchronize();
   
   while (1) {
@@ -526,17 +528,15 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       const int  numBounds = jobs * poolSize;   
       const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
 
-      int bounds[poolSize];
+      // int bounds[poolSize];
       cudaMemcpy(parents_d, parents, poolSize * sizeof(Node), cudaMemcpyHostToDevice);
       cudaDeviceSynchronize();
 
       // count += 1;
-      evaluate_gpu(jobs, lb, poolSize, nbBlocks, numBounds, best, lbound1_d, lbound2_d, parents_d,bounds);
+      evaluate_gpu(jobs, lb, poolSize, nbBlocks, numBounds, best, lbound1_d, lbound2_d, parents_d,bounds_d);
       cudaDeviceSynchronize();
       
-      // Here we do not have labels, we have the bound data
-      // Have to work with bounds and bounds_d
-      // cudaMemcpy(labels, labels_d, numLabels * sizeof(uint8_t), cudaMemcpyDeviceToHost);
+      cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
 	  
       /*
 	Each task generates and inserts its children nodes to the pool.
@@ -548,10 +548,12 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   // Attention to these free data
   // labels are represented by the bounds now and they have their own freeing functions (see below)
   cudaFree(parents_d);
+  cudaFree(bounds_d);
   cudaFree(lbound1_d);
   cudaFree(lbound2_d);
   
   free(parents);
+  free(bounds);
         
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
   *elapsedTime = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
