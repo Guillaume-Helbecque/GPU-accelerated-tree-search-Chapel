@@ -320,7 +320,7 @@ void decompose(const int jobs, const int lb, int* best,
 }
 
 // Evaluate a bulk of parent nodes on GPU using lb1
-__global__ int* evaluate_gpu_lb1 (const int jobs, const int size, Node* parents_d, const lb1_bound_data* const lbound1_d, int* bounds)
+__global__ void evaluate_gpu_lb1 (const int jobs, const int size, Node* parents_d, const lb1_bound_data* const lbound1_d, int* bounds)
 {
   int threadId = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -481,7 +481,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   fill_johnson_schedules(lbound1->p_times, lbound2);
 
   // Passing bounding data to GPU
-  // How to recover the sizes of lbound's vectors?
   lb1_bound_data* lbound1_d;
   cudaMalloc(&lbound1_d, sizeof(lb1_bound_data));
 

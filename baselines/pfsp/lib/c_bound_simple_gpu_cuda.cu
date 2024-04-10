@@ -1,35 +1,7 @@
-#include "c_bound_simple.h"
-#include "c_bound_simple_gpu_cuda.h"
-
 #include <limits.h>
 #include <string.h>
-
-/*
-__device__ lb1_bound_data* new_bound_data(int _jobs, int _machines)
-{
-  lb1_bound_data *b = malloc(sizeof(lb1_bound_data));
-
-  if (b) {
-    b->p_times = malloc(_jobs*_machines*sizeof(int));
-    b->min_heads = malloc(_machines*sizeof(int));
-    b->min_tails = malloc(_machines*sizeof(int));
-    b->nb_jobs = _jobs;
-    b->nb_machines = _machines;
-  }
-
-  return b;
-}
-
-__device__ void free_bound_data(lb1_bound_data* lb1_data)
-{
-  if (lb1_data) {
-    free(lb1_data->min_tails);
-    free(lb1_data->min_heads);
-    free(lb1_data->p_times);
-    free(lb1_data);
-  }
-}
-*/
+#include "c_bound_simple.h"
+#include "c_bound_simple_gpu_cuda.h"
 
 __device__ inline void
 add_forward_gpu(const int job, const int * const p_times, const int nb_jobs, const int nb_machines, int * front)
@@ -92,28 +64,6 @@ schedule_back_gpu(const lb1_bound_data* const lb1_data, const int * const permut
   }
 }
 
-__device__ int eval_solution_gpu(const lb1_bound_data* lb1_data, const int* const permutation)
-{
-  const int N = lb1_data->nb_jobs;
-  const int M = lb1_data->nb_machines;
-
-  int *tmp = (int*)malloc(N * sizeof(int)); // Dynamically allocate memory for tmp
-
-  // Check if memory allocation succeeded
-  if(tmp == NULL) {
-    // Handle memory allocation failure
-    return -1; // Return an error code indicating failure
-  }
-  
-  for(int i = 0; i < N; i++) {
-    tmp[i] = 0;
-  }
-  for (int i = 0; i < N; i++) {
-    add_forward_gpu(permutation[i], lb1_data->p_times, N, M, tmp);
-  }
-  return tmp[M-1];
-}
-
 __device__ void
 sum_unscheduled_gpu(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, const int limit2, int * remain)
 {
@@ -134,7 +84,7 @@ sum_unscheduled_gpu(const lb1_bound_data* const lb1_data, const int * const perm
 
 __device__ int
 machine_bound_from_parts_gpu(const int * const front, const int * const back, const int * const remain,
-  const int nb_machines)
+			     const int nb_machines)
 {
   int tmp0 = front[0] + remain[0];
   int lb = tmp0 + back[0]; // LB on machine 0
@@ -149,93 +99,6 @@ machine_bound_from_parts_gpu(const int * const front, const int * const back, co
   return lb;
 }
 
-__device__ int
-lb1_bound_gpu(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, const int limit2)
-{
-  int nb_machines = lb1_data->nb_machines;
-
-  int *front = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for front
-  int *back = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for back
-  int *remain = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for remain
-
-  // Check if memory allocation succeeded
-  if(front == NULL || back == NULL || remain == NULL) {
-    // Handle memory allocation failure
-    return -1; // Return an error code indicating failure
-  }
-
-  schedule_front_gpu(lb1_data, permutation, limit1, front);
-  schedule_back_gpu(lb1_data, permutation, limit2, back);
-
-  sum_unscheduled_gpu(lb1_data, permutation, limit1, limit2, remain);
-
-  return machine_bound_from_parts_gpu(front, back, remain, nb_machines);
-}
-
-__device__ void lb1_children_bounds_gpu(const lb1_bound_data *const lb1_data, const int *const permutation, const int limit1, const int limit2, int *const lb_begin/*, int *const lb_end, int *const prio_begin, int *const prio_end, const int direction*/)
-{
-  int N = lb1_data->nb_jobs;
-  int M = lb1_data->nb_machines;
-
-  int *front = (int*)malloc(M * sizeof(int)); // Dynamically allocate memory for front
-  int *back = (int*)malloc(M * sizeof(int)); // Dynamically allocate memory for back
-  int *remain = (int*)malloc(M * sizeof(int)); // Dynamically allocate memory for remain
-
-  // Check if memory allocation succeeded
-  if(front == NULL || back == NULL || remain == NULL) {
-    // Handle memory allocation failure
-    return; // Return an error code indicating failure
-  }
-
-  schedule_front_gpu(lb1_data, permutation, limit1, front);
-  schedule_back_gpu(lb1_data, permutation, limit2, back);
-  sum_unscheduled_gpu(lb1_data, permutation, limit1, limit2, remain);
-
-  // switch (direction)  {
-  //   case -1: //begin
-  //   {
-      memset(lb_begin, 0, N*sizeof(int));
-      // if (prio_begin) memset(prio_begin, 0, N*sizeof(int));
-
-      for (int i = limit1+1; i < limit2; i++) {
-        int job = permutation[i];
-        lb_begin[job] = add_front_and_bound_gpu(lb1_data, job, front, back, remain/*, prio_begin*/);
-      }
-  //     break;
-  //   }
-  //   case 0: //begin-end
-  //   {
-  //     memset(lb_begin, 0, N*sizeof(int));
-  //     memset(lb_end, 0, N*sizeof(int));
-  //     if (prio_begin) memset(prio_begin, 0, N*sizeof(int));
-  //     if (prio_end) memset(prio_end, 0, N*sizeof(int));
-  //
-  //     for (int i = limit1+1; i < limit2; i++) {
-  //       int job = permutation[i];
-  //       lb_begin[job] = add_front_and_bound(data, job, front, back, remain, prio_begin);
-  //       lb_end[job] = add_back_and_bound(data, job, front, back, remain, prio_end);
-  //     }
-  //     break;
-  //   }
-  //   case 1: //end
-  //   {
-  //     memset(lb_end, 0, N*sizeof(int));
-  //     if (prio_end) memset(prio_end, 0, N*sizeof(int));
-  //
-  //     for (int i = limit1+1; i < limit2; i++) {
-  //       int job = permutation[i];
-  //       lb_end[job] = add_back_and_bound(data, job, front, back, remain, prio_end);
-  //     }
-  //     break;
-  //   }
-  // }
-}
-
-// adds job to partial schedule in front and computes lower bound on optimal cost
-// NB1: schedule is no longer needed at this point
-// NB2: front, remain and back need to be set before calling this
-// NB3: also compute total idle time added to partial schedule (can be used a criterion for job ordering)
-// nOps : m*(3 add+2 max)  ---> O(m)
 __device__ int
 add_front_and_bound_gpu(const lb1_bound_data* const lb1_data, const int job, const int * const front, const int * const back, const int * const remain/*, int *delta_idle*/)
 {
@@ -295,60 +158,115 @@ add_back_and_bound_gpu(const lb1_bound_data* const lb1_data, const int job, cons
   return lb;
 }
 
-/*
-__device__ void
-fill_min_heads_tails_gpu(lb1_bound_data* lb1_data)
+//----------------------evaluate (partial) schedules---------------------
+__device__ int eval_solution_gpu(const lb1_bound_data* lb1_data, const int* const permutation)
 {
-  const int nb_machines = lb1_data->nb_machines;
-  const int nb_jobs = lb1_data->nb_jobs;
-  const int *const p_times = lb1_data->p_times;
+  const int N = lb1_data->nb_jobs;
+  const int M = lb1_data->nb_machines;
 
-  int *tmp= (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for tmp
-  
+  int *tmp = (int*)malloc(N * sizeof(int)); // Dynamically allocate memory for tmp
+
   // Check if memory allocation succeeded
   if(tmp == NULL) {
+    // Handle memory allocation failure
+    return -1; // Return an error code indicating failure
+  }
+  
+  for(int i = 0; i < N; i++) {
+    tmp[i] = 0;
+  }
+  for (int i = 0; i < N; i++) {
+    add_forward_gpu(permutation[i], lb1_data->p_times, N, M, tmp);
+  }
+  return tmp[M-1];
+}
+
+__device__ int
+lb1_bound_gpu(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, const int limit2)
+{
+  int nb_machines = lb1_data->nb_machines;
+
+  int *front = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for front
+  int *back = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for back
+  int *remain = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for remain
+
+  // Check if memory allocation succeeded
+  if(front == NULL || back == NULL || remain == NULL) {
+    // Handle memory allocation failure
+    return -1; // Return an error code indicating failure
+  }
+
+  schedule_front_gpu(lb1_data, permutation, limit1, front);
+  schedule_back_gpu(lb1_data, permutation, limit2, back);
+
+  sum_unscheduled_gpu(lb1_data, permutation, limit1, limit2, remain);
+
+  return machine_bound_from_parts_gpu(front, back, remain, nb_machines);
+}
+
+__device__ void lb1_children_bounds_gpu(const lb1_bound_data *const lb1_data, const int *const permutation, const int limit1, const int limit2, int *const lb_begin/*, int *const lb_end, int *const prio_begin, int *const prio_end, const int direction*/)
+{
+  int N = lb1_data->nb_jobs;
+  int M = lb1_data->nb_machines;
+
+  int *front = (int*)malloc(M * sizeof(int)); // Dynamically allocate memory for front
+  int *back = (int*)malloc(M * sizeof(int)); // Dynamically allocate memory for back
+  int *remain = (int*)malloc(M * sizeof(int)); // Dynamically allocate memory for remain
+
+  // Check if memory allocation succeeded
+  if(front == NULL || back == NULL || remain == NULL) {
     // Handle memory allocation failure
     return; // Return an error code indicating failure
   }
 
-  // 1/ min start times on each machine
-  for (int k = 0; k < nb_machines; k++) lb1_data->min_heads[k] = INT_MAX;
-  lb1_data->min_heads[0] = 0; // per definition =0 on first machine
+  schedule_front_gpu(lb1_data, permutation, limit1, front);
+  schedule_back_gpu(lb1_data, permutation, limit2, back);
+  sum_unscheduled_gpu(lb1_data, permutation, limit1, limit2, remain);
 
-  for (int i = 0; i < nb_jobs; i++) {
-    for (int k = 0; k < nb_machines; k++)
-      tmp[k] = 0;
+  // switch (direction)  {
+  //   case -1: //begin
+  //   {
+  memset(lb_begin, 0, N*sizeof(int));
+  // if (prio_begin) memset(prio_begin, 0, N*sizeof(int));
 
-    tmp[0] += p_times[i];
-    for (int k = 1; k < nb_machines; k++) {
-      tmp[k] = tmp[k - 1] + p_times[k * nb_jobs + i];
-    }
-
-    for (int k = 1; k < nb_machines; k++) {
-      lb1_data->min_heads[k] = MIN(lb1_data->min_heads[k], tmp[k - 1]);
-    }
+  for (int i = limit1+1; i < limit2; i++) {
+    int job = permutation[i];
+    lb_begin[job] = add_front_and_bound_gpu(lb1_data, job, front, back, remain/*, prio_begin*/);
   }
-
-  // 2/ min run-out times on each machine
-  for (int k = 0; k < nb_machines; k++) lb1_data->min_tails[k] = INT_MAX;
-  // per definition =0 on last machine
-  lb1_data->min_tails[nb_machines - 1] = 0;
-
-  for (int i = 0; i < nb_jobs; i++) {
-    for (int k = 0; k < nb_machines; k++)
-      tmp[k] = 0;
-
-    tmp[nb_machines - 1] += p_times[(nb_machines - 1) * nb_jobs + i];
-
-    for (int k = nb_machines - 2; k >= 0; k--) {
-      tmp[k] = tmp[k + 1] + p_times[k * nb_jobs + i];
-    }
-    for (int k = nb_machines - 2; k >= 0; k--) {
-      lb1_data->min_tails[k] = MIN(lb1_data->min_tails[k], tmp[k + 1]);
-    }
-  }
+  //     break;
+  //   }
+  //   case 0: //begin-end
+  //   {
+  //     memset(lb_begin, 0, N*sizeof(int));
+  //     memset(lb_end, 0, N*sizeof(int));
+  //     if (prio_begin) memset(prio_begin, 0, N*sizeof(int));
+  //     if (prio_end) memset(prio_end, 0, N*sizeof(int));
+  //
+  //     for (int i = limit1+1; i < limit2; i++) {
+  //       int job = permutation[i];
+  //       lb_begin[job] = add_front_and_bound(data, job, front, back, remain, prio_begin);
+  //       lb_end[job] = add_back_and_bound(data, job, front, back, remain, prio_end);
+  //     }
+  //     break;
+  //   }
+  //   case 1: //end
+  //   {
+  //     memset(lb_end, 0, N*sizeof(int));
+  //     if (prio_end) memset(prio_end, 0, N*sizeof(int));
+  //
+  //     for (int i = limit1+1; i < limit2; i++) {
+  //       int job = permutation[i];
+  //       lb_end[job] = add_back_and_bound(data, job, front, back, remain, prio_end);
+  //     }
+  //     break;
+  //   }
+  // }
 }
-*/
-// #ifdef __cplusplus
-// }
-// #endif
+
+// adds job to partial schedule in front and computes lower bound on optimal cost
+// NB1: schedule is no longer needed at this point
+// NB2: front, remain and back need to be set before calling this
+// NB3: also compute total idle time added to partial schedule (can be used a criterion for job ordering)
+// nOps : m*(3 add+2 max)  ---> O(m)
+
+
