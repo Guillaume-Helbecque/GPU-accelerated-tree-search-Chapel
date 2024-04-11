@@ -2,117 +2,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "c_bound_simple.h"
+//#include "c_bound_simple.h"
 #include "c_bound_johnson.h"
-#include "c_bound_simple_gpu_cuda.h"
-#include "c_bound_johnson_gpu_cuda.h"
+#include "c_bound_simple_gpu_cuda.cu"
 
-
-//__device__ lb2_bound_data* new_johnson_bd_data_gpu(const lb1_bound_data *const lb1_data /*, enum lb2_variant lb2_type*/)
-/*{
-  lb2_bound_data *b = malloc(sizeof(lb2_bound_data));
-
-  b->nb_jobs = lb1_data->nb_jobs;
-  b->nb_machines = lb1_data->nb_machines;
-
-  enum lb2_variant lb2_type = LB2_FULL; //////////////////////////
-
-  //depends on nb of machine pairs
-  if (lb2_type == LB2_FULL)
-    b->nb_machine_pairs = (b->nb_machines*(b->nb_machines-1))/2;
-  if (lb2_type == LB2_NABESHIMA)
-    b->nb_machine_pairs = b->nb_machines-1;
-  if (lb2_type == LB2_LAGEWEG)
-    b->nb_machine_pairs = b->nb_machines-1;
-  if (lb2_type == LB2_LEARN)
-    b->nb_machine_pairs = (b->nb_machines*(b->nb_machines-1))/2;
-
-  b->lags = malloc(b->nb_machine_pairs*b->nb_jobs*sizeof(int));
-  b->johnson_schedules = malloc(b->nb_machine_pairs*b->nb_jobs*sizeof(int));
-  b->machine_pairs[0] = malloc(b->nb_machine_pairs*sizeof(int));
-  b->machine_pairs[1] = malloc(b->nb_machine_pairs*sizeof(int));
-  b->machine_pair_order = malloc(b->nb_machine_pairs*sizeof(int));
-
-  return b;
-}
-
-__device__ void free_johnson_bd_data(lb2_bound_data* lb2_data)
-{
-  if (lb2_data) {
-    free(lb2_data->lags);
-    free(lb2_data->johnson_schedules);
-    free(lb2_data->machine_pairs[0]);
-    free(lb2_data->machine_pairs[1]);
-    free(lb2_data->machine_pair_order);
-    free(lb2_data);
-  }
-}
-*/
-/*
-__device__ void fill_machine_pairs_gpu(lb2_bound_data* lb2_data, enum lb2_variant lb2_type)
-{
-  if (!lb2_data) {
-    printf("allocate lb2_bound_data first\n");
-    exit(-1);
-    }
-
-  enum lb2_variant lb2_type = LB2_FULL; //////////////////////////
-
-  switch (lb2_type) {
-    case LB2_FULL:
-    case LB2_LEARN:
-    {
-      unsigned c = 0;
-      for (int i = 0; i < lb2_data->nb_machines-1; i++) {
-        for (int j = i+1; j < lb2_data->nb_machines; j++) {
-          lb2_data->machine_pairs[0][c] = i;
-          lb2_data->machine_pairs[1][c] = j;
-          lb2_data->machine_pair_order[c] = c;
-          c++;
-        }
-      }
-      break;
-    }
-    case LB2_NABESHIMA:
-    {
-      for (int i = 0; i < lb2_data->nb_machines-1; i++) {
-        lb2_data->machine_pairs[0][i] = i;
-        lb2_data->machine_pairs[1][i] = i+1;
-        lb2_data->machine_pair_order[i] = i;
-      }
-      break;
-    }
-    case LB2_LAGEWEG:
-    {
-      for (int i = 0; i < lb2_data->nb_machines-1; i++) {
-        lb2_data->machine_pairs[0][i] = i;
-        lb2_data->machine_pairs[1][i] = lb2_data->nb_machines-1;
-        lb2_data->machine_pair_order[i] = i;
-      }
-      break;
-    }
-  }
-}
-*/
-/*
-// term q_iuv in [Lageweg'78]
-__device__ void fill_lags_gpu(const int *const lb1_p_times, const lb2_bound_data *const lb2_data)
-{
-  const int N = lb2_data->nb_jobs;
-
-  for (int i = 0; i < lb2_data->nb_machine_pairs; i++) {
-    const int m1 = lb2_data->machine_pairs[0][i];
-    const int m2 = lb2_data->machine_pairs[1][i];
-
-    for (int j = 0; j < N; j++) {
-      lb2_data->lags[i * N + j] = 0;
-      for (int k = m1 + 1; k < m2; k++) {
-        lb2_data->lags[i * N + j] += lb1_p_times[k * N + j];
-      }
-    }
-  }
-}
-*/
 typedef struct johnson_job
 {
   int job; //job-id
@@ -144,50 +37,6 @@ __device__ int johnson_comp_gpu(const void * elem1, const void * elem2)
   return 0;
 }
 
-//for each machine-pair (m1,m2), solve 2-machine FSP with processing times
-//  p_1i = PTM[m1][i] + lags[s][i]
-//  p_2i = PTM[m2][i] + lags[s][i]
-//using Johnson's algorithm [Johnson, S. M. (1954). Optimal two-and three-stage production schedules with setup times included.closed access Naval research logistics quarterly, 1(1), 61–68.]
-/*
-void fill_johnson_schedules_gpu(const int *const lb1_p_times, const lb2_bound_data *const lb2_data)
-{
-  const int N = lb2_data->nb_jobs;
-  const int* const lags = lb2_data->lags;
-
-  johnson_job tmp[N];// = (johnson_job*)malloc(N * sizeof(johnson_job)); // Dynamically allocate memory for tmp
-
-  // Check if memory allocation succeeded
-  //if(tmp == NULL) {
-    // Handle memory allocation failure
-  // return; // Return an error code indicating failure
-  //}
-
-  //for all machine-pairs
-  for (int k = 0; k < lb2_data->nb_machine_pairs; k++) {
-    int m1 = lb2_data->machine_pairs[0][k];
-    int m2 = lb2_data->machine_pairs[1][k];
-
-    //partition N jobs into 2 sets {j|p_1j < p_2j} and {j|p_1j >= p_2j}
-    for (int i = 0; i < N; i++) {
-      tmp[i].job = i;
-      tmp[i].ptm1 = lb1_p_times[m1*N + i] + lags[k*N + i];
-      tmp[i].ptm2 = lb1_p_times[m2*N + i] + lags[k*N + i];
-
-      if (tmp[i].ptm1 < tmp[i].ptm2) {
-        tmp[i].partition = 0;
-      } else {
-        tmp[i].partition = 1;
-      }
-    }
-    //sort according to johnson's criterion
-    qsort(tmp, sizeof(tmp)/sizeof(*tmp), sizeof(*tmp), johnson_comp_gpu);
-    //save optimal schedule for 2-machine problem
-    for (int i = 0; i < N; i++) {
-      lb2_data->johnson_schedules[k*N + i] = tmp[i].job;
-    }
-  }
-}
-*/
 __device__ void set_flags_gpu(const int *const permutation, const int limit1, const int limit2, const int N, int* flags)
 {
   for (int i = 0; i < N; i++)
@@ -279,6 +128,48 @@ __device__ int lb_makespan_learn_gpu(const int* const lb1_p_times, const lb2_bou
   return lb;
 }
 
+/*
+__device__ void
+schedule_front_gpu_2(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, int * front)
+{
+  const int N = lb1_data->nb_jobs;
+  const int M = lb1_data->nb_machines;
+  const int *const p_times = lb1_data->p_times;
+
+  if (limit1 == -1) {
+    for (int i = 0; i < M; i++)
+      front[i] = lb1_data->min_heads[i];
+    return;
+  }
+  for (int i = 0; i < M; i++){
+    front[i] = 0;
+  }
+  for (int i = 0; i < limit1 + 1; i++) {
+    add_forward_gpu_2(permutation[i], p_times, N, M, front);
+  }
+}
+
+__device__ void
+schedule_back_gpu_2(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit2, int * back)
+{
+  const int N = lb1_data->nb_jobs;
+  const int M = lb1_data->nb_machines;
+  const int *const p_times = lb1_data->p_times;
+
+  if (limit2 == N) {
+    for (int i = 0; i < M; i++)
+      back[i] = lb1_data->min_tails[i];
+    return;
+  }
+
+  for (int i = 0; i < M; i++) {
+    back[i] = 0;
+  }
+  for (int k = N - 1; k >= limit2; k--) {
+    add_backward_gpu(permutation[k], p_times, N, M, back);
+  }
+}
+*/
 __device__ int lb2_bound_gpu(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2,const int best_cmax)
 {
   const int N = lb1_data->nb_jobs;

@@ -13,7 +13,7 @@ HIP_PATCH_G5K    := DEVICE_LIB_PATH=/opt/rocm-4.5.0/amdgcn/bitcode/
 
 # Source files
 C_SOURCES    :=  lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c pfsp_c.c pfsp_gpu_cuda.c
-CUDA_SOURCES :=  evaluate.cu lib/c_bound_simple_gpu_cuda.cu #pfsp_multigpu_cuda.cu
+CUDA_SOURCES :=  evaluate.cu lib/c_bound_simple_gpu_cuda.cu # lib/c_bound_johnson_gpu_cuda.cu pfsp_multigpu_cuda.cu
 
 # Object files
 C_OBJECTS    := $(C_SOURCES:.c=.o)
@@ -39,6 +39,9 @@ c_bound_johnson.o : lib/c_bound_johnson.c
 c_taillard.o : lib/c_taillard.c
 	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@
 
+evaluate.o : evaluate.cu
+	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -c $< -o $@
+
 pfsp_c.o: pfsp_c.c
 	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@
 
@@ -51,12 +54,12 @@ pfsp_gpu_cuda.o: pfsp_gpu_cuda.c
 c_bound_simple_gpu_cuda.o: lib/c_bound_simple_gpu_cuda.cu
 	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -c $< -o $@
 
-evaluate.o : evaluate.cu
-	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -c $< -o $@
+#c_bound_johnson_gpu_cuda.o: lib/c_bound_johnson_gpu_cuda.cu
+#	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -c $< -o $@
 
 # Pattern for executable file
 
-pfsp_cuda.out: evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o  c_bound_simple_gpu_cuda.o
+pfsp_cuda.out: evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bound_simple_gpu_cuda.o
 	$(C_COMPILER) $(C_COMMON_OPTS) evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o  c_bound_simple_gpu_cuda.o -o pfsp_cuda.out -lcudart #-L/share/compilers/nvidia/cuda/12.0/lib64 -lcudart
 
 # EVERYTHING FROM THE OLD COMPILATION
@@ -95,4 +98,4 @@ pfsp_cuda.out: evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_
 .PHONY: clean
 
 clean:
-	rm -f $(C_OBJECTS) $(CUDA_OBJECTS) *.o #$(HIP_OBJECTS) *.hip
+	rm -f $(C_OBJECTS) $(CUDA_OBJECTS) *.o *.out #$(HIP_OBJECTS) *.hip

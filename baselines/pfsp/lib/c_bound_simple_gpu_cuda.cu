@@ -1,7 +1,7 @@
 #include <limits.h>
 #include <string.h>
+
 #include "c_bound_simple.h"
-#
 
 __device__ inline void
 add_forward_gpu(const int job, const int * const p_times, const int nb_jobs, const int nb_machines, int * front)

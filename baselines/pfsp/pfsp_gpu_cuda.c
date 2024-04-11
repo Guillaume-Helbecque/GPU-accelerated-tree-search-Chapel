@@ -491,5 +491,7 @@ int main(int argc, char* argv[])
 
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
 
+  printf("We are done\n");
+
   return 0;
 }
