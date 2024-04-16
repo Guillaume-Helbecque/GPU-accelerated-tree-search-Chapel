@@ -71,7 +71,10 @@ var lbound1 = new WrapperLB1(jobs, machines); //lb1_bound_data(jobs, machines);
 taillard_get_processing_times(lbound1!.lb1_bound.p_times, inst);
 fill_min_heads_tails(lbound1!.lb1_bound);
 
-const lbound2 = new WrapperLB2(lbound1!.lb1_bound);
+var lbound2 = new WrapperLB2(jobs, machines);
+fill_machine_pairs(lbound2!.lb2_bound/*, LB2_FULL*/);
+fill_lags(lbound1!.lb1_bound.p_times, lbound2!.lb2_bound);
+fill_johnson_schedules(lbound1!.lb1_bound.p_times, lbound2!.lb2_bound);
 
 const initUB = if (ub == 1) then taillard_get_best_ub(inst) else max(int);
 
@@ -368,10 +371,15 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
   on here.gpus[0] {
     lbound1_d = new WrapperLB1(jobs, machines);
-    taillard_get_processing_times(lbound1_d!.lb1_bound.p_times, inst);
-    fill_min_heads_tails(lbound1_d!.lb1_bound);
+    lbound1_d!.lb1_bound.p_times   = lbound1!.lb1_bound.p_times;
+    lbound1_d!.lb1_bound.min_heads = lbound1!.lb1_bound.min_heads;
+    lbound1_d!.lb1_bound.min_tails = lbound1!.lb1_bound.min_tails;
 
-    lbound2_d = new WrapperLB2(lbound1_d!.lb1_bound);
+    lbound2_d = new WrapperLB2(jobs, machines);
+    lbound2_d!.lb2_bound.johnson_schedules  = lbound2!.lb2_bound.johnson_schedules;
+    lbound2_d!.lb2_bound.lags               = lbound2!.lb2_bound.lags;
+    lbound2_d!.lb2_bound.machine_pairs      = lbound2!.lb2_bound.machine_pairs;
+    lbound2_d!.lb2_bound.machine_pair_order = lbound2!.lb2_bound.machine_pair_order;
   }
 
   while true {
