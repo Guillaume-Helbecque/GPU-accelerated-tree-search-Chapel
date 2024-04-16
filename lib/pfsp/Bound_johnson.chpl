@@ -22,10 +22,10 @@ module Bound_johnson
 
     proc init() {}
 
-    proc init(const lb1_data: lb1_bound_data/*, enum lb2_variant lb2_type*/)
+    proc init(const jobs: int, const machines: int/*, enum lb2_variant lb2_type*/)
     {
-      this.nb_jobs = lb1_data.nb_jobs;
-      this.nb_machines = lb1_data.nb_machines;
+      this.nb_jobs = jobs;
+      this.nb_machines = machines;
 
       var lb2_type = lb2_variant.LB2_FULL;
 
@@ -48,9 +48,9 @@ module Bound_johnson
   class WrapperClassLB2 {
     forwarding var lb2_bound: lb2_bound_data;
 
-    proc init(const lb1_data: lb1_bound_data)
+    proc init(const jobs: int, const machines: int)
     {
-      this.lb2_bound = new lb2_bound_data(lb1_data);
+      this.lb2_bound = new lb2_bound_data(jobs, machines);
     }
   }
 
