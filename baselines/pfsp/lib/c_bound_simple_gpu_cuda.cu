@@ -170,7 +170,10 @@ __device__ int eval_solution_gpu(const lb1_bound_data* lb1_data, const int* cons
   const int N = lb1_data->nb_jobs;
   const int M = lb1_data->nb_machines;
 
-  int *tmp = (int*)malloc(N * sizeof(int)); // Dynamically allocate memory for tmp
+  //int *tmp = (int*)malloc(N * sizeof(int)); // Dynamically allocate memory for tmp
+  int *tmp;
+  cudaMalloc((void**)&tmp, N * sizeof(int));
+
   int result;
   
   // Check if memory allocation succeeded
@@ -188,26 +191,31 @@ __device__ int eval_solution_gpu(const lb1_bound_data* lb1_data, const int* cons
 
   // In order to free tmp, we have to put the value of return in an auxiliary variable called result
   result = tmp[M-1];
-  free(tmp);
+  cudaFree(tmp);
   return result;
 }
 
-__device__ int
-lb1_bound_gpu(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, const int limit2)
+__device__ void
+lb1_bound_gpu(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, const int limit2, int *bounds)
 {
   int nb_machines = lb1_data->nb_machines;
 
-  int *front = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for front
-  int *back = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for back
-  int *remain = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for remain
+  int *front, *back, *remain;
+  cudaMalloc((void**)&front, nb_machines * sizeof(int));
+  cudaMalloc((void**)&back, nb_machines * sizeof(int));
+  cudaMalloc((void**)&remain, nb_machines * sizeof(int));
+  
+  // int *front = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for front
+  // int *back = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for back
+  // int *remain = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for remain
 
   int result;
 
-  // Check if memory allocation succeeded
-  if(front == NULL || back == NULL || remain == NULL) {
-    // Handle memory allocation failure
-    return -1; // Return an error code indicating failure
-  }
+  // // Check if memory allocation succeeded
+  // if(front == NULL || back == NULL || remain == NULL) {
+  //   // Handle memory allocation failure
+  //   return -1; // Return an error code indicating failure
+  // }
 
   schedule_front_gpu(lb1_data, permutation, limit1, front);
   schedule_back_gpu(lb1_data, permutation, limit2, back);
@@ -215,12 +223,19 @@ lb1_bound_gpu(const lb1_bound_data* const lb1_data, const int * const permutatio
   sum_unscheduled_gpu(lb1_data, permutation, limit1, limit2, remain);
 
   // Same as in function eval_solution_gpu
-  result = machine_bound_from_parts_gpu(front, back, remain, nb_machines);
-  free(front);
-  free(back);
-  free(remain);
+  //result = 1;
+  *bounds = 1;//machine_bound_from_parts_gpu(front, back, remain, nb_machines);
 
-  return result;
+  cudaFree(front);
+  cudaFree(back);
+  cudaFree(remain);
+
+  // free(front);
+  // free(back);
+  // free(remain);
+
+  // return 1;
+  return;
 }
 
 __device__ void lb1_children_bounds_gpu(const lb1_bound_data *const lb1_data, const int *const permutation, const int limit1, const int limit2, int *const lb_begin/*, int *const lb_end, int *const prio_begin, int *const prio_end, const int direction*/)

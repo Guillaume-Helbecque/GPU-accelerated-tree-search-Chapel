@@ -190,6 +190,7 @@ void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const No
     child.limit1 = parent.limit1 + 1;
 
     int lowerbound = lb1_bound(lbound1, child.prmu, child.limit1, jobs);
+    printf("Lowerbounds in decompose_lb1 function: %d\n", lowerbound);
 
     if (child.depth == jobs) { // if child leaf
       *num_sol += 1;

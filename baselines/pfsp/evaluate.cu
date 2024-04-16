@@ -33,7 +33,8 @@ extern "C" {
       // We evaluate all permutations by varying index k from limit1 forward
       if (k >= parent.limit1+1) {
 	swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
-	bounds[threadId] = lb1_bound_gpu(lbound1_d, parent.prmu, parent.limit1+1,jobs);
+	//bounds[threadId] =
+	lb1_bound_gpu(lbound1_d, parent.prmu, parent.limit1+1,jobs,&bounds[threadId]);
 	swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
       }
     }
