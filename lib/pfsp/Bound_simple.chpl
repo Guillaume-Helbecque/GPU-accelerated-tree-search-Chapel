@@ -2,20 +2,24 @@ module Bound_simple
 {
   record lb1_bound_data
   {
-    var ptd: domain(1);
-    var p_times: [ptd] int;
-    var md: domain(1);
-    var min_heads: [md] int;    // for each machine k, minimum time between t=0 and start of any job
-    var min_tails: [md] int;    // for each machine k, minimum time between release of any job and end of processing on the last machine
+    // constants
     var nb_jobs: int;
     var nb_machines: int;
+    // domains
+    var ptd: domain(1);
+    var md: domain(1);
+    // data arrays
+    var p_times: [ptd] int;
+    var min_heads: [md] int; // for each machine k, minimum time between t=0 and start of any job
+    var min_tails: [md] int; // for each machine k, minimum time between release of any job and end of processing on the last machine
 
-    proc init(jobs: int, machines: int)
+    proc init(const jobs: int, const machines: int)
     {
-      this.ptd = {0..#(jobs*machines)};
-      this.md = {0..#machines};
       this.nb_jobs = jobs;
       this.nb_machines = machines;
+
+      this.ptd = {0..#(jobs*machines)};
+      this.md = {0..#machines};
     }
   }
 
@@ -23,7 +27,7 @@ module Bound_simple
   class WrapperClassLB1 {
     forwarding var lb1_bound: lb1_bound_data;
 
-    proc init(jobs: int, machines: int)
+    proc init(const jobs: int, const machines: int)
     {
       this.lb1_bound = new lb1_bound_data(jobs, machines);
     }

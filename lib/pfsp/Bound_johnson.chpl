@@ -7,12 +7,14 @@ module Bound_johnson
 
   record lb2_bound_data
   {
+    // constants
     var nb_jobs: int;
     var nb_machines: int;
     var nb_machine_pairs: int;
-
+    // domains
     var ld: domain(1);
     var ad: domain(1);
+    // data arrays
     var johnson_schedules: [ld] int;
     var lags: [ld] int;
     var machine_pairs: [0..1] [ad] int;
