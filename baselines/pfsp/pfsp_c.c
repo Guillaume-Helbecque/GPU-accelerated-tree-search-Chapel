@@ -322,7 +322,10 @@ void pfsp_search(const int inst, const int lb, int* best,
     Node parent = popBack(&pool, &hasWork);
     if (!hasWork) break;
 
+    //printf("numBounds: %d\n", jobs*(pool.size));
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
+
+    printf("Size of pool.size = %d\n", pool.size);
   }
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
   *elapsedTime = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;

@@ -362,6 +362,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
 
+  printf("%d number of jobs and %d number of machines", jobs, machines);
+  
   // Starting pool
   Node root;
   initRoot(&root, jobs);
@@ -386,27 +388,35 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   fill_lags(lbound1->p_times, lbound2);
   fill_johnson_schedules(lbound1->p_times, lbound2);
 
-  // Passing bounding data to GPU
+  // Passing lb1 bounding data to GPU
   lb1_bound_data* lbound1_d;
   cudaMalloc((void**)&lbound1_d, sizeof(lb1_bound_data));
+  cudaMemcpy((void*)lbound1_d, (void*)lbound1, sizeof(lb1_bound_data), cudaMemcpyHostToDevice);
 
+  // Passing lb2 bounding data to GPU
   lb2_bound_data* lbound2_d;
   cudaMalloc((void**)&lbound2_d, sizeof(lb2_bound_data));
-	     
-  cudaMemcpy((void*)lbound1_d, (void*)lbound1, sizeof(lb1_bound_data), cudaMemcpyHostToDevice);
   cudaMemcpy((void*)lbound2_d, (void*)lbound2, sizeof(lb2_bound_data), cudaMemcpyHostToDevice);
 
-  // Allocating parents vectors
-  Node* parents = (Node*)malloc(M * sizeof(Node));
-  int* bounds = (int*)malloc((jobs*M) * sizeof(int));
+  // We allocate both parents and bounds vectors with maximum size (?)
   
+  // Allocating parents vectors on CPU and GPU
+  Node* parents = (Node*)malloc(M * sizeof(Node));
   Node* parents_d;
-  int* bounds_d;
   cudaMalloc((void**)&parents_d, M * sizeof(Node));
-  cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
+
+  // Allocating bounds vector on CPU and GPU
+  int* bounds = (int*)malloc((jobs*M) * sizeof(int));
+  int *bounds_d;
+  cudaError_t err = cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
+
+  if (err != cudaSuccess) {
+    printf("Failed to allocate memory on the GPU");
+    return;
+  }
   
   cudaDeviceSynchronize();
-  
+
   while (1) {
     int hasWork = 0;
     Node parent = popBack(&pool, &hasWork);
@@ -414,6 +424,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
 
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
 
+    //printf("Size of pool.size = %d\n", pool.size);
     int poolSize = MIN(pool.size,M);
 
     // If 'poolSize' is sufficiently large, we offload the pool on GPU.
@@ -421,7 +432,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       
       for(int i= 0; i < poolSize; i++) {
 	int hasWork = 0;
-	parents[i] = popBack(&pool,&hasWork);
+	parents[i] = popBack(&pool,&hasWork); //parents size is good because pool is max equals to M
 	if (!hasWork) break;
       }
 	
@@ -432,21 +443,24 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       */
       const int  numBounds = jobs * poolSize;   
       const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
-
-      // int bounds[poolSize];
-      cudaMemcpy((void*)parents_d, (void*)parents, poolSize * sizeof(Node), cudaMemcpyHostToDevice);
+      //printf("numBounds: %d\n nbBlocks size: %d\n", numBounds,nbBlocks);
+      cudaMemcpy((void*)parents_d, (void*)parents, poolSize * sizeof(Node), cudaMemcpyHostToDevice); //size of copy is good
       cudaDeviceSynchronize();
 
       // count += 1;
-      evaluate_gpu(jobs, lb, poolSize, nbBlocks, numBounds, best, lbound1_d, lbound2_d, parents_d,bounds_d);
+      // numBounds is the 'size' of the problem
+      evaluate_gpu(jobs, lb, numBounds, nbBlocks, best, lbound1_d, lbound2_d, parents_d, bounds_d); 
+      //printf("Value of 10th position of bounds_d = %d", bounds_d[9]);
       cudaDeviceSynchronize();
       
-      cudaMemcpy((int*)bounds, (int*)bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
-	  
+      cudaMemcpy((int*)bounds, (int*)bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost); //size of copy is good
+
+      cudaDeviceSynchronize();
+      
       /*
 	Each task generates and inserts its children nodes to the pool.
       */
-      generate_children(parents, poolSize,jobs, bounds, exploredTree, exploredSol, best, &pool);
+      generate_children(parents, poolSize, jobs, bounds, exploredTree, exploredSol, best, &pool);
     }
   }
 
