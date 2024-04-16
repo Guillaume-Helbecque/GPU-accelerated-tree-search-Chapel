@@ -41,12 +41,6 @@ module Bound_johnson
 
       this.ld = {0..#this.nb_machine_pairs*this.nb_jobs};
       this.ad = {0..#this.nb_machine_pairs};
-
-      init this;
-
-      fill_machine_pairs(this/*, LB2_FULL*/);
-      fill_lags(lb1_data.p_times, this);
-      fill_johnson_schedules(lb1_data.p_times, this);
     }
   }
 

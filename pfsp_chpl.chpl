@@ -60,7 +60,10 @@ var lbound1 = new lb1_bound_data(jobs, machines);
 taillard_get_processing_times(lbound1.p_times, inst);
 fill_min_heads_tails(lbound1);
 
-const lbound2 = new lb2_bound_data(lbound1);
+var lbound2 = new lb2_bound_data(lbound1);
+fill_machine_pairs(lbound2/*, LB2_FULL*/);
+fill_lags(lbound1.p_times, lbound2);
+fill_johnson_schedules(lbound1.p_times, lbound2);
 
 const initUB = if (ub == 1) then taillard_get_best_ub(inst) else max(int);
 

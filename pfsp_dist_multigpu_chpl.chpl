@@ -367,7 +367,10 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   taillard_get_processing_times(lbound1_p!.lb1_bound.p_times, inst);
   fill_min_heads_tails(lbound1_p!.lb1_bound);
 
-  const lbound2_p = new WrapperLB2(lbound1_p!.lb1_bound);
+  var lbound2_p = new WrapperLB2(lbound1_p!.lb1_bound);
+  fill_machine_pairs(lbound2_p!.lb2_bound/*, LB2_FULL*/);
+  fill_lags(lbound1_p!.lb1_bound.p_times, lbound2_p!.lb2_bound);
+  fill_johnson_schedules(lbound1_p!.lb1_bound.p_times, lbound2_p!.lb2_bound);
 
   while (pool.size < D*m*numLocales) {
     var hasWork = 0;
@@ -444,7 +447,10 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
       taillard_get_processing_times(lbound1!.lb1_bound.p_times, inst);
       fill_min_heads_tails(lbound1!.lb1_bound);
 
-      const lbound2 = new WrapperLB2(lbound1!.lb1_bound);
+      var lbound2 = new WrapperLB2(lbound1!.lb1_bound);
+      fill_machine_pairs(lbound2!.lb2_bound/*, LB2_FULL*/);
+      fill_lags(lbound1!.lb1_bound.p_times, lbound2!.lb2_bound);
+      fill_johnson_schedules(lbound1!.lb1_bound.p_times, lbound2!.lb2_bound);
 
       var lbound1_d: lbound1.type;
       var lbound2_d: lbound2.type;
@@ -455,6 +461,9 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         fill_min_heads_tails(lbound1_d!.lb1_bound);
 
         lbound2_d = new WrapperLB2(lbound1_d!.lb1_bound);
+        fill_machine_pairs(lbound2_d!.lb2_bound/*, LB2_FULL*/);
+        fill_lags(lbound1_d!.lb1_bound.p_times, lbound2_d!.lb2_bound);
+        fill_johnson_schedules(lbound1_d!.lb1_bound.p_times, lbound2_d!.lb2_bound);
       }
 
       while true {
