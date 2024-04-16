@@ -432,13 +432,15 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
     on gpu {
       lbound1_d = new WrapperLB1(jobs, machines);
-      taillard_get_processing_times(lbound1_d!.lb1_bound.p_times, inst);
-      fill_min_heads_tails(lbound1_d!.lb1_bound);
+      lbound1_d!.lb1_bound.p_times   = lbound1!.lb1_bound.p_times;
+      lbound1_d!.lb1_bound.min_heads = lbound1!.lb1_bound.min_heads;
+      lbound1_d!.lb1_bound.min_tails = lbound1!.lb1_bound.min_tails;
 
       lbound2_d = new WrapperLB2(jobs, machines);
-      fill_machine_pairs(lbound2_d!.lb2_bound/*, LB2_FULL*/);
-      fill_lags(lbound1_d!.lb1_bound.p_times, lbound2_d!.lb2_bound);
-      fill_johnson_schedules(lbound1_d!.lb1_bound.p_times, lbound2_d!.lb2_bound);
+      lbound2_d!.lb2_bound.johnson_schedules  = lbound2!.lb2_bound.johnson_schedules;
+      lbound2_d!.lb2_bound.lags               = lbound2!.lb2_bound.lags;
+      lbound2_d!.lb2_bound.machine_pairs      = lbound2!.lb2_bound.machine_pairs;
+      lbound2_d!.lb2_bound.machine_pair_order = lbound2!.lb2_bound.machine_pair_order;
     }
 
     while true {
