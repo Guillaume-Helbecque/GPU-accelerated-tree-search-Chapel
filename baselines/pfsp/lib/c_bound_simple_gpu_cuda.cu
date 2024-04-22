@@ -29,6 +29,9 @@ add_backward_gpu(const int job, const int * const p_times, const int nb_jobs, co
   }
 }
 
+
+
+
 __device__ void
 schedule_front_gpu(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, int * front)
 {
@@ -191,7 +194,7 @@ __device__ int eval_solution_gpu(const lb1_bound_data* lb1_data, const int* cons
 
   // In order to free tmp, we have to put the value of return in an auxiliary variable called result
   result = tmp[M-1];
-  cudaFree(tmp);
+  //cudaFree(tmp);
   return result;
 }
 
@@ -226,9 +229,9 @@ lb1_bound_gpu(const lb1_bound_data* const lb1_data, const int * const permutatio
   //result = 1;
   *bounds = 1;//machine_bound_from_parts_gpu(front, back, remain, nb_machines);
 
-  cudaFree(front);
-  cudaFree(back);
-  cudaFree(remain);
+  // cudaFree(front);
+  // cudaFree(back);
+  // cudaFree(remain);
 
   // free(front);
   // free(back);

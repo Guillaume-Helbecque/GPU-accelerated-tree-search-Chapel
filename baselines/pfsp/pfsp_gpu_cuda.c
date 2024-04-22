@@ -389,11 +389,17 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   fill_johnson_schedules(lbound1->p_times, lbound2);
 
   // Passing lb1 bounding data to GPU
+  // Here instead of copying all the data to lb1_bound_data in GPU I can copy just some of the vectors that are inside of it
   lb1_bound_data* lbound1_d;
   cudaMalloc((void**)&lbound1_d, sizeof(lb1_bound_data));
-  cudaMemcpy((void*)lbound1_d, (void*)lbound1, sizeof(lb1_bound_data), cudaMemcpyHostToDevice);
+  cudaMemcpy(lbound1_d, lbound1, sizeof(lb1_bound_data), cudaMemcpyHostToDevice);
 
-
+  //Use the HPC
+  //Separate the structs (maybe not - check the last item in the list)
+  //Check the functions from .cu library to see if the const in front of variables are creating any problems
+  //allocate all memory outside the __device__ functions because doing allocations inside gpu might be problematic
+  // don't do device calls from device functions (and maybe the same for globals)
+  
   //cudaMemcpy((void*)&lbound1_test, (void*)lbound1_d, sizeof(lb1_bound_data), cudaMemcpyDeviceToHost);
   //lb1_bound_data lbound1_test;
   //printf("Comparison between bound datas: \n For lbound1 data \n p_times[3] = %d \n min_heads[3] =%d \n min_tails[3] = %d \n nb_jobs = %d \n nb_machines = %d \n \n For lbound1_test data \n p_times[3] = %d \n min_heads[3] =%d \n min_tails[3] = %d \n nb_jobs = %d \n nb_machines = %d\n",lbound1->p_times[3],lbound1->min_heads[3],lbound1->min_tails[3], lbound1->nb_jobs, lbound1->nb_machines, lbound1_test.p_times[3],lbound1_test.min_heads[3],lbound1_test.min_tails[3], lbound1_test.nb_jobs, lbound1_test.nb_machines);
@@ -401,7 +407,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   // Passing lb2 bounding data to GPU
   lb2_bound_data* lbound2_d;
   cudaMalloc((void**)&lbound2_d, sizeof(lb2_bound_data));
-  cudaMemcpy((void*)lbound2_d, (void*)lbound2, sizeof(lb2_bound_data), cudaMemcpyHostToDevice);
+  cudaMemcpy(lbound2_d, lbound2, sizeof(lb2_bound_data), cudaMemcpyHostToDevice);
 
   // We allocate both parents and bounds vectors with maximum size (?)
   
@@ -446,8 +452,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       printf("numBounds: %d\n nbBlocks size: %d\n", numBounds,nbBlocks);
 
       // If copying data between structs lbound1 is working, this should also be working
-      cudaMemcpy((void*)parents_d, (void*)parents, poolSize * sizeof(Node), cudaMemcpyHostToDevice); //size of copy is good
-      cudaDeviceSynchronize();
+      cudaMemcpy(parents_d, parents, poolSize * sizeof(Node), cudaMemcpyHostToDevice); //size of copy is good
+      // Don't need to put synchronize after memcpy because it is a synchronized call
+      //cudaDeviceSynchronize();
 
       // count += 1;
       // numBounds is the 'size' of the problem
@@ -455,9 +462,10 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       //printf("Value of 10th position of bounds_d = %d", bounds_d[9]);
       cudaDeviceSynchronize();
       
-      cudaMemcpy((int*)bounds, (int*)bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost); //size of copy is good
+      cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost); //size of copy is good
 
-      cudaDeviceSynchronize();
+      // cudaDeviceSynchronize();
+
       for(int i = 0;i<10;i++){
 	printf("Value of %dth position of bounds_d (through copy to vector bounds = %d\n", i, bounds[i]);
       }

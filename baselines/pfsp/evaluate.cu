@@ -34,8 +34,10 @@ extern "C" {
       if (k >= parent.limit1+1) {
 	swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
 	//bounds[threadId] =
-	lb1_bound_gpu(lbound1_d, parent.prmu, parent.limit1+1,jobs,&bounds[threadId]);
+	int bound = 0;
+	lb1_bound_gpu(lbound1_d, parent.prmu, parent.limit1+1,jobs,&bound);
 	swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
+	bounds[threadId] = bound;
       }
     }
   }
