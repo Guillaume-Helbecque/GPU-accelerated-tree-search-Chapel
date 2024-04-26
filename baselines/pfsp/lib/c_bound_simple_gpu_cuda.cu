@@ -29,19 +29,16 @@ add_backward_gpu(const int job, const int * const p_times, const int nb_jobs, co
   }
 }
 
-
-
-
 __device__ void
-schedule_front_gpu(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, int * front)
+schedule_front_gpu(const lb1_bound_data lb1_data, const int * const permutation, const int limit1, int * front)
 {
-  const int N = lb1_data->nb_jobs;
-  const int M = lb1_data->nb_machines;
-  const int *const p_times = lb1_data->p_times;
+  const int N = lb1_data.nb_jobs;
+  const int M = lb1_data.nb_machines;
+  const int *const p_times = lb1_data.p_times;
 
   if (limit1 == -1) {
     for (int i = 0; i < M; i++)
-      front[i] = lb1_data->min_heads[i];
+      front[i] = lb1_data.min_heads[i];
     return;
   }
   for (int i = 0; i < M; i++){
@@ -53,15 +50,15 @@ schedule_front_gpu(const lb1_bound_data* const lb1_data, const int * const permu
 }
 
 __device__ void
-schedule_back_gpu(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit2, int * back)
+schedule_back_gpu(const lb1_bound_data lb1_data, const int * const permutation, const int limit2, int * back)
 {
-  const int N = lb1_data->nb_jobs;
-  const int M = lb1_data->nb_machines;
-  const int *const p_times = lb1_data->p_times;
+  const int N = lb1_data.nb_jobs;
+  const int M = lb1_data.nb_machines;
+  const int *const p_times = lb1_data.p_times;
 
   if (limit2 == N) {
     for (int i = 0; i < M; i++)
-      back[i] = lb1_data->min_tails[i];
+      back[i] = lb1_data.min_tails[i];
     return;
   }
 
@@ -74,11 +71,11 @@ schedule_back_gpu(const lb1_bound_data* const lb1_data, const int * const permut
 }
 
 __device__ void
-sum_unscheduled_gpu(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, const int limit2, int * remain)
+sum_unscheduled_gpu(const lb1_bound_data lb1_data, const int * const permutation, const int limit1, const int limit2, int * remain)
 {
-  const int nb_jobs = lb1_data->nb_jobs;
-  const int nb_machines = lb1_data->nb_machines;
-  const int * const p_times = lb1_data->p_times;
+  const int nb_jobs = lb1_data.nb_jobs;
+  const int nb_machines = lb1_data.nb_machines;
+  const int * const p_times = lb1_data.p_times;
 
   for (int j = 0; j < nb_machines; j++) {
     remain[j] = 0;
@@ -92,8 +89,7 @@ sum_unscheduled_gpu(const lb1_bound_data* const lb1_data, const int * const perm
 }
 
 __device__ int
-machine_bound_from_parts_gpu(const int * const front, const int * const back, const int * const remain,
-			     const int nb_machines)
+machine_bound_from_parts_gpu(const int * const front, const int * const back, const int * const remain, const int nb_machines)
 {
   int tmp0 = front[0] + remain[0];
   int lb = tmp0 + back[0]; // LB on machine 0
@@ -109,11 +105,11 @@ machine_bound_from_parts_gpu(const int * const front, const int * const back, co
 }
 
 __device__ int
-add_front_and_bound_gpu(const lb1_bound_data* const lb1_data, const int job, const int * const front, const int * const back, const int * const remain/*, int *delta_idle*/)
+add_front_and_bound_gpu(const lb1_bound_data lb1_data, const int job, const int * const front, const int * const back, const int * const remain/*, int *delta_idle*/)
 {
-  int nb_jobs = lb1_data->nb_jobs;
-  int nb_machines = lb1_data->nb_machines;
-  int* p_times = lb1_data->p_times;
+  int nb_jobs = lb1_data.nb_jobs;
+  int nb_machines = lb1_data.nb_machines;
+  int* p_times = lb1_data.p_times;
 
   int lb   = front[0] + remain[0] + back[0];
   int tmp0 = front[0] + p_times[job];
@@ -138,11 +134,11 @@ add_front_and_bound_gpu(const lb1_bound_data* const lb1_data, const int job, con
 
 // ... same for back
 __device__ int
-add_back_and_bound_gpu(const lb1_bound_data* const lb1_data, const int job, const int * const front, const int * const back, const int * const remain, int *delta_idle)
+add_back_and_bound_gpu(const lb1_bound_data lb1_data, const int job, const int * const front, const int * const back, const int * const remain, int *delta_idle)
 {
-  int nb_jobs = lb1_data->nb_jobs;
-  int nb_machines = lb1_data->nb_machines;
-  int* p_times = lb1_data->p_times;
+  int nb_jobs = lb1_data.nb_jobs;
+  int nb_machines = lb1_data.nb_machines;
+  int* p_times = lb1_data.p_times;
 
   int last_machine = nb_machines - 1;
 
@@ -166,85 +162,59 @@ add_back_and_bound_gpu(const lb1_bound_data* const lb1_data, const int job, cons
 
   return lb;
 }
+// This function is not being used in fact
+// //----------------------evaluate (partial) schedules---------------------
+// __device__ int eval_solution_gpu(const lb1_bound_data lb1_data, const int* const permutation)
+// {
+//   const int N = lb1_data.nb_jobs;
+//   const int M = lb1_data.nb_machines;
 
-//----------------------evaluate (partial) schedules---------------------
-__device__ int eval_solution_gpu(const lb1_bound_data* lb1_data, const int* const permutation)
-{
-  const int N = lb1_data->nb_jobs;
-  const int M = lb1_data->nb_machines;
+//   //int tmp[N];
+//   //int *tmp = (int*)malloc(N * sizeof(int)); // Dynamically allocate memory for tmp
+//   int *tmp;
+//   cudaMalloc((void**)&tmp, N * sizeof(int));
 
-  //int *tmp = (int*)malloc(N * sizeof(int)); // Dynamically allocate memory for tmp
-  int *tmp;
-  cudaMalloc((void**)&tmp, N * sizeof(int));
-
-  int result;
+//   int result;
   
-  // Check if memory allocation succeeded
-  if(tmp == NULL) {
-    // Handle memory allocation failure
-    return -1; // Return an error code indicating failure
-  }
+//   // Check if memory allocation succeeded
+//   if(tmp == NULL) {
+//     // Handle memory allocation failure
+//     return -1; // Return an error code indicating failure
+//   }
   
-  for(int i = 0; i < N; i++) {
-    tmp[i] = 0;
-  }
-  for (int i = 0; i < N; i++) {
-    add_forward_gpu(permutation[i], lb1_data->p_times, N, M, tmp);
-  }
+//   for(int i = 0; i < N; i++) {
+//     tmp[i] = 0;
+//   }
+//   for (int i = 0; i < N; i++) {
+//     add_forward_gpu(permutation[i], lb1_data.p_times, N, M, tmp);
+//   }
 
-  // In order to free tmp, we have to put the value of return in an auxiliary variable called result
-  result = tmp[M-1];
-  //cudaFree(tmp);
-  return result;
-}
+//   // In order to free tmp, we have to put the value of return in an auxiliary variable called result
+//   result = tmp[M-1];
+//   //cudaFree(tmp);
+//   return result;
+// }
 
 __device__ void
-lb1_bound_gpu(const lb1_bound_data* const lb1_data, const int * const permutation, const int limit1, const int limit2, int *bounds)
+lb1_bound_gpu(const lb1_bound_data lb1_data, const int * const permutation, const int limit1, const int limit2, int *bounds, int *front, int *back, int *remain)
 {
-  int nb_machines = lb1_data->nb_machines;
-
-  int *front, *back, *remain;
-  cudaMalloc((void**)&front, nb_machines * sizeof(int));
-  cudaMalloc((void**)&back, nb_machines * sizeof(int));
-  cudaMalloc((void**)&remain, nb_machines * sizeof(int));
+  int nb_machines = lb1_data.nb_machines;
   
-  // int *front = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for front
-  // int *back = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for back
-  // int *remain = (int*)malloc(nb_machines * sizeof(int)); // Dynamically allocate memory for remain
-
-  int result;
-
-  // // Check if memory allocation succeeded
-  // if(front == NULL || back == NULL || remain == NULL) {
-  //   // Handle memory allocation failure
-  //   return -1; // Return an error code indicating failure
-  // }
-
   schedule_front_gpu(lb1_data, permutation, limit1, front);
   schedule_back_gpu(lb1_data, permutation, limit2, back);
 
   sum_unscheduled_gpu(lb1_data, permutation, limit1, limit2, remain);
 
   // Same as in function eval_solution_gpu
-  //result = 1;
-  *bounds = 1;//machine_bound_from_parts_gpu(front, back, remain, nb_machines);
+  *bounds = machine_bound_from_parts_gpu(front, back, remain, nb_machines);
 
-  // cudaFree(front);
-  // cudaFree(back);
-  // cudaFree(remain);
-
-  // free(front);
-  // free(back);
-  // free(remain);
-
-  // return 1;
   return;
 }
 
-__device__ void lb1_children_bounds_gpu(const lb1_bound_data *const lb1_data, const int *const permutation, const int limit1, const int limit2, int *const lb_begin/*, int *const lb_end, int *const prio_begin, int *const prio_end, const int direction*/)
+__device__ void lb1_children_bounds_gpu(const lb1_bound_data lb1_data, const int *const permutation, const int limit1, const int limit2, int *const lb_begin/*, int *const lb_end, int *const prio_begin, int *const prio_end, const int direction*/)
 {
-  int N = lb1_data->nb_jobs;
-  int M = lb1_data->nb_machines;
+  int N = lb1_data.nb_jobs;
+  int M = lb1_data.nb_machines;
 
   int *front = (int*)malloc(M * sizeof(int)); // Dynamically allocate memory for front
   int *back = (int*)malloc(M * sizeof(int)); // Dynamically allocate memory for back
@@ -437,10 +407,10 @@ __device__ int lb_makespan_learn_gpu(const int* const lb1_p_times, const lb2_bou
   return lb;
 }
 
-__device__ int lb2_bound_gpu(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2,const int best_cmax)
+__device__ int lb2_bound_gpu(const lb1_bound_data lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2,const int best_cmax)
 {
-  const int N = lb1_data->nb_jobs;
-  const int M = lb1_data->nb_machines;
+  const int N = lb1_data.nb_jobs;
+  const int M = lb1_data.nb_machines;
 
   int *front = (int*)malloc(M * sizeof(int)); // Dynamically allocate memory for tmp
   int *back = (int*)malloc(M * sizeof(int)); // Dynamically allocate memory for back
@@ -464,7 +434,7 @@ __device__ int lb2_bound_gpu(const lb1_bound_data* const lb1_data, const lb2_bou
   
   set_flags_gpu(permutation, limit1, limit2, N, flags);
 
-  return lb_makespan_gpu(lb1_data->p_times, lb2_data, flags, front, back, best_cmax);
+  return lb_makespan_gpu(lb1_data.p_times, lb2_data, flags, front, back, best_cmax);
 }
 
 __device__ inline void swap(int *a, int *b)
@@ -474,9 +444,9 @@ __device__ inline void swap(int *a, int *b)
   *b = tmp;
 }
 
-__device__ void lb2_children_bounds_gpu(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, const int best_cmax, const int direction)
+__device__ void lb2_children_bounds_gpu(const lb1_bound_data lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, const int best_cmax, const int direction)
 {
-  const int N = lb1_data->nb_jobs;
+  const int N = lb1_data.nb_jobs;
   
   int *tmp_perm = (int*)malloc(N * sizeof(int)); // Dynamically allocate memory for tmp_perm
   
