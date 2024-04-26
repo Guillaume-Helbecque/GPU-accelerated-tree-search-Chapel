@@ -337,7 +337,8 @@ void generate_children(Node* parents, const int size, const int jobs, int* bound
 
       // If child leaf
       if(depth + 1 == jobs){
-	exploredSol += 1;
+	//printf("I added an explored solution after GPU execution!\n");
+	*exploredSol += 1;
 
 	// If child feasible
 	if(lowerbound < *best) *best = lowerbound;
@@ -351,7 +352,8 @@ void generate_children(Node* parents, const int size, const int jobs, int* bound
 	  child.limit1 = parent.limit1 + 1;
 	  
 	  pushBack(pool, child);
-	  exploredTree += 1;
+	  *exploredTree += 1;
+	  //printf("I added an explored branch  after GPU execution!\n");
 	}
       }
     }
@@ -479,14 +481,14 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       }
 
       // numBounds is the 'size' of the problem
-      evaluate_gpu(jobs, lb, numBounds, nbBlocks, best, lbound1_d, lbound2_d, parents_d, bounds_d, front, back, remain); 
+      evaluate_gpu(jobs, lb, numBounds, nbBlocks, best, lbound1_d, lbound2_d, parents_d, bounds_d/*, front, back, remain*/); 
       cudaDeviceSynchronize();
       
       cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost); //size of copy is good
 
-      for(int i = 0;i<5;i++){
-	printf("Value of %dth position of bounds_d (through copy to vector bounds = %d\n", i, bounds[i]);
-      }
+      /* for(int i = 0;i<5;i++){ */
+      /* 	printf("Value of %dth position of bounds_d (through copy to vector bounds = %d\n", i, bounds[i]); */
+      /* } */
      
       /*
 	each task generates and inserts its children nodes to the pool.
