@@ -14,27 +14,17 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-//#include "parameters.h"
 #include "lib/c_bound_simple.h"
 #include "lib/c_bound_johnson.h"
 #include "lib/c_taillard.h"
 #include "evaluate.h"
 
 
-//#define BLOCK_SIZE 512
-
 /*******************************************************************************
 Implementation of PFSP Nodes.
 *******************************************************************************/
 
-/* #define MAX_JOBS 20 */
-
-/* typedef struct */
-/* { */
-/*   uint8_t depth; */
-/*   int limit1; */
-/*   int prmu[MAX_JOBS]; */
-/* } Node; */
+// BLOCK_SIZE, MAX_JOBS and struct Node are defined in parameters.h
 
 // Initialization of nodes is done by CPU only
 
@@ -87,6 +77,22 @@ Node popBack(SinglePool* pool, int* hasWork)
   if (pool->size > 0) {
     *hasWork = 1;
     return pool->elements[--pool->size];
+  }
+
+  return (Node){0};
+}
+
+// Integer i represents the lines of 2D table parents_h
+Node popBack_p(SinglePool* pool, int* hasWork, int** parents_h, int i)
+{
+  if (pool->size > 0) {
+    *hasWork = 1;
+    Node myNode = pool->elements[--pool->size];
+    for(int j = 0; j < MAX_JOBS; j++)
+      parents_h[i][j] = myNode.prmu[j];
+    parents_h[i][20] = myNode.depth;
+    parents_h[i][21] = myNode.limit1;
+    return myNode;
   }
 
   return (Node){0};
@@ -211,8 +217,7 @@ inline void swap(int* a, int* b)
 }
 
 // Evaluate and generate children nodes on CPU.
-void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const Node parent,
-		   int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool* pool)
+void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const Node parent, int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool* pool)
 {
   for (int i = parent.limit1+1; i < jobs; i++) {
     Node child;
@@ -361,8 +366,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   // Initializing problem
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
-
-  printf("%d number of jobs and %d number of machines", jobs, machines);
+  int count = 0;
   
   // Starting pool
   Node root;
@@ -388,57 +392,73 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   fill_lags(lbound1->p_times, lbound2);
   fill_johnson_schedules(lbound1->p_times, lbound2);
 
-  // Passing lb1 bounding data to GPU
-  // Here instead of copying all the data to lb1_bound_data in GPU I can copy just some of the vectors that are inside of it
-  lb1_bound_data* lbound1_d;
-  cudaMalloc((void**)&lbound1_d, sizeof(lb1_bound_data));
-  cudaMemcpy(lbound1_d, lbound1, sizeof(lb1_bound_data), cudaMemcpyHostToDevice);
+  // Vectors for deep copy of lbound1 to device
+  lb1_bound_data lbound1_d;
+  int* p_times_d;
+  int* min_heads_d;
+  int* min_tails_d;
 
-  //Use the HPC
-  //Separate the structs (maybe not - check the last item in the list)
-  //Check the functions from .cu library to see if the const in front of variables are creating any problems
-  //allocate all memory outside the __device__ functions because doing allocations inside gpu might be problematic
-  // don't do device calls from device functions (and maybe the same for globals)
-  
-  //cudaMemcpy((void*)&lbound1_test, (void*)lbound1_d, sizeof(lb1_bound_data), cudaMemcpyDeviceToHost);
-  //lb1_bound_data lbound1_test;
-  //printf("Comparison between bound datas: \n For lbound1 data \n p_times[3] = %d \n min_heads[3] =%d \n min_tails[3] = %d \n nb_jobs = %d \n nb_machines = %d \n \n For lbound1_test data \n p_times[3] = %d \n min_heads[3] =%d \n min_tails[3] = %d \n nb_jobs = %d \n nb_machines = %d\n",lbound1->p_times[3],lbound1->min_heads[3],lbound1->min_tails[3], lbound1->nb_jobs, lbound1->nb_machines, lbound1_test.p_times[3],lbound1_test.min_heads[3],lbound1_test.min_tails[3], lbound1_test.nb_jobs, lbound1_test.nb_machines);
+  // Allocating and copying memory necessary for deep copy
+  cudaMalloc((void**)&p_times_d, jobs*machines*sizeof(int));
+  cudaMalloc((void**)&min_heads_d, machines*sizeof(int));
+  cudaMalloc((void**)&min_tails_d, machines*sizeof(int));
+  cudaMemcpy(p_times_d, lbound1->p_times, (jobs*machines)*sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(min_heads_d, lbound1->min_heads, machines*sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(min_tails_d, lbound1->min_tails, machines*sizeof(int), cudaMemcpyHostToDevice);
 
-  // Passing lb2 bounding data to GPU
+  // Deep copy of lbound1
+  lbound1_d.p_times = p_times_d;
+  lbound1_d.min_heads = min_heads_d;
+  lbound1_d.min_tails = min_tails_d;
+  lbound1_d.nb_jobs = lbound1->nb_jobs;
+  lbound1_d.nb_machines = lbound1->nb_machines;
+
+   // Passing lb2 bounding data to GPU (need to do a deep copy also)
   lb2_bound_data* lbound2_d;
   cudaMalloc((void**)&lbound2_d, sizeof(lb2_bound_data));
   cudaMemcpy(lbound2_d, lbound2, sizeof(lb2_bound_data), cudaMemcpyHostToDevice);
 
-  // We allocate both parents and bounds vectors with maximum size (?)
-  
-  // Allocating parents vectors on CPU and GPU
+  // Allocating parents vector on CPU and GPU
   Node* parents = (Node*)malloc(M * sizeof(Node));
-  Node* parents_d;
-  cudaMalloc((void**)&parents_d, M * sizeof(Node));
 
+  // parents_h is a table of table of integers of size M x (MAX_JOBS+2), where each line is a node
+  // First 20 components are the prmu variable, then depth and limit1
+  int** parents_h = (int**)malloc(M*sizeof(int*));
+  for(int k = 0; k < M; k++)
+    parents_h[k] = (int*) malloc((MAX_JOBS+2)*sizeof(int));
+  
+  // Allocation of parents_d on the GPU
+  int** parents_d;
+  cudaMalloc((void**)&parents_d, M*sizeof(int*));
+  cudaMemcpy(parents_d,parents_h, M*sizeof(int*),cudaMemcpyHostToDevice);
+  
   // Allocating bounds vector on CPU and GPU
   int* bounds = (int*)malloc((jobs*M) * sizeof(int));
   int *bounds_d;
   cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
 
-  cudaDeviceSynchronize();
+  // Memory allocation for execution of lb1 bounding function
+  int *front, *back, *remain;
+  cudaMalloc((void**)&front, machines * sizeof(int));
+  cudaMalloc((void**)&back, machines * sizeof(int));
+  cudaMalloc((void**)&remain, machines * sizeof(int));
 
   while (1) {
+    // CPU side
     int hasWork = 0;
     Node parent = popBack(&pool, &hasWork);
     if (!hasWork) break;
 
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
 
-    //printf("Size of pool.size = %d\n", pool.size);
     int poolSize = MIN(pool.size,M);
-
+       
     // If 'poolSize' is sufficiently large, we offload the pool on GPU.
     if (poolSize >= m) {
       
       for(int i= 0; i < poolSize; i++) {
 	int hasWork = 0;
-	parents[i] = popBack(&pool,&hasWork); //parents size is good because pool is max equals to M
+	parents[i] = popBack_p(&pool, &hasWork, parents_h, i); //parents size is good because pool is max equals to M
 	if (!hasWork) break;
       }
 	
@@ -447,54 +467,68 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
 	generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
 	something like that.
       */
-      const int  numBounds = 2048;//jobs * poolSize;   
+      const int  numBounds = jobs * poolSize;   
       const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
-      printf("numBounds: %d\n nbBlocks size: %d\n", numBounds,nbBlocks);
 
-      // If copying data between structs lbound1 is working, this should also be working
-      cudaMemcpy(parents_d, parents, poolSize * sizeof(Node), cudaMemcpyHostToDevice); //size of copy is good
-      // Don't need to put synchronize after memcpy because it is a synchronized call
-      //cudaDeviceSynchronize();
+      // This is not efficient at all! Put everything in a 1D vector
+      for(int i = 0; i < poolSize; i++){
+	int* deviceRow;
+	cudaMalloc((void**)&deviceRow,  (MAX_JOBS+2) * sizeof(int));
+	cudaMemcpy(deviceRow, parents_h[i], (MAX_JOBS+2) * sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(&parents_d[i], &deviceRow, sizeof(int*), cudaMemcpyHostToDevice);
+      }
 
-      // count += 1;
       // numBounds is the 'size' of the problem
-      evaluate_gpu(jobs, lb, numBounds, nbBlocks, best, lbound1_d, lbound2_d, parents_d, bounds_d); 
-      //printf("Value of 10th position of bounds_d = %d", bounds_d[9]);
+      evaluate_gpu(jobs, lb, numBounds, nbBlocks, best, lbound1_d, lbound2_d, parents_d, bounds_d, front, back, remain); 
       cudaDeviceSynchronize();
       
       cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost); //size of copy is good
 
-      // cudaDeviceSynchronize();
-
-      for(int i = 0;i<10;i++){
+      for(int i = 0;i<5;i++){
 	printf("Value of %dth position of bounds_d (through copy to vector bounds = %d\n", i, bounds[i]);
       }
+     
       /*
-	Each task generates and inserts its children nodes to the pool.
+	each task generates and inserts its children nodes to the pool.
       */
       generate_children(parents, poolSize, jobs, bounds, exploredTree, exploredSol, best, &pool);
     }
+    printf("Size of pool.size = %d\n", poolSize);
+    count += 1; // Check the amount of while loops
   }
-
-  // Attention to these free data
-  // labels are represented by the bounds now and they have their own freeing functions (see below)
-  cudaFree(parents_d);
-  cudaFree(bounds_d);
-  cudaFree(lbound1_d);
-  cudaFree(lbound2_d);
   
-  free(parents);
-  free(bounds);
-        
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
   *elapsedTime = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 
   printf("\nExploration terminated.\n");
+  printf("\n%d while loops execute.\n", count);
 
-  // Freeing memory
+  // Freeing memory for structs 
   deleteSinglePool(&pool);
   free_bound_data(lbound1);
   free_johnson_bd_data(lbound2);
+
+  // Freeing memory for device
+  for (int i = 0; i < M; i++) {
+    cudaFree(&parents_d[i]);
+  }
+  cudaFree(parents_d);
+  cudaFree(bounds_d);
+  cudaFree(lbound2_d);
+  cudaFree(p_times_d);
+  cudaFree(min_heads_d);
+  cudaFree(min_tails_d);
+  cudaFree(front);
+  cudaFree(back);
+  cudaFree(remain);
+
+  //Freeing memory for host
+  for (int i = 0; i < M; i++) {
+    free(parents_h[i]);
+  }
+  free(parents_h);
+  free(parents);
+  free(bounds);
 }
 
 int main(int argc, char* argv[])
