@@ -190,7 +190,7 @@ void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const No
     child.limit1 = parent.limit1 + 1;
 
     int lowerbound = lb1_bound(lbound1, child.prmu, child.limit1, jobs);
-    printf("Lowerbounds in decompose_lb1 function: %d\n", lowerbound);
+    //printf("Lowerbounds in decompose_lb1 function: %d\n", lowerbound);
 
     if (child.depth == jobs) { // if child leaf
       *num_sol += 1;
@@ -318,6 +318,8 @@ void pfsp_search(const int inst, const int lb, int* best,
   struct timespec start, end;
   clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
+  int counter = 0;
+  
   while (1) {
     int hasWork = 0;
     Node parent = popBack(&pool, &hasWork);
@@ -326,13 +328,15 @@ void pfsp_search(const int inst, const int lb, int* best,
     //printf("numBounds: %d\n", jobs*(pool.size));
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
 
-    printf("Size of pool.size = %d\n", pool.size);
+    counter += 1;
+    //printf("Size of pool.size = %d\n", pool.size);
   }
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
   *elapsedTime = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 
   printf("\nExploration terminated.\n");
-
+  printf("\nNumber of while loops executed = %d\n",counter);
+  
   deleteSinglePool(&pool);
   free_bound_data(lbound1);
   free_johnson_bd_data(lbound2);
