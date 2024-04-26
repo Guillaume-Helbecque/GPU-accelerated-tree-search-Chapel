@@ -22,7 +22,7 @@ extern "C" {
   }
 
   // Evaluate a bulk of parent nodes on GPU using lb1
-  __global__ void evaluate_gpu_lb1 (const int jobs, const int size, int** parents_d, const lb1_bound_data  lbound1_d, int* bounds/*, int *front, int *back, int *remain*/)
+  __global__ void evaluate_gpu_lb1 (const int jobs, const int size, int* parents_d, const lb1_bound_data  lbound1_d, int* bounds/*, int *front, int *back, int *remain*/)
   {
     int threadId = blockIdx.x * blockDim.x + threadIdx.x;
     if (threadId < size) {
@@ -32,9 +32,9 @@ extern "C" {
 
       // Variables from parent nodes
       for(int i = 0; i < MAX_JOBS; i++)
-	prmu[i] = parents_d[parentId][i];
-      const int depth = parents_d[parentId][20];
-      const int limit1 = parents_d[parentId][21];
+	prmu[i] = parents_d[parentId*(MAX_JOBS+2) + i];
+      const int depth = parents_d[parentId*(MAX_JOBS+2) + 20];
+      const int limit1 = parents_d[parentId*(MAX_JOBS+2) + 21];
 
       // print test to check on parent data
       // printf("On thread %d parent.depth = %d, parent.limit1 = %d, prmu[10] = %d\n", threadId, parents_d[parentId][20],parents_d[parentId][21], parents_d[parentId][10]);
@@ -105,7 +105,7 @@ extern "C" {
   // }
 
 
-  void evaluate_gpu(const int jobs, const int lb, const int size, const int nbBlocks, int* best, const lb1_bound_data lbound1, const lb2_bound_data* const lbound2, int** parents, int* bounds/*, int* front, int* back, int* remain*/)
+  void evaluate_gpu(const int jobs, const int lb, const int size, const int nbBlocks, int* best, const lb1_bound_data lbound1, const lb2_bound_data* const lbound2, int* parents, int* bounds/*, int* front, int* back, int* remain*/)
   {
     // 1D grid of 1D blocks
     dim3 gridDim(nbBlocks);      // nbBlocks blocks in x direction, y, z default to 1
