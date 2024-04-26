@@ -22,7 +22,7 @@ extern "C" {
   }
 
   // Evaluate a bulk of parent nodes on GPU using lb1
-  __global__ void evaluate_gpu_lb1 (const int jobs, const int size, int** parents_d, const lb1_bound_data  lbound1_d, int* bounds, int *front, int *back, int *remain)
+  __global__ void evaluate_gpu_lb1 (const int jobs, const int size, int** parents_d, const lb1_bound_data  lbound1_d, int* bounds/*, int *front, int *back, int *remain*/)
   {
     int threadId = blockIdx.x * blockDim.x + threadIdx.x;
     if (threadId < size) {
@@ -45,7 +45,7 @@ extern "C" {
       // We evaluate all permutations by varying index k from limit1 forward
       if (k >= limit1+1) {
 	swap_cuda(&prmu[depth],&prmu[k]);
-	lb1_bound_gpu(lbound1_d, prmu, limit1+1, jobs, &bounds[threadId], front, back, remain);
+	lb1_bound_gpu(lbound1_d, prmu, limit1+1, jobs, &bounds[threadId]/*, front, back, remain*/);
 	//printf("Printing bound = %d inside thread %d\n", bounds[threadId], threadId);
 	swap_cuda(&prmu[depth],&prmu[k]);
       }
@@ -105,7 +105,7 @@ extern "C" {
   // }
 
 
-  void evaluate_gpu(const int jobs, const int lb, const int size, const int nbBlocks, int* best, const lb1_bound_data lbound1, const lb2_bound_data* const lbound2, int** parents, int* bounds, int* front, int* back, int* remain)
+  void evaluate_gpu(const int jobs, const int lb, const int size, const int nbBlocks, int* best, const lb1_bound_data lbound1, const lb2_bound_data* const lbound2, int** parents, int* bounds/*, int* front, int* back, int* remain*/)
   {
     // 1D grid of 1D blocks
     dim3 gridDim(nbBlocks);      // nbBlocks blocks in x direction, y, z default to 1
@@ -117,7 +117,7 @@ extern "C" {
       break;
 
     case 1: // lb1
-      evaluate_gpu_lb1<<<gridDim, blockDim>>>(jobs, size, parents, lbound1, bounds, front, back, remain);
+      evaluate_gpu_lb1<<<gridDim, blockDim>>>(jobs, size, parents, lbound1, bounds/*, front, back, remain*/);
       return;
       break;
 
