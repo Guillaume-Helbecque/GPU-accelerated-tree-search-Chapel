@@ -3,6 +3,8 @@
 #include <limits.h>
 #include <string.h>
 
+#define MAX_MACHINES 20
+//#include "../parameters.h"
 #include "c_bound_simple.h"
 #include "c_bound_johnson.h"
 
@@ -196,9 +198,12 @@ add_back_and_bound_gpu(const lb1_bound_data lb1_data, const int job, const int *
 // }
 
 __device__ void
-lb1_bound_gpu(const lb1_bound_data lb1_data, const int * const permutation, const int limit1, const int limit2, int *bounds, int *front, int *back, int *remain)
+lb1_bound_gpu(const lb1_bound_data lb1_data, const int * const permutation, const int limit1, const int limit2, int *bounds /*, int *front, int *back, int *remain*/)
 {
   int nb_machines = lb1_data.nb_machines;
+  int front[MAX_MACHINES];
+  int back[MAX_MACHINES];
+  int remain[MAX_MACHINES];
   
   schedule_front_gpu(lb1_data, permutation, limit1, front);
   schedule_back_gpu(lb1_data, permutation, limit2, back);
