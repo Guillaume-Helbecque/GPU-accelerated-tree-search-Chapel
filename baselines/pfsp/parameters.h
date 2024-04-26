@@ -11,6 +11,8 @@
 
 #define MAX_JOBS 20
 
+#define MAX_MACHINES 20
+
 typedef struct
 {
   uint8_t depth;
