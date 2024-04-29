@@ -11,7 +11,7 @@
 #include <getopt.h>
 #include <time.h>
 #include <math.h>
-#include <cuda.h>
+//#include <cuda.h>
 #include <cuda_runtime.h>
 
 #include "lib/c_bound_simple.h"
@@ -454,16 +454,19 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
 
   // Allocating parents vector on CPU and GPU
   Node* parents = (Node*)malloc(M * sizeof(Node));
-
+  Node* parents_d;
+  cudaMalloc((void**)&parents_d, M * sizeof(Node));
 
   // CHANGE FOR MAX_SIZE
   // parents_h is a table of integers of size M * (MAX_JOBS+2)
   // Each 22 components we have: first 20 for the prmu, 1 for depth and 1 for limit1
-  int *parents_h = (int*) malloc((M*(MAX_JOBS+2))*sizeof(int));
+  // int *parents_h = (int*) malloc((M*(MAX_JOBS+2))*sizeof(int));
   
   // Allocation of parents_d on the GPU
-  int *parents_d;
-  cudaMalloc((void**)&parents_d, (M*(MAX_JOBS+2))*sizeof(int));
+  // int *parents_d;
+  // cudaMalloc((void**)&parents_d, (M*(MAX_JOBS+2))*sizeof(int));
+  
+
   
   // Allocating bounds vector on CPU and GPU
   int* bounds = (int*)malloc((jobs*M) * sizeof(int));
@@ -491,7 +494,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       
       for(int i= 0; i < poolSize; i++) {
 	int hasWork = 0;
-	parents[i] = popBack_p(&pool, &hasWork, parents_h, i); //parents size is good because pool is max equals to M
+	parents[i] = popBack(&pool,&hasWork);
+	//parents[i] = popBack_p(&pool, &hasWork, parents_h, i); //parents size is good because pool is max equals to M
 	if (!hasWork) break;
       }
 	
@@ -503,8 +507,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       const int  numBounds = jobs * poolSize;   
       const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
 
-      cudaMemcpy(parents_d, parents_h, (MAX_SIZE) * poolSize * sizeof(int), cudaMemcpyHostToDevice);
-      
+      //cudaMemcpy(parents_d, parents_h, (MAX_SIZE) * poolSize * sizeof(int), cudaMemcpyHostToDevice);
+      cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
       // numBounds is the 'size' of the problem
       evaluate_gpu(jobs, lb, numBounds, nbBlocks, best, lbound1_d, lbound2_d, parents_d, bounds_d/*, front, back, remain*/); 
       cudaDeviceSynchronize();
@@ -551,7 +555,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   /* cudaFree(remain); */
 
   /* //Freeing memory for host */
-  free(parents_h);
+  //free(parents_h);
   free(parents);
   free(bounds);
 }

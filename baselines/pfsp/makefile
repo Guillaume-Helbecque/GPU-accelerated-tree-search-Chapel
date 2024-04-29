@@ -49,6 +49,12 @@ pfsp_gpu_cuda.o: pfsp_gpu_cuda.c
 	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@ -I/share/compilers/nvidia/cuda/12.0/include
 
 
+#Grid5000 compilation
+#pfsp_gpu_cuda.o: pfsp_gpu_cuda.c
+#	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@ -I/usr/local/cuda-11.2/targets/x86_64-linux/include/
+
+
+
 # Pattern rule for CUDA source files
 
 c_bound_simple_gpu_cuda.o: lib/c_bound_simple_gpu_cuda.cu
@@ -64,6 +70,11 @@ pfsp_c.out: pfsp_c.o c_taillard.o c_bound_simple.o c_bound_johnson.o
 
 pfsp_cuda.out: evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bound_simple_gpu_cuda.o
 	$(C_COMPILER) $(C_COMMON_OPTS) evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o  c_bound_simple_gpu_cuda.o -o pfsp_cuda.out -lcudart #-L/share/compilers/nvidia/cuda/12.0/lib64 -lcudart
+
+
+# Grid5000 compilation
+#pfsp_cuda.out: evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bound_simple_gpu_cuda.o
+#	$(C_COMPILER) $(C_COMMON_OPTS) evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o  c_bound_simple_gpu_cuda.o -o pfsp_cuda.out -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
 
 # EVERYTHING FROM THE OLD COMPILATION
 
