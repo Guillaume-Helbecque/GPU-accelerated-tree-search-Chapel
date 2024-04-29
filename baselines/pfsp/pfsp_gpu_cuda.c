@@ -89,9 +89,9 @@ Node popBack_p(SinglePool* pool, int* hasWork, int* parents_h, int i)
     *hasWork = 1;
     Node myNode = pool->elements[--pool->size];
     for(int j = 0; j < MAX_JOBS; j++)
-      parents_h[i*(MAX_JOBS+2) + j] = myNode.prmu[j];
-    parents_h[i*(MAX_JOBS+2) + 20] = myNode.depth;
-    parents_h[i*(MAX_JOBS+2) + 21] = myNode.limit1;
+      parents_h[i*(MAX_SIZE) + j] = myNode.prmu[j];
+    parents_h[i*(MAX_SIZE) + 20] = myNode.depth;
+    parents_h[i*(MAX_SIZE) + 21] = myNode.limit1;
     return myNode;
   }
 
@@ -428,6 +428,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   int *machine_pair_order_d;
 
   // Allocating and copying memory necessary for deep copy of lbound2
+  // CHANGE CALL FOR VARIABLES INSIDE STRUCT
   cudaMalloc((void**)&johnson_schedule_d,lbound2->nb_machine_pairs*lbound2->nb_jobs*sizeof(int));
   cudaMalloc((void**)&lags_d,lbound2->nb_machine_pairs*lbound2->nb_jobs*sizeof(int));
   cudaMalloc((void**)&machine_pairs_1_d,lbound2->nb_machine_pairs*sizeof(int));
@@ -454,6 +455,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   // Allocating parents vector on CPU and GPU
   Node* parents = (Node*)malloc(M * sizeof(Node));
 
+
+  // CHANGE FOR MAX_SIZE
   // parents_h is a table of integers of size M * (MAX_JOBS+2)
   // Each 22 components we have: first 20 for the prmu, 1 for depth and 1 for limit1
   int *parents_h = (int*) malloc((M*(MAX_JOBS+2))*sizeof(int));
@@ -500,7 +503,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       const int  numBounds = jobs * poolSize;   
       const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
 
-      cudaMemcpy(parents_d, parents_h, (MAX_JOBS+2) * M * sizeof(int), cudaMemcpyHostToDevice);
+      cudaMemcpy(parents_d, parents_h, (MAX_SIZE) * poolSize * sizeof(int), cudaMemcpyHostToDevice);
       
       // numBounds is the 'size' of the problem
       evaluate_gpu(jobs, lb, numBounds, nbBlocks, best, lbound1_d, lbound2_d, parents_d, bounds_d/*, front, back, remain*/); 
@@ -508,8 +511,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       
       cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost); //size of copy is good
 
-      for(int j = 1000; j < 1010; j++)
-	printf("After cudaMemcpy bounds[%d] = %d \n",j,bounds[j]);
+      /* for(int j = 1000; j < 1010; j++) */
+      /* 	printf("After cudaMemcpy bounds[%d] = %d \n",j,bounds[j]); */
       
       /*
 	each task generates and inserts its children nodes to the pool.
