@@ -17,7 +17,9 @@ typedef struct lb2_bound_data
 {
   int *johnson_schedules;
   int *lags;
-  int *machine_pairs[2]; // separate between two pointers machine_pairs_1 and machine_pairs_2
+  //int *machine_pairs[2]; // separate between two pointers machine_pairs_1 and machine_pairs_2
+  int *machine_pairs_1;
+  int *machine_pairs_2;
   int *machine_pair_order;
 
   int nb_machine_pairs;
