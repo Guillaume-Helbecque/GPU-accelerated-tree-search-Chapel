@@ -365,6 +365,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
 		 unsigned long long int* exploredTree, unsigned long long int* exploredSol,
 		 double* elapsedTime)
 {
+
+  printf("Optimum = %d\n",*best);
   // Initializing problem
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
@@ -393,6 +395,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   fill_machine_pairs(lbound2/*, LB2_FULL*/);
   fill_lags(lbound1->p_times, lbound2);
   fill_johnson_schedules(lbound1->p_times, lbound2);
+
+  //printf("On CPU with johnson_schedule[3] = %d, lags[3] = %d, machine_pairs_1[3] = %d, machine_pairs_2[3] = %d and machine_pair_order[3] = %d \n",lbound2->johnson_schedules[3],lbound2->lags[3],lbound2->machine_pairs_1[3],lbound2->machine_pairs_2[3],lbound2->machine_pair_order[3]);
 
   // Vectors for deep copy of lbound1 to device
   lb1_bound_data lbound1_d;
@@ -463,11 +467,11 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   int *bounds_d;
   cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
 
-  // Memory allocation for execution of lb1 bounding function
-  int *front, *back, *remain;
-  cudaMalloc((void**)&front, machines * sizeof(int));
-  cudaMalloc((void**)&back, machines * sizeof(int));
-  cudaMalloc((void**)&remain, machines * sizeof(int));
+  /* // Memory allocation for execution of lb1 bounding function */
+  /* int *front, *back, *remain; */
+  /* cudaMalloc((void**)&front, machines * sizeof(int)); */
+  /* cudaMalloc((void**)&back, machines * sizeof(int)); */
+  /* cudaMalloc((void**)&remain, machines * sizeof(int)); */
 
   while (1) {
     // CPU side
@@ -503,7 +507,10 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       cudaDeviceSynchronize();
       
       cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost); //size of copy is good
-     
+
+      for(int j = 1000; j < 1010; j++)
+	printf("After cudaMemcpy bounds[%d] = %d \n",j,bounds[j]);
+      
       /*
 	each task generates and inserts its children nodes to the pool.
       */
@@ -536,9 +543,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   cudaFree(machine_pairs_1_d);
   cudaFree(machine_pairs_2_d);
   cudaFree(machine_pair_order_d);
-  cudaFree(front);
-  cudaFree(back);
-  cudaFree(remain);
+  /* cudaFree(front); */
+  /* cudaFree(back); */
+  /* cudaFree(remain); */
 
   /* //Freeing memory for host */
   free(parents_h);

@@ -252,40 +252,6 @@ int lb_makespan(const int* const lb1_p_times, const lb2_bound_data* const lb2_da
   return lb;
 }
 
-//allows variable nb of machine pairs and get machine pair the realized best lb
-int lb_makespan_learn(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int *best_index)
-{
-  int lb = 0;
-
-  for (int l = 0; l < nb_pairs; l++) {
-    int i = lb2_data->machine_pair_order[l];
-    
-    /* int ma0 = lb2_data->machine_pairs[0][i]; */
-    /* int ma1 = lb2_data->machine_pairs[1][i]; */
-    int ma0 = lb2_data->machine_pairs_1[i];
-    int ma1 = lb2_data->machine_pairs_2[i];
-   
-    int tmp0 = front[ma0];
-    int tmp1 = front[ma1];
-
-    compute_cmax_johnson(lb1_p_times, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i);
-
-    tmp1 = MAX(tmp1 + back[ma1], tmp0 + back[ma0]);
-
-    if (tmp1 > lb) {
-      *best_index = i;
-      lb = tmp1;
-    }
-    // lb=MAX(lb,tmp1);
-
-    if (lb > minCmax) {
-      break;
-    }
-  }
-
-  return lb;
-}
-
 int lb2_bound(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2,const int best_cmax)
 {
   const int N = lb1_data->nb_jobs;
@@ -303,57 +269,93 @@ int lb2_bound(const lb1_bound_data* const lb1_data, const lb2_bound_data* const 
   return lb_makespan(lb1_data->p_times, lb2_data, flags, front, back, best_cmax);
 }
 
-inline void swap(int *a, int *b)
-{
-  int tmp = *a;
-  *a = *b;
-  *b = tmp;
-}
 
-void lb2_children_bounds(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, const int best_cmax, const int direction)
-{
-  const int N = lb1_data->nb_jobs;
+/* inline void swap(int *a, int *b) */
+/* { */
+/*   int tmp = *a; */
+/*   *a = *b; */
+/*   *b = tmp; */
+/* } */
 
-  int tmp_perm[N];
-  memcpy(tmp_perm, permutation, N*sizeof(int));
+/* //allows variable nb of machine pairs and get machine pair the realized best lb */
+/* int lb_makespan_learn(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int *best_index) */
+/* { */
+/*   int lb = 0; */
 
-  switch (direction) {
-    case -1:
-     {
-      for (int i = limit1 + 1; i < limit2; i++) {
-        int job = tmp_perm[i];
+/*   for (int l = 0; l < nb_pairs; l++) { */
+/*     int i = lb2_data->machine_pair_order[l]; */
+    
+/*     /\* int ma0 = lb2_data->machine_pairs[0][i]; *\/ */
+/*     /\* int ma1 = lb2_data->machine_pairs[1][i]; *\/ */
+/*     int ma0 = lb2_data->machine_pairs_1[i]; */
+/*     int ma1 = lb2_data->machine_pairs_2[i]; */
+   
+/*     int tmp0 = front[ma0]; */
+/*     int tmp1 = front[ma1]; */
 
-        swap(&tmp_perm[i], &tmp_perm[limit1 + 1]);
-        lb_begin[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1+1, limit2, best_cmax);
-        swap(&tmp_perm[i], &tmp_perm[limit1 + 1]);
-      }
-      break;
-    }
-    case 0:
-    {
-      for (int i = limit1 + 1; i < limit2; i++) {
-        int job = tmp_perm[i];
+/*     compute_cmax_johnson(lb1_p_times, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i); */
 
-        swap(&tmp_perm[i], &tmp_perm[limit1 + 1]);
-        lb_begin[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1+1, limit2, best_cmax);
-        swap(&tmp_perm[i], &tmp_perm[limit1 + 1]);
+/*     tmp1 = MAX(tmp1 + back[ma1], tmp0 + back[ma0]); */
 
-        swap(&tmp_perm[i], &tmp_perm[limit2 - 1]);
-        lb_end[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1, limit2-1, best_cmax);
-        swap(&tmp_perm[i], &tmp_perm[limit2 - 1]);
-      }
-      break;
-    }
-    case 1:
-    {
-      for (int i = limit1 + 1; i < limit2; i++) {
-        int job = tmp_perm[i];
+/*     if (tmp1 > lb) { */
+/*       *best_index = i; */
+/*       lb = tmp1; */
+/*     } */
+/*     // lb=MAX(lb,tmp1); */
 
-        swap(&tmp_perm[i], &tmp_perm[limit2 - 1]);
-        lb_end[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1, limit2-1, best_cmax);
-        swap(&tmp_perm[i], &tmp_perm[limit2 - 1]);
-      }
-      break;
-    }
-  }
-}
+/*     if (lb > minCmax) { */
+/*       break; */
+/*     } */
+/*   } */
+
+/*   return lb; */
+/* } */
+
+
+/* void lb2_children_bounds(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, const int best_cmax, const int direction) */
+/* { */
+/*   const int N = lb1_data->nb_jobs; */
+
+/*   int tmp_perm[N]; */
+/*   memcpy(tmp_perm, permutation, N*sizeof(int)); */
+
+/*   switch (direction) { */
+/*     case -1: */
+/*      { */
+/*       for (int i = limit1 + 1; i < limit2; i++) { */
+/*         int job = tmp_perm[i]; */
+
+/*         swap(&tmp_perm[i], &tmp_perm[limit1 + 1]); */
+/*         lb_begin[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1+1, limit2, best_cmax); */
+/*         swap(&tmp_perm[i], &tmp_perm[limit1 + 1]); */
+/*       } */
+/*       break; */
+/*     } */
+/*     case 0: */
+/*     { */
+/*       for (int i = limit1 + 1; i < limit2; i++) { */
+/*         int job = tmp_perm[i]; */
+
+/*         swap(&tmp_perm[i], &tmp_perm[limit1 + 1]); */
+/*         lb_begin[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1+1, limit2, best_cmax); */
+/*         swap(&tmp_perm[i], &tmp_perm[limit1 + 1]); */
+
+/*         swap(&tmp_perm[i], &tmp_perm[limit2 - 1]); */
+/*         lb_end[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1, limit2-1, best_cmax); */
+/*         swap(&tmp_perm[i], &tmp_perm[limit2 - 1]); */
+/*       } */
+/*       break; */
+/*     } */
+/*     case 1: */
+/*     { */
+/*       for (int i = limit1 + 1; i < limit2; i++) { */
+/*         int job = tmp_perm[i]; */
+
+/*         swap(&tmp_perm[i], &tmp_perm[limit2 - 1]); */
+/*         lb_end[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1, limit2-1, best_cmax); */
+/*         swap(&tmp_perm[i], &tmp_perm[limit2 - 1]); */
+/*       } */
+/*       break; */
+/*     } */
+/*   } */
+/* } */
