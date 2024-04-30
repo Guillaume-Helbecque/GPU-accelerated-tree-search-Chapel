@@ -344,6 +344,8 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref bo
 // Single-GPU PFSP search.
 proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
+  const device = here.gpus[0];
+
   var best: int = initUB;
 
   var root = new Node(jobs);
@@ -357,7 +359,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   var lbound1_d: lbound1.type;
   var lbound2_d: lbound2.type;
 
-  on here.gpus[0] {
+  on device {
     lbound1_d = new WrapperLB1(jobs, machines);
     lbound1_d!.lb1_bound.p_times   = lbound1!.lb1_bound.p_times;
     lbound1_d!.lb1_bound.min_heads = lbound1!.lb1_bound.min_heads;
@@ -396,7 +398,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
       const numBounds = jobs * poolSize;
       var bounds: [0..#numBounds] int = noinit;
 
-      on here.gpus[0] {
+      on device {
         const parents_d = parents; // host-to-device
         var bounds_d: [0..#numBounds] int = noinit;
         evaluate_gpu(parents_d, numBounds, best, lbound1_d, lbound2_d, bounds_d);
