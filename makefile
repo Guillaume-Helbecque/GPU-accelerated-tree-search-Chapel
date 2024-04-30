@@ -19,12 +19,32 @@ CHPL_PFSP_LIBPATH := -M lib/pfsp
 # Build codes
 all: $(CHPL_NQUEENS_OBJECTS) $(CHPL_PFSP_OBJECTS)
 
-# Pattern rule for N-Queens
-nqueens_%.o: nqueens_%.chpl
+# N-Queens
+
+nqueens_chpl.o: nqueens_chpl.chpl
 	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_NQUEENS_LIBPATH) $< -o $@
 
-# Pattern rule for PFSP
-pfsp_%.o: pfsp_%.chpl
+nqueens_gpu_chpl.o: nqueens_gpu_chpl.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_NQUEENS_LIBPATH) $< -o $@
+
+nqueens_multigpu_chpl.o: nqueens_multigpu_chpl.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_NQUEENS_LIBPATH) $< -o $@
+
+nqueens_dist_multigpu_chpl.o: nqueens_dist_multigpu_chpl.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_NQUEENS_LIBPATH) $< -o $@
+
+# PFSP
+
+pfsp_chpl.o: pfsp_chpl.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_LIBPATH) $< -o $@
+
+pfsp_gpu_chpl.o: pfsp_gpu_chpl.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_LIBPATH) $< -o $@
+
+pfsp_multigpu_chpl.o: pfsp_multigpu_chpl.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_LIBPATH) $< -o $@
+
+pfsp_dist_multigpu_chpl.o: pfsp_dist_multigpu_chpl.chpl
 	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_LIBPATH) $< -o $@
 
 # Utilities
