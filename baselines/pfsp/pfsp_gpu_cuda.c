@@ -82,21 +82,23 @@ Node popBack(SinglePool* pool, int* hasWork)
   return (Node){0};
 }
 
-// Integer i represents the lines of 2D table parents_h
-Node popBack_p(SinglePool* pool, int* hasWork, int* parents_h, int i)
-{
-  if (pool->size > 0) {
-    *hasWork = 1;
-    Node myNode = pool->elements[--pool->size];
-    for(int j = 0; j < MAX_JOBS; j++)
-      parents_h[i*(MAX_SIZE) + j] = myNode.prmu[j];
-    parents_h[i*(MAX_SIZE) + 20] = myNode.depth;
-    parents_h[i*(MAX_SIZE) + 21] = myNode.limit1;
-    return myNode;
-  }
+// Function for approach considering parents_d as int** instead of Node*
+ 
+/* // Integer i represents the lines of 2D table parents_h */
+/* Node popBack_p(SinglePool* pool, int* hasWork, int* parents_h, int i) */
+/* { */
+/*   if (pool->size > 0) { */
+/*     *hasWork = 1; */
+/*     Node myNode = pool->elements[--pool->size]; */
+/*     for(int j = 0; j < MAX_JOBS; j++) */
+/*       parents_h[i*(MAX_SIZE) + j] = myNode.prmu[j]; */
+/*     parents_h[i*(MAX_SIZE) + 20] = myNode.depth; */
+/*     parents_h[i*(MAX_SIZE) + 21] = myNode.limit1; */
+/*     return myNode; */
+/*   } */
 
-  return (Node){0};
-}
+/*   return (Node){0}; */
+/* } */
 
 void deleteSinglePool(SinglePool* pool)
 {
@@ -337,7 +339,6 @@ void generate_children(Node* parents, const int size, const int jobs, int* bound
 
       // If child leaf
       if(depth + 1 == jobs){
-	//printf("I added an explored solution after GPU execution!\n");
 	*exploredSol += 1;
 
 	// If child feasible
@@ -353,7 +354,6 @@ void generate_children(Node* parents, const int size, const int jobs, int* bound
 	  
 	  pushBack(pool, child);
 	  *exploredTree += 1;
-	  //printf("I added an explored branch  after GPU execution!\n");
 	}
       }
     }
@@ -366,7 +366,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
 		 double* elapsedTime)
 {
 
-  printf("Optimum = %d\n",*best);
   // Initializing problem
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
@@ -385,6 +384,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   struct timespec start, end;
   clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
+  // Bounding data
   lb1_bound_data* lbound1;
   lbound1 = new_bound_data(jobs, machines);
   taillard_get_processing_times(lbound1->p_times, inst);
@@ -395,8 +395,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   fill_machine_pairs(lbound2/*, LB2_FULL*/);
   fill_lags(lbound1->p_times, lbound2);
   fill_johnson_schedules(lbound1->p_times, lbound2);
-
-  //printf("On CPU with johnson_schedule[3] = %d, lags[3] = %d, machine_pairs_1[3] = %d, machine_pairs_2[3] = %d and machine_pair_order[3] = %d \n",lbound2->johnson_schedules[3],lbound2->lags[3],lbound2->machine_pairs_1[3],lbound2->machine_pairs_2[3],lbound2->machine_pair_order[3]);
 
   // Vectors for deep copy of lbound1 to device
   lb1_bound_data lbound1_d;
@@ -419,7 +417,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   lbound1_d.nb_jobs = lbound1->nb_jobs;
   lbound1_d.nb_machines = lbound1->nb_machines;
 
-   // Vectors for deep copy of lbound2 to device
+  // Vectors for deep copy of lbound2 to device
   lb2_bound_data lbound2_d;
   int *johnson_schedule_d;
   int *lags_d;
@@ -428,17 +426,17 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   int *machine_pair_order_d;
 
   // Allocating and copying memory necessary for deep copy of lbound2
-  // CHANGE CALL FOR VARIABLES INSIDE STRUCT
-  cudaMalloc((void**)&johnson_schedule_d,lbound2->nb_machine_pairs*lbound2->nb_jobs*sizeof(int));
-  cudaMalloc((void**)&lags_d,lbound2->nb_machine_pairs*lbound2->nb_jobs*sizeof(int));
-  cudaMalloc((void**)&machine_pairs_1_d,lbound2->nb_machine_pairs*sizeof(int));
-  cudaMalloc((void**)&machine_pairs_2_d,lbound2->nb_machine_pairs*sizeof(int));
-  cudaMalloc((void**)&machine_pair_order_d,lbound2->nb_machine_pairs*sizeof(int));
-  cudaMemcpy(johnson_schedule_d,lbound2->johnson_schedules,lbound2->nb_machine_pairs*lbound2->nb_jobs*sizeof(int),cudaMemcpyHostToDevice);
-  cudaMemcpy(lags_d,lbound2->lags,lbound2->nb_machine_pairs*lbound2->nb_jobs*sizeof(int),cudaMemcpyHostToDevice);
-  cudaMemcpy(machine_pairs_1_d,lbound2->machine_pairs_1,lbound2->nb_machine_pairs*sizeof(int),cudaMemcpyHostToDevice);
-  cudaMemcpy(machine_pairs_2_d,lbound2->machine_pairs_2,lbound2->nb_machine_pairs*sizeof(int),cudaMemcpyHostToDevice);
-  cudaMemcpy(machine_pair_order_d,lbound2->machine_pair_order,lbound2->nb_machine_pairs*sizeof(int),cudaMemcpyHostToDevice);
+  int nb_mac_pairs = lbound2->nb_machine_pairs;
+  cudaMalloc((void**)&johnson_schedule_d, (nb_mac_pairs*jobs) * sizeof(int));
+  cudaMalloc((void**)&lags_d, (nb_mac_pairs*jobs) * sizeof(int));
+  cudaMalloc((void**)&machine_pairs_1_d, nb_mac_pairs * sizeof(int));
+  cudaMalloc((void**)&machine_pairs_2_d, nb_mac_pairs * sizeof(int));
+  cudaMalloc((void**)&machine_pair_order_d, nb_mac_pairs * sizeof(int));
+  cudaMemcpy(johnson_schedule_d, lbound2->johnson_schedules, (nb_mac_pairs*jobs) * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(lags_d, lbound2->lags, (nb_mac_pairs*jobs) * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(machine_pairs_1_d, lbound2->machine_pairs_1, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(machine_pairs_2_d, lbound2->machine_pairs_2, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(machine_pair_order_d, lbound2->machine_pair_order, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice);
 
   // Deep copy of lbound2
   lbound2_d.johnson_schedules = johnson_schedule_d;
@@ -449,35 +447,24 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   lbound2_d.nb_machine_pairs = lbound2->nb_machine_pairs;
   lbound2_d.nb_jobs = lbound2->nb_jobs;
   lbound2_d.nb_machines = lbound2->nb_machines;
-  //cudaMalloc((void**)&lbound2_d, sizeof(lb2_bound_data));
-  //cudaMemcpy(lbound2_d, lbound2, sizeof(lb2_bound_data), cudaMemcpyHostToDevice);
 
   // Allocating parents vector on CPU and GPU
   Node* parents = (Node*)malloc(M * sizeof(Node));
   Node* parents_d;
   cudaMalloc((void**)&parents_d, M * sizeof(Node));
 
-  // CHANGE FOR MAX_SIZE
+  // Approach having parents_d as int**
   // parents_h is a table of integers of size M * (MAX_JOBS+2)
   // Each 22 components we have: first 20 for the prmu, 1 for depth and 1 for limit1
   // int *parents_h = (int*) malloc((M*(MAX_JOBS+2))*sizeof(int));
-  
   // Allocation of parents_d on the GPU
   // int *parents_d;
   // cudaMalloc((void**)&parents_d, (M*(MAX_JOBS+2))*sizeof(int));
-  
-
-  
+    
   // Allocating bounds vector on CPU and GPU
   int* bounds = (int*)malloc((jobs*M) * sizeof(int));
   int *bounds_d;
   cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
-
-  /* // Memory allocation for execution of lb1 bounding function */
-  /* int *front, *back, *remain; */
-  /* cudaMalloc((void**)&front, machines * sizeof(int)); */
-  /* cudaMalloc((void**)&back, machines * sizeof(int)); */
-  /* cudaMalloc((void**)&remain, machines * sizeof(int)); */
 
   while (1) {
     // CPU side
@@ -495,7 +482,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       for(int i= 0; i < poolSize; i++) {
 	int hasWork = 0;
 	parents[i] = popBack(&pool,&hasWork);
-	//parents[i] = popBack_p(&pool, &hasWork, parents_h, i); //parents size is good because pool is max equals to M
+	// Approach with parents_d as int**
+	//parents[i] = popBack_p(&pool, &hasWork, parents_h, i); 
 	if (!hasWork) break;
       }
 	
@@ -504,26 +492,26 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
 	generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
 	something like that.
       */
-      const int  numBounds = jobs * poolSize;   
+      const int numBounds = jobs * poolSize;   
       const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
+      const int nbBlocks_lb1_d = ceil((double)nbBlocks/jobs); 
 
+      // Approach with parents_d as int**
       //cudaMemcpy(parents_d, parents_h, (MAX_SIZE) * poolSize * sizeof(int), cudaMemcpyHostToDevice);
+
       cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
+
       // numBounds is the 'size' of the problem
-      evaluate_gpu(jobs, lb, numBounds, nbBlocks, best, lbound1_d, lbound2_d, parents_d, bounds_d/*, front, back, remain*/); 
+      evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, best, lbound1_d, lbound2_d, parents_d, bounds_d/*, front, back, remain*/); 
       cudaDeviceSynchronize();
       
       cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost); //size of copy is good
 
-      /* for(int j = 1000; j < 1010; j++) */
-      /* 	printf("After cudaMemcpy bounds[%d] = %d \n",j,bounds[j]); */
-      
       /*
 	each task generates and inserts its children nodes to the pool.
       */
       generate_children(parents, poolSize, jobs, bounds, exploredTree, exploredSol, best, &pool);
     }
-    //printf("Size of pool.size = %d\n", poolSize);
     count += 1; // Check the amount of while loops
   }
   
@@ -541,7 +529,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   /* // Freeing memory for device */
   cudaFree(parents_d);
   cudaFree(bounds_d);
-  //cudaFree(lbound2_d);
   cudaFree(p_times_d);
   cudaFree(min_heads_d);
   cudaFree(min_tails_d);
@@ -550,9 +537,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   cudaFree(machine_pairs_1_d);
   cudaFree(machine_pairs_2_d);
   cudaFree(machine_pair_order_d);
-  /* cudaFree(front); */
-  /* cudaFree(back); */
-  /* cudaFree(remain); */
 
   /* //Freeing memory for host */
   //free(parents_h);

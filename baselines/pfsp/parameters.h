@@ -13,7 +13,7 @@
 
 #define MAX_MACHINES 20
 
-#define MAX_SIZE (MAX_JOBS + 2)
+//#define MAX_SIZE (MAX_JOBS + 2)
 
 typedef struct
 {

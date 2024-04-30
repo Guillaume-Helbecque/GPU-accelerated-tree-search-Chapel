@@ -269,13 +269,7 @@ int lb2_bound(const lb1_bound_data* const lb1_data, const lb2_bound_data* const 
   return lb_makespan(lb1_data->p_times, lb2_data, flags, front, back, best_cmax);
 }
 
-
-/* inline void swap(int *a, int *b) */
-/* { */
-/*   int tmp = *a; */
-/*   *a = *b; */
-/*   *b = tmp; */
-/* } */
+// UNUSED FUNCTIONS
 
 /* //allows variable nb of machine pairs and get machine pair the realized best lb */
 /* int lb_makespan_learn(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int *best_index) */

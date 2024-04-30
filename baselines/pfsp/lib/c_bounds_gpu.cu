@@ -3,11 +3,12 @@
 #include <limits.h>
 #include <string.h>
 
-#define MAX_MACHINES 20
-#define MAX_JOBS 20
-//#include "../parameters.h"
 #include "c_bound_simple.h"
 #include "c_bound_johnson.h"
+
+//Max size vectors for internal declarations in library
+#define MAX_MACHINES 20
+#define MAX_JOBS 20
 
 
 //---------------One-machine bound functions-------------------
@@ -252,10 +253,8 @@ __device__ void lb1_children_bounds_gpu(const lb1_bound_data lb1_data, const int
 
 __device__ int lb_makespan_gpu(int* lb1_p_times, const lb2_bound_data lb2_data, const int* const flag,int* front, int* back, const int minCmax)
 {
-  int lb = 0;// minCmax;
+  int lb = 0;
   int nb_jobs = lb2_data.nb_jobs;
-
-  //printf("Value of lb %d\n",lb);
 
   //for all machine-pairs : O(m^2) m*(m-1)/2
   for (int l = 0; l < lb2_data.nb_machine_pairs; l++) {
@@ -267,8 +266,6 @@ __device__ int lb_makespan_gpu(int* lb1_p_times, const lb2_bound_data lb2_data, 
     int tmp0 = front[ma0];
     int tmp1 = front[ma1];
 
-    //compute_cmax_johnson_gpu(lb1_p_times, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i);
-    
     for (int j = 0; j < nb_jobs; j++) {
       int job = lb2_data.johnson_schedules[i*nb_jobs + j];
       // j-loop is on unscheduled jobs... (==0 if jobCour is unscheduled)
@@ -323,6 +320,7 @@ __device__ void lb2_bound_gpu(const lb1_bound_data lb1_data, const lb2_bound_dat
   *bounds = lb_makespan_gpu(lb1_ptimes, lb2_data, flags, front, back, best_cmax);
   return;
 }
+
 
 //-----------------UNUSED FUNCTIONS---------------
 
