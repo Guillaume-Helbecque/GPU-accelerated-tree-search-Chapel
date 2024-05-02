@@ -17,9 +17,9 @@ Implementation of PFSP Nodes.
 config param MAX_JOBS = 20;
 
 record Node {
-  var depth: int;
-  var limit1: int; // left limit
-  var prmu: MAX_JOBS*int;
+  var depth: int(32);
+  var limit1: int(32); // left limit
+  var prmu: MAX_JOBS*int(32);
 
   // default-initializer
   proc init() {}
@@ -29,7 +29,7 @@ record Node {
   {
     this.limit1 = -1;
     init this;
-    for i in 0..#jobs do this.prmu[i] = i;
+    for i in 0..#jobs do this.prmu[i] = i:int(32);
   }
 
   // copy-initializer
@@ -136,7 +136,7 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
-  var lb_begin: MAX_JOBS*int;
+  var lb_begin: MAX_JOBS*int(32);
 
   lb1_children_bounds(lbound1, parent.prmu, parent.limit1, jobs, lb_begin);
 
