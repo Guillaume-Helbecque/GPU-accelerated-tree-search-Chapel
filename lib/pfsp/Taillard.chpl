@@ -79,6 +79,7 @@ module Taillard
     if (seed < 0) then
       seed = seed + m;
     value_0_1 = seed:real / m:real;
+
     return low + (value_0_1 * (high - low + 1)): int(64);
   }
 

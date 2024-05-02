@@ -254,7 +254,7 @@ proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size, const best, const 
     const depth = parent.depth;
     var prmu = parent.prmu;
 
-    var lb_begin: MAX_JOBS*int(32); //[0..#size] int = noinit;
+    var lb_begin: MAX_JOBS*int(32);
 
     lb1_children_bounds(lbound1_d, parent.prmu, parent.limit1, jobs, lb_begin);
 
@@ -448,8 +448,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         Each task gets its parents nodes from the pool.
       */
       var (poolSize, parents) = pool_loc.popBackBulk(m, M);
-      /* if gpuID == 0 then writeln("hello from task 0 with size = ", poolSize); */
-      /* writeln("hello from task ", gpuID, " with size ", poolSize); */
+
       if (poolSize > 0) {
         if (taskState == IDLE) {
           taskState = BUSY;
@@ -479,13 +478,11 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
           evaluate_gpu(parents_d, numBounds, best_l, lbound1_d, lbound2_d, bounds_d);
           bounds = bounds_d; // device-to-host
         }
-        /* if gpuID == 0 then writeln("hello from task 0 after evaluate gpu"); */
 
         /*
           Each task generates and inserts its children nodes to the pool.
         */
         generate_children(parents, poolSize, bounds, tree, sol, best_l, pool_loc);
-        /* if gpuID == 0 then writeln("hello from task 0 after generate children"); */
       }
       else {
         // work stealing
@@ -496,19 +493,16 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
         while (tries < D && steal == false) {
           const victimID = victims[tries];
-          /* writeln("I'm task ", gpuID, " and I tries to steal task ", victimID,
-            " with permutation : ", victims); */
+
           if (victimID != gpuID) { // if not me
             ref victim = multiPool[victimID];
             nSteal += 1;
             var nn = 0;
 
             while (nn < 10) {
-              /* writeln("I'm task ", gpuID, " and I tries to acquire task ", victimID,
-                " with permutation : ", victims); */
               if victim.lock.compareAndSwap(false, true) { // get the lock
                 const size = victim.size;
-                /* writeln("victim size = ", size); */
+
                 if (size >= 2*m) {
                   var (hasWork, p) = victim.popBackBulkFree(m, M);
                   if (hasWork == 0) {
@@ -536,8 +530,6 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
             }
           }
           tries += 1;
-          /* writeln("I'm task ", gpuID, " and I tries to steal task ", victimID,
-            " with permutation : ", victims, " and I'm done"); */
         }
 
         if (steal == false) {
