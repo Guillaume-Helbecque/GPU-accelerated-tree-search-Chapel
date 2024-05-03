@@ -6,7 +6,7 @@ use Time;
 
 use Pool;
 
-use PFSP_Node;
+use PFSP_node;
 use Bound_johnson;
 use Bound_simple;
 use Taillard;

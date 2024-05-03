@@ -2,7 +2,7 @@
 Implementation of PFSP Nodes.
 *******************************************************************************/
 
-module PFSP_Node
+module PFSP_node
 {
   config param MAX_JOBS = 20;
 
