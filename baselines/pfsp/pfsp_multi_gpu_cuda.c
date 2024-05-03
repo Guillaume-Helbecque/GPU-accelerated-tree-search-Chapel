@@ -125,7 +125,7 @@ void deleteSinglePool(SinglePool* pool)
 Implementation of the parallel CUDA GPU PFSP search.
 *******************************************************************************/
 
-void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* m, int *M, int*D)
+void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* m, int *M, int *D)
 {
   *m = 25;
   *M = 50000;
@@ -197,15 +197,15 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
       break;
 
     case 'D':
-      if (value < 1 || value > 16) {
+      if (value < 0 || value > 16) {
 	fprintf(stderr, "Error: unsupported number of GPU's\n");
 	exit(EXIT_FAILURE);
       }
-      *M = value;
+      *D = value;
       break;
 
     default:
-      fprintf(stderr, "Usage: %s --inst <value> --lb <value> --ub <value> --m <value> --M <value> --D<value>\n", argv[0]);
+      fprintf(stderr, "Usage: %s --inst <value> --lb <value> --ub <value> --m <value> --M <value> --D <value>\n", argv[0]);
       exit(EXIT_FAILURE);
     }
   }
@@ -423,58 +423,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   fill_lags(lbound1->p_times, lbound2);
   fill_johnson_schedules(lbound1->p_times, lbound2);
 
-  // Vectors for deep copy of lbound1 to device
-  lb1_bound_data lbound1_d;
-  int* p_times_d;
-  int* min_heads_d;
-  int* min_tails_d;
-
-  // Allocating and copying memory necessary for deep copy of lbound1
-  cudaMalloc((void**)&p_times_d, jobs*machines*sizeof(int));
-  cudaMalloc((void**)&min_heads_d, machines*sizeof(int));
-  cudaMalloc((void**)&min_tails_d, machines*sizeof(int));
-  cudaMemcpy(p_times_d, lbound1->p_times, (jobs*machines)*sizeof(int), cudaMemcpyHostToDevice);
-  cudaMemcpy(min_heads_d, lbound1->min_heads, machines*sizeof(int), cudaMemcpyHostToDevice);
-  cudaMemcpy(min_tails_d, lbound1->min_tails, machines*sizeof(int), cudaMemcpyHostToDevice);
-
-  // Deep copy of lbound1
-  lbound1_d.p_times = p_times_d;
-  lbound1_d.min_heads = min_heads_d;
-  lbound1_d.min_tails = min_tails_d;
-  lbound1_d.nb_jobs = lbound1->nb_jobs;
-  lbound1_d.nb_machines = lbound1->nb_machines;
-
-  // Vectors for deep copy of lbound2 to device
-  lb2_bound_data lbound2_d;
-  int *johnson_schedule_d;
-  int *lags_d;
-  int *machine_pairs_1_d;
-  int *machine_pairs_2_d;
-  int *machine_pair_order_d;
-
-  // Allocating and copying memory necessary for deep copy of lbound2
-  int nb_mac_pairs = lbound2->nb_machine_pairs;
-  cudaMalloc((void**)&johnson_schedule_d, (nb_mac_pairs*jobs) * sizeof(int));
-  cudaMalloc((void**)&lags_d, (nb_mac_pairs*jobs) * sizeof(int));
-  cudaMalloc((void**)&machine_pairs_1_d, nb_mac_pairs * sizeof(int));
-  cudaMalloc((void**)&machine_pairs_2_d, nb_mac_pairs * sizeof(int));
-  cudaMalloc((void**)&machine_pair_order_d, nb_mac_pairs * sizeof(int));
-  cudaMemcpy(johnson_schedule_d, lbound2->johnson_schedules, (nb_mac_pairs*jobs) * sizeof(int), cudaMemcpyHostToDevice);
-  cudaMemcpy(lags_d, lbound2->lags, (nb_mac_pairs*jobs) * sizeof(int), cudaMemcpyHostToDevice);
-  cudaMemcpy(machine_pairs_1_d, lbound2->machine_pairs_1, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice);
-  cudaMemcpy(machine_pairs_2_d, lbound2->machine_pairs_2, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice);
-  cudaMemcpy(machine_pair_order_d, lbound2->machine_pair_order, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice);
-
-  // Deep copy of lbound2
-  lbound2_d.johnson_schedules = johnson_schedule_d;
-  lbound2_d.lags = lags_d;
-  lbound2_d.machine_pairs_1 = machine_pairs_1_d;
-  lbound2_d.machine_pairs_2 = machine_pairs_2_d;
-  lbound2_d.machine_pair_order = machine_pair_order_d;
-  lbound2_d.nb_machine_pairs = lbound2->nb_machine_pairs;
-  lbound2_d.nb_jobs = lbound2->nb_jobs;
-  lbound2_d.nb_machines = lbound2->nb_machines;
-
   // Approach having parents_d as int**
   // parents_h is a table of integers of size M * (MAX_JOBS+2)
   // Each 22 components we have: first 20 for the prmu, 1 for depth and 1 for limit1
@@ -492,7 +440,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   while(pool.size < D*m) {
     // CPU side
     int hasWork = 0;
-    Node parent = popBack(&pool, &hasWork);
+    Node parent = popFront(&pool, &hasWork);
     if (!hasWork) break;
     
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
@@ -523,10 +471,63 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   pool.size = 0;
 
 
-#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, pool, lbound1_d, lbound2_d)
+#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, pool, lbound1, lbound2)
   for (int gpuID = 0; gpuID < D; gpuID++) {
     cudaSetDevice(gpuID);
+    
+    // Vectors for deep copy of lbound1 to device
+    lb1_bound_data lbound1_d;
+    int* p_times_d;
+    int* min_heads_d;
+    int* min_tails_d;
 
+    // Allocating and copying memory necessary for deep copy of lbound1
+    cudaMalloc((void**)&p_times_d, jobs*machines*sizeof(int));
+    cudaMalloc((void**)&min_heads_d, machines*sizeof(int));
+    cudaMalloc((void**)&min_tails_d, machines*sizeof(int));
+    cudaMemcpy(p_times_d, lbound1->p_times, (jobs*machines)*sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(min_heads_d, lbound1->min_heads, machines*sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(min_tails_d, lbound1->min_tails, machines*sizeof(int), cudaMemcpyHostToDevice);
+
+    // Deep copy of lbound1
+    lbound1_d.p_times = p_times_d;
+    lbound1_d.min_heads = min_heads_d;
+    lbound1_d.min_tails = min_tails_d;
+    lbound1_d.nb_jobs = lbound1->nb_jobs;
+    lbound1_d.nb_machines = lbound1->nb_machines;
+
+    // Vectors for deep copy of lbound2 to device
+    lb2_bound_data lbound2_d;
+    int *johnson_schedule_d;
+    int *lags_d;
+    int *machine_pairs_1_d;
+    int *machine_pairs_2_d;
+    int *machine_pair_order_d;
+
+    // Allocating and copying memory necessary for deep copy of lbound2
+    int nb_mac_pairs = lbound2->nb_machine_pairs;
+    cudaMalloc((void**)&johnson_schedule_d, (nb_mac_pairs*jobs) * sizeof(int));
+    cudaMalloc((void**)&lags_d, (nb_mac_pairs*jobs) * sizeof(int));
+    cudaMalloc((void**)&machine_pairs_1_d, nb_mac_pairs * sizeof(int));
+    cudaMalloc((void**)&machine_pairs_2_d, nb_mac_pairs * sizeof(int));
+    cudaMalloc((void**)&machine_pair_order_d, nb_mac_pairs * sizeof(int));
+    cudaMemcpy(johnson_schedule_d, lbound2->johnson_schedules, (nb_mac_pairs*jobs) * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(lags_d, lbound2->lags, (nb_mac_pairs*jobs) * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(machine_pairs_1_d, lbound2->machine_pairs_1, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(machine_pairs_2_d, lbound2->machine_pairs_2, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(machine_pair_order_d, lbound2->machine_pair_order, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice);
+
+    // Deep copy of lbound2
+    lbound2_d.johnson_schedules = johnson_schedule_d;
+    lbound2_d.lags = lags_d;
+    lbound2_d.machine_pairs_1 = machine_pairs_1_d;
+    lbound2_d.machine_pairs_2 = machine_pairs_2_d;
+    lbound2_d.machine_pair_order = machine_pair_order_d;
+    lbound2_d.nb_machine_pairs = lbound2->nb_machine_pairs;
+    lbound2_d.nb_jobs = lbound2->nb_jobs;
+    lbound2_d.nb_machines = lbound2->nb_machines;
+
+    
     unsigned long long int tree = 0, sol = 0;
     SinglePool pool_loc;
     initSinglePool(&pool_loc);
@@ -553,57 +554,65 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
     
       
-  while (1) {
-    int poolSize = pool_loc.size;
-    if (poolSize >= m) {
-      poolSize = MIN(poolSize,M);
+    while (1) {
+      int poolSize = pool_loc.size;
+      if (poolSize >= m) {
+	poolSize = MIN(poolSize,M);
       
-      for(int i= 0; i < poolSize; i++) {
-	int hasWork = 0;
-	parents[i] = popBack(&pool_loc,&hasWork);
-	// Approach with parents_d as int**
-	//parents[i] = popBack_p(&pool, &hasWork, parents_h, i); 
-	if (!hasWork) break;
-      }
+	for(int i= 0; i < poolSize; i++) {
+	  int hasWork = 0;
+	  parents[i] = popBack(&pool_loc,&hasWork);
+	  // Approach with parents_d as int**
+	  //parents[i] = popBack_p(&pool, &hasWork, parents_h, i); 
+	  if (!hasWork) break;
+	}
 	
-      /*
-	TODO: Optimize 'numBounds' based on the fact that the maximum number of
-	generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
-	something like that.
-      */
-      const int numBounds = jobs * poolSize;   
-      const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
-      const int nbBlocks_lb1_d = ceil((double)nbBlocks/jobs); 
+	/*
+	  TODO: Optimize 'numBounds' based on the fact that the maximum number of
+	  generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
+	  something like that.
+	*/
+	const int numBounds = jobs * poolSize;   
+	const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
+	const int nbBlocks_lb1_d = ceil((double)nbBlocks/jobs); 
 
-      // Approach with parents_d as int**
-      //cudaMemcpy(parents_d, parents_h, (MAX_SIZE) * poolSize * sizeof(int), cudaMemcpyHostToDevice);
+	// Approach with parents_d as int**
+	//cudaMemcpy(parents_d, parents_h, (MAX_SIZE) * poolSize * sizeof(int), cudaMemcpyHostToDevice);
 
-      cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
+	cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
 
-      // numBounds is the 'size' of the problem
-      evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, best, lbound1_d, lbound2_d, parents_d, bounds_d/*, front, back, remain*/); 
-      cudaDeviceSynchronize();
+	// numBounds is the 'size' of the problem
+	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, best, lbound1_d, lbound2_d, parents_d, bounds_d/*, front, back, remain*/); 
+	cudaDeviceSynchronize();
       
-      cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost); //size of copy is good
+	cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost); //size of copy is good
 
-      /*
-	each task generates and inserts its children nodes to the pool.
-      */
-      generate_children(parents, poolSize, jobs, bounds, exploredTree, exploredSol, best, &pool_loc);
+	/*
+	  each task generates and inserts its children nodes to the pool.
+	*/
+	generate_children(parents, poolSize, jobs, bounds, exploredTree, exploredSol, best, &pool_loc);
+      }
+      else {
+	break;
+      }
+      //count += 1; // Check the amount of while loops
     }
-    else {
-      break;
-    }
-    //count += 1; // Check the amount of while loops
-  }
 
-  // OpenMP environment freeing variables
-  cudaFree(parents_d);
-  cudaFree(bounds_d);
-  free(parents);
-  free(bounds);
-
-  #pragma omp critical
+    // OpenMP environment freeing variables
+    cudaFree(parents_d);
+    cudaFree(bounds_d);
+    cudaFree(p_times_d);
+    cudaFree(min_heads_d);
+    cudaFree(min_tails_d);
+    cudaFree(johnson_schedule_d);
+    cudaFree(lags_d);
+    cudaFree(machine_pairs_1_d);
+    cudaFree(machine_pairs_2_d);
+    cudaFree(machine_pair_order_d);
+    free(parents);
+    free(bounds);
+    
+#pragma omp critical
     {
       const int poolLocSize = pool_loc.size;
       for (int i = 0; i < poolLocSize; i++) {
@@ -671,14 +680,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   /* // Freeing memory for device */
   //cudaFree(parents_d);
   //cudaFree(bounds_d);
-  cudaFree(p_times_d);
-  cudaFree(min_heads_d);
-  cudaFree(min_tails_d);
-  cudaFree(johnson_schedule_d);
-  cudaFree(lags_d);
-  cudaFree(machine_pairs_1_d);
-  cudaFree(machine_pairs_2_d);
-  cudaFree(machine_pair_order_d);
+ 
 
   /* //Freeing memory for host */
   //free(parents_h);
