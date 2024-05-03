@@ -12,7 +12,7 @@ HIP_COMMON_OPTS  := $(C_COMMON_OPTS) -offload-arch=gfx906
 HIP_PATCH_G5K    := DEVICE_LIB_PATH=/opt/rocm-4.5.0/amdgcn/bitcode/
 
 # Source files
-C_SOURCES    :=  lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c pfsp_c.c pfsp_gpu_cuda.c
+C_SOURCES    :=  lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multi_gpu_cuda.c
 CUDA_SOURCES :=  evaluate.cu lib/c_bounds_gpu.cu # lib/c_bound_johnson_gpu_cuda.cu pfsp_multigpu_cuda.cu
 
 # Object files
@@ -26,7 +26,7 @@ CUDA_PFSP_LIBPATH := lib/c_bounds_gpu.cu
 
 
 # Build codes
-all: pfsp_c.out pfsp_cuda.out #evaluate.o $(C_OBJECTS) # $(CUDA_OBJECTS) # $(HIP_OBJECTS)
+all: pfsp_c.out pfsp_cuda.out pfsp_multi_cuda.out #evaluate.o $(C_OBJECTS) # $(CUDA_OBJECTS) # $(HIP_OBJECTS)
 
 # Pattern rule for C source files
 
@@ -48,6 +48,8 @@ pfsp_c.o: pfsp_c.c
 pfsp_gpu_cuda.o: pfsp_gpu_cuda.c
 	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@ -I/share/compilers/nvidia/cuda/12.0/include
 
+pfsp_multi_gpu_cuda.o: pfsp_multi_gpu_cuda.c
+	$(C_COMPILER) $(C_COMMON_OPTS) -c -fopenmp $< -o $@ -I/share/compilers/nvidia/cuda/12.0/include
 
 #Grid5000 compilation
 #pfsp_gpu_cuda.o: pfsp_gpu_cuda.c
@@ -67,6 +69,9 @@ pfsp_c.out: pfsp_c.o c_taillard.o c_bound_simple.o c_bound_johnson.o
 
 pfsp_cuda.out: evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o
 	$(C_COMPILER) $(C_COMMON_OPTS) evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o -o pfsp_cuda.out -lcudart #-L/share/compilers/nvidia/cuda/12.0/lib64 -lcudart
+
+pfsp_multi_cuda.out: evaluate.o pfsp_multi_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o
+	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp evaluate.o pfsp_multi_gpu_cuda.o  c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o -o pfsp_multi_cuda.out -lcudart #-L/share/compilers/nvidia/cuda/12.0/lib64 -lcudart
 
 
 # Grid5000 compilation
