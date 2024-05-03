@@ -137,7 +137,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
     NOTE: Only forward branching is considered because other strategies increase a
     lot the implementation complexity and do not add much contribution.
   */
-
+  
   // Define long options
   static struct option long_options[] = {
     {"inst", required_argument, NULL, 'i'},
@@ -152,7 +152,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
   int opt, value;
   int option_index = 0;
 
-  while ((opt = getopt_long(argc, argv, "i:l:u:m:M:D", long_options, &option_index)) != -1) {
+  while ((opt = getopt_long(argc, argv, "i:l:u:m:M:D:", long_options, &option_index)) != -1) {
     value = atoi(optarg);
 
     switch (opt) {
@@ -211,6 +211,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
   }
 }
 
+ 
 void print_settings(const int inst, const int machines, const int jobs, const int ub, const int lb, const int D)
 {
   printf("\n=================================================\n");
@@ -590,7 +591,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	/*
 	  each task generates and inserts its children nodes to the pool.
 	*/
-	generate_children(parents, poolSize, jobs, bounds, exploredTree, exploredSol, best, &pool_loc);
+	generate_children(parents, poolSize, jobs, bounds, &tree, &sol, best, &pool_loc);
       }
       else {
 	break;
@@ -690,13 +691,16 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
 int main(int argc, char* argv[])
 {
-  int inst, lb, ub, m, M, D;
-  parse_parameters(argc, argv, &inst, &lb, &ub, &m, &M, &D);
+  int inst, lb, ub, m, M, nbGPU;
+  printf("I am before parse_parameters\n");
+  parse_parameters(argc, argv, &inst, &lb, &ub, &m, &M, &nbGPU);
+  printf("I am past parse_parameters\n");
+  //exit(1);
 
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
 
-  print_settings(inst, machines, jobs, ub, lb, D);
+  print_settings(inst, machines, jobs, ub, lb, nbGPU);
 
   int optimum = (ub == 1) ? taillard_get_best_ub(inst) : INT_MAX;
   unsigned long long int exploredTree = 0;
@@ -704,7 +708,7 @@ int main(int argc, char* argv[])
 
   double elapsedTime;
 
-  pfsp_search(inst, lb, m, M, D, &optimum, &exploredTree, &exploredSol, &elapsedTime);
+  pfsp_search(inst, lb, m, M, nbGPU, &optimum, &exploredTree, &exploredSol, &elapsedTime);
 
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
 
