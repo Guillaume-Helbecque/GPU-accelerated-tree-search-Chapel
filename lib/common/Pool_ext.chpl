@@ -29,7 +29,7 @@ module Pool_ext
       while true {
         if this.lock.compareAndSwap(false, true) {
           if (this.front + this.size >= this.capacity) {
-            this.capacity *=2;
+            this.capacity *= 2;
             this.dom = 0..#this.capacity;
           }
 
@@ -38,6 +38,8 @@ module Pool_ext
           this.lock.write(false);
           return;
         }
+
+        currentTask.yieldExecution();
       }
     }
 
@@ -46,16 +48,18 @@ module Pool_ext
 
       while true {
         if this.lock.compareAndSwap(false, true) {
-          /* if (this.front + this.size >= this.capacity) {
-            this.capacity *=2;
+          if (this.front + this.size >= this.capacity) {
+            this.capacity *= 2;
             this.dom = 0..#this.capacity;
-          } */
+          }
 
           this.elements[(this.front + this.size)..#s] = nodes;
           this.size += s;
           this.lock.write(false);
           return;
         }
+
+        currentTask.yieldExecution();
       }
     }
 
@@ -74,6 +78,8 @@ module Pool_ext
             break;
           }
         }
+
+        currentTask.yieldExecution();
       }
 
       var default: eltType;
@@ -106,6 +112,8 @@ module Pool_ext
             return (poolSize, parents);
           }
         }
+
+        currentTask.yieldExecution();
       }
 
       var parents: [0..-1] eltType = noinit;
