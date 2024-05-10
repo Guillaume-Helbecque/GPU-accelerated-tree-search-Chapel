@@ -1,0 +1,5 @@
+--- a/runtime/src/chpl-gpu.c
++++ b/runtime/src/chpl-gpu.c
+@@ -333 +333 @@
+-  *(cfg->kernel_params[i]) = chpl_gpu_mem_alloc(size, CHPL_RT_MD_GPU_KERNEL_ARG,
++  *(cfg->kernel_params[i]) = chpl_gpu_mem_array_alloc(size, CHPL_RT_MD_GPU_KERNEL_ARG,
