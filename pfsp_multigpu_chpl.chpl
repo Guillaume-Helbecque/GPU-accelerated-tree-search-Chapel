@@ -510,7 +510,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
             eachTaskState[gpuID].write(IDLE);
           }
           if allIdle(eachTaskState, allTasksIdleFlag) {
-            writeln("task ", gpuID, " exits normally");
+            /* writeln("task ", gpuID, " exits normally"); */
             break;
           }
           continue;
@@ -533,7 +533,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     eachExploredTree[gpuID] = tree;
     eachExploredSol[gpuID] = sol;
     eachBest[gpuID] = best_l;
-    writeln("work stealing tries on tasks ", gpuID, " : ", nSteal, " and successes : ", nSSteal);
+    /* writeln("work stealing tries on tasks ", gpuID, " : ", nSteal, " and successes : ", nSSteal); */
   }
   timer.stop();
 
@@ -585,19 +585,19 @@ proc main()
 
   var elapsedTime: real;
 
-  startGpuDiagnostics();
+  /* startGpuDiagnostics(); */
 
   pfsp_search(optimum, exploredTree, exploredSol, elapsedTime);
 
-  stopGpuDiagnostics();
+  /* stopGpuDiagnostics(); */
 
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
 
-  writeln("GPU diagnostics:");
+  /* writeln("GPU diagnostics:");
   writeln("   kernel_launch: ", getGpuDiagnostics().kernel_launch);
   writeln("   host_to_device: ", getGpuDiagnostics().host_to_device);
   writeln("   device_to_host: ", getGpuDiagnostics().device_to_host);
-  writeln("   device_to_device: ", getGpuDiagnostics().device_to_device);
+  writeln("   device_to_device: ", getGpuDiagnostics().device_to_device); */
 
   return 0;
 }
