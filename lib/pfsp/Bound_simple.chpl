@@ -1,6 +1,6 @@
 module Bound_simple
 {
-  param NUM_MACHINES = 10;
+  param NUM_MACHINES = 20;
   param NUM_JOBS = 20;
 
   record lb1_bound_data

@@ -5,7 +5,7 @@ module Bound_johnson
 
   enum lb2_variant { LB2_FULL, LB2_NABESHIMA, LB2_LAGEWEG, LB2_LEARN }
 
-  param NUM_MACHINES = 10;
+  param NUM_MACHINES = 20;
   param NUM_JOBS = 20;
 
   record lb2_bound_data
