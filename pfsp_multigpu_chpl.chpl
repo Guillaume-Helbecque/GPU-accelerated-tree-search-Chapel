@@ -460,8 +460,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         // work stealing
         var tries = 0;
         var steal = false;
-        var victims: [0..#D] int = noinit;
-        permutation(victims);
+        const victims = permute(0..#D);
 
         label WS0 while (tries < D && steal == false) {
           const victimID = victims[tries];
