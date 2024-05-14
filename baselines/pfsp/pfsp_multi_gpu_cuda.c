@@ -12,6 +12,7 @@
 #include <time.h>
 #include <math.h>
 #include <omp.h>
+#include <stdbool.h>
 //#include <cuda.h>
 #include <cuda_runtime.h>
 
@@ -38,14 +39,14 @@ void initRoot(Node* root, const int jobs)
   }
 }
 
-/*******************************************************************************
-Implementation of a dynamic-sized single pool data structure.
-Its initial capacity is 1024, and we reallocate a new container with double
-the capacity when it is full. Since we perform only DFS, it only supports
-'pushBack' and 'popBack' operations.
-*******************************************************************************/
-
 // Pools are managed by the CPU only
+
+/*******************************************************************************
+  Implementation of a dynamic-sized single pool data structure.
+  Its initial capacity is 1024, and we reallocate a new container with double
+  the capacity when it is full. Since we perform only DFS, it only supports
+  'pushBack' and 'popBack' operations.
+*******************************************************************************/
 
 #define CAPACITY 1024
 
@@ -55,7 +56,8 @@ typedef struct
   int capacity;
   int front;
   int size;
-} SinglePool;
+  bool lock;
+} SinglePool_ext;
 
 void initSinglePool(SinglePool* pool)
 {
@@ -63,62 +65,137 @@ void initSinglePool(SinglePool* pool)
   pool->capacity = CAPACITY;
   pool->front = 0;
   pool->size = 0;
+  pool->lock = false;
 }
 
-void pushBack(SinglePool* pool, Node node)
-{
-  if (pool->front + pool->size >= pool->capacity) {
-    pool->capacity *= 2;
-    pool->elements = (Node*)realloc(pool->elements, pool->capacity * sizeof(Node));
+void pushBack(SinglePool_ext* pool, Node* node) {
+    while (true) {
+        if (__sync_bool_compare_and_swap(&(pool->lock), false, true)) {
+            if (pool->front + pool->size >= pool->capacity) {
+                pool->capacity *= 2;
+                pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
+            }
+
+            // Copy node to the end of elements array
+            memcpy(pool->elements[(pool->front + pool->size)], node, sizeof(Node));
+            pool->size += 1;
+            pool->lock = false;
+            return;
+        }
+
+        // Yield execution (use appropriate synchronization in actual implementation)
+    }
+}
+
+void pushBackBulk(SinglePool_ext* pool, SinglePool_ext* nodes) {
+  int s = nodes->size;
+  while (true) {
+    if (__sync_bool_compare_and_swap(&(pool->lock), false, true)) {
+      if (pool->front + pool->size >= pool->capacity) {
+	pool->capacity *= 2;
+	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
+      }
+      
+      // Copy of elements from nodes to the end of elements array of pool
+      for(int i = 0; i < s; i++)
+	memcpy(pool->elements[(pool->front + pool->size)+i], nodes.elements[i], sizeof(Node));
+      pool->size += s;
+      pool->lock = false;
+      return;
+    }
+    
+    // Yield execution (use appropriate synchronization in actual implementation)
   }
-  
-  pool->elements[pool->front + pool->size] = node;
-  pool->size += 1;
 }
 
-Node popBack(SinglePool* pool, int* hasWork)
-{
-  if (pool->size > 0) {
+Node popBack(SinglePool_ext* pool, int* hasWork) {
+  while (true) {
+    if (__sync_bool_compare_and_swap(&(pool->lock), false, true)) {
+      if (pool->size > 0) {
+	*hasWork = 1;
+	pool->size -= 1;
+	// Copy last element to elt
+	Node elt;
+	memcpy(elt, pool->elements[(pool->front + pool->size)], sizeof(Node));
+	pool->lock = false;
+	return elt;
+      } else {
+	pool->lock = false;
+	break;
+      }
+    }
+    // Yield execution (use appropriate synchronization in actual implementation)
+  }
+  return (Node){0};
+}
+
+Node popBackFree(SinglePool_ext* pool, int* hasWork) {
+  if (pool->size > 0){
     *hasWork = 1;
-    pool->size--;
+    pool->size -= 1;
     return pool->elements[pool->front + pool->size];
   }
 
   return (Node){0};
 }
 
-Node popFront(SinglePool* pool, int* hasWork)
-{
-  if (pool->size > 0) {
+int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
+  while(true) {
+    if (__sync_bool_compare_and_swap(&(pool->lock), false, true)) {
+      if (pool->size < m) {
+	pool->lock = false;
+	break;
+      }
+      else{
+	int poolSize = MIN(pool->size,M);
+	pool->size -= poolSize;
+	for(int i = 0; i < poolSize; i++)
+	  memcpy(parents[i], pool->elements[(pool->front + pool->size)+i], sizeof(Node));
+	pool->lock = false;
+	return poolSize;
+      }
+    }
+    // Yield execution (use appropriate synchronization in actual implementation)
+  }
+  return 0;
+}
+
+Node* popBackBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize){
+  if(pool.size >= 2*m) {
+    *poolSize = pool.size/2;
+    pool.size -= *poolSize;
+    Node* parents = (Node*)malloc(*poolSize * sizeof(Node));
+    for(int i = 0; i < *poolSize; i++)
+      memcpy(parents[i], pool->elements[(pool->front + pool->size)+i], sizeof(Node));
+    return parents;
+  }else{
+    return NULL;
+  }
+  
+  Node* parents = NULL;
+  return parents;
+}
+
+Node popFront(SinglePool_ext* pool, int* hasWork) {
+  if(pool->size > 0) {
     *hasWork = 1;
-    pool->size--;
-    return pool->elements[pool->front++];
+    Node node;
+    memcpy(node,pool->elements[pool.front],sizeof(Node));
+    pool->front += 1;
+    pool->size -= 1;
+    return node;
   }
 
   return (Node){0};
 }
 
-// Function for approach considering parents_d as int** instead of Node*
- 
-/* // Integer i represents the lines of 2D table parents_h */
-/* Node popBack_p(SinglePool* pool, int* hasWork, int* parents_h, int i) */
-/* { */
-/*   if (pool->size > 0) { */
-/*     *hasWork = 1; */
-/*     Node myNode = pool->elements[--pool->size]; */
-/*     for(int j = 0; j < MAX_JOBS; j++) */
-/*       parents_h[i*(MAX_SIZE) + j] = myNode.prmu[j]; */
-/*     parents_h[i*(MAX_SIZE) + 20] = myNode.depth; */
-/*     parents_h[i*(MAX_SIZE) + 21] = myNode.limit1; */
-/*     return myNode; */
-/*   } */
-
-/*   return (Node){0}; */
-/* } */
-
-void deleteSinglePool(SinglePool* pool)
-{
-  free(pool->elements);
+void deleteSinglePool_ext(SinglePool_ext* pool) {
+    free(pool->elements);
+    pool->elements = NULL;
+    pool->capacity = 0;
+    pool->front = 0;
+    pool->size = 0;
+    pool->lock = false;
 }
 
 /*******************************************************************************
@@ -246,7 +323,7 @@ inline void swap(int* a, int* b)
 }
 
 // Evaluate and generate children nodes on CPU.
-void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const Node parent, int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool* pool)
+void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const Node parent, int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool_ext* pool)
 {
   for (int i = parent.limit1+1; i < jobs; i++) {
     Node child;
@@ -273,7 +350,7 @@ void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const No
 }
 
 void decompose_lb1_d(const int jobs, const lb1_bound_data* const lbound1, const Node parent,
-		     int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool* pool)
+		     int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool_ext* pool)
 {
   int* lb_begin = (int*)malloc(jobs * sizeof(int));
 
@@ -306,9 +383,7 @@ void decompose_lb1_d(const int jobs, const lb1_bound_data* const lbound1, const 
   free(lb_begin);
 }
 
-void decompose_lb2(const int jobs, const lb1_bound_data* const lbound1, const lb2_bound_data* const lbound2,
-		   const Node parent, int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol,
-		   SinglePool* pool)
+void decompose_lb2(const int jobs, const lb1_bound_data* const lbound1, const lb2_bound_data* const lbound2, const Node parent, int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool_ext* pool)
 {
   for (int i = parent.limit1+1; i < jobs; i++) {
     Node child;
@@ -334,9 +409,7 @@ void decompose_lb2(const int jobs, const lb1_bound_data* const lbound1, const lb
   }
 }
 
-void decompose(const int jobs, const int lb, int* best,
-	       const lb1_bound_data* const lbound1, const lb2_bound_data* const lbound2, const Node parent,
-	       unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool* pool)
+void decompose(const int jobs, const int lb, int* best, const lb1_bound_data* const lbound1, const lb2_bound_data* const lbound2, const Node parent, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool_ext* pool)
 {
   switch (lb) {
   case 0: // lb1_d
@@ -354,8 +427,7 @@ void decompose(const int jobs, const int lb, int* best,
 }
 
 // Generate children nodes (evaluated on GPU) on CPU
-void generate_children(Node* parents, const int size, const int jobs, int* bounds,
-		       unsigned long long int* exploredTree, unsigned long long int* exploredSol, int* best, SinglePool* pool)
+void generate_children(Node* parents, const int size, const int jobs, int* bounds, unsigned long long int* exploredTree, unsigned long long int* exploredSol, int* best, SinglePool_ext* pool)
 {
   for (int i = 0; i < size; i++) {
     Node parent = parents[i];
