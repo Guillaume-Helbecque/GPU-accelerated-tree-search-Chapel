@@ -69,22 +69,22 @@ void initSinglePool(SinglePool* pool)
 }
 
 void pushBack(SinglePool_ext* pool, Node* node) {
-    while (true) {
-        if (__sync_bool_compare_and_swap(&(pool->lock), false, true)) {
-            if (pool->front + pool->size >= pool->capacity) {
-                pool->capacity *= 2;
-                pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
-            }
+  while (true) {
+    if (__sync_bool_compare_and_swap(&(pool->lock), false, true)) {
+      if (pool->front + pool->size >= pool->capacity) {
+	pool->capacity *= 2;
+	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
+      }
 
-            // Copy node to the end of elements array
-            memcpy(pool->elements[(pool->front + pool->size)], node, sizeof(Node));
-            pool->size += 1;
-            pool->lock = false;
-            return;
-        }
-
-        // Yield execution (use appropriate synchronization in actual implementation)
+      // Copy node to the end of elements array
+      memcpy(pool->elements[(pool->front + pool->size)], node, sizeof(Node));
+      pool->size += 1;
+      pool->lock = false;
+      return;
     }
+
+    // Yield execution (use appropriate synchronization in actual implementation)
+  }
 }
 
 void pushBackBulk(SinglePool_ext* pool, SinglePool_ext* nodes) {
@@ -190,12 +190,12 @@ Node popFront(SinglePool_ext* pool, int* hasWork) {
 }
 
 void deleteSinglePool_ext(SinglePool_ext* pool) {
-    free(pool->elements);
-    pool->elements = NULL;
-    pool->capacity = 0;
-    pool->front = 0;
-    pool->size = 0;
-    pool->lock = false;
+  free(pool->elements);
+  pool->elements = NULL;
+  pool->capacity = 0;
+  pool->front = 0;
+  pool->size = 0;
+  pool->lock = false;
 }
 
 /*******************************************************************************
@@ -479,6 +479,12 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
   pushBack(&pool, root);
 
+  // Boolean variables for dynamic workload balance
+  bool allTasksIdleFlag = false;
+  bool eachTaskState[D]; // one task per GPU
+  for(int i = 0; i < D; i++)
+    eachTaskState[i] = false;
+
   // Timer
   // struct timespec start, end;
   // clock_gettime(CLOCK_MONOTONIC_RAW, &start);
@@ -534,17 +540,21 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
   startTime = omp_get_wtime();
   unsigned long long int eachExploredTree[D], eachExploredSol[D];
+  int eachBest[D];
   
   const int poolSize = pool.size;
   const int c = poolSize / D;
   const int l = poolSize - (D-1)*c;
   const int f = pool.front;
+  bool lock_p;
   
   pool.front = 0;
   pool.size = 0;
 
+  //var multiPool: [0..#D] SinglePool_ext(Node); //Don't know if this is necessary
 
-#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, pool, lbound1, lbound2)
+
+#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool, lbound1, lbound2)
   for (int gpuID = 0; gpuID < D; gpuID++) {
     cudaSetDevice(gpuID);
     
@@ -600,11 +610,14 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     lbound2_d.nb_jobs = lbound2->nb_jobs;
     lbound2_d.nb_machines = lbound2->nb_machines;
 
-    
+    const int nSteal, nSSteal;
     unsigned long long int tree = 0, sol = 0;
     SinglePool pool_loc;
     initSinglePool(&pool_loc);
+    int best_l = best;
+    bool taskState = false;
 
+    // each task gets its chunk
     for (int i = 0; i < c; i++) {
       pool_loc.elements[i] = pool.elements[gpuID+f+i*D];
     }
@@ -628,18 +641,35 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     
       
     while (1) {
-      int poolSize = pool_loc.size;
-      if (poolSize >= m) {
-	poolSize = MIN(poolSize,M);
+      /*
+	Each task gets its parents nodes from the pool
+      */
+
+      // Static workload balance
+      /* int poolSize = pool_loc.size; */
+      /* if (poolSize >= m) { */
+      /* 	poolSize = MIN(poolSize,M); */
       
-	for(int i= 0; i < poolSize; i++) {
-	  int hasWork = 0;
-	  parents[i] = popBack(&pool_loc,&hasWork);
-	  // Approach with parents_d as int**
-	  //parents[i] = popBack_p(&pool, &hasWork, parents_h, i); 
-	  if (!hasWork) break;
-	}
-	
+      /* 	for(int i= 0; i < poolSize; i++) { */
+      /* 	  int hasWork = 0; */
+      /* 	  parents[i] = popBack(&pool_loc,&hasWork); */
+      /* 	  // Approach with parents_d as int** */
+      /* 	  //parents[i] = popBack_p(&pool, &hasWork, parents_h, i);  */
+      /* 	  if (!hasWork) break; */
+      /* 	} */
+
+      // Dynamic workload bbalance
+
+      int poolSize = popBackBulk(&pool_loc, m, M, parents);
+
+
+      // HOW TO ADAPT THOOSE IDLE AND BUSY STATES IN C?
+      if (poolSize > 0) {
+        if (taskState == IDLE) {
+          taskState = BUSY;
+          eachTaskState[gpuID].write(BUSY);
+        }
+      
 	/*
 	  TODO: Optimize 'numBounds' based on the fact that the maximum number of
 	  generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
@@ -666,9 +696,69 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	generate_children(parents, poolSize, jobs, bounds, &tree, &sol, best, &pool_loc);
       }
       else {
-	break;
+        // work stealing
+        int tries = 0;
+        bool steal = false;
+
+	// ADAPT PERMUTE
+        const victims = permute(0..#D);
+
+        label WS0 while (tries < D && steal == false) {
+          const victimID = victims[tries];
+
+          if (victimID != gpuID) { // if not me
+            ref victim = multiPool[victimID];
+            nSteal += 1;
+            var nn = 0;
+
+            label WS1 while (nn < 10) {
+              if victim.lock.compareAndSwap(false, true) { // get the lock
+		  const size = victim.size;
+
+		  if (size >= 2*m) {
+		    var (hasWork, p) = victim.popBackBulkFree(m, M);
+		    if (hasWork == 0) {
+		      victim.lock.write(false); // reset lock
+		      halt("DEADCODE in work stealing");
+		    }
+
+		    /* for i in 0..#(size/2) {
+		       pool_loc.pushBack(p[i]);
+		       } */
+		    pool_loc.pushBackBulk(p);
+
+		    steal = true;
+		    nSSteal += 1;
+		    victim.lock.write(false); // reset lock
+		    break WS0;
+		  }
+
+		  victim.lock.write(false); // reset lock
+		  break WS1;
+		}
+
+              nn += 1;
+              currentTask.yieldExecution();
+            }
+          }
+          tries += 1;
+        }
+
+        if (steal == false) {
+          // termination
+          if (taskState == BUSY) {
+            taskState = IDLE;
+            eachTaskState[gpuID].write(IDLE);
+          }
+          if allIdle(eachTaskState, allTasksIdleFlag) {
+	      /* writeln("task ", gpuID, " exits normally"); */
+	      break;
+	    }
+          continue;
+        } else {
+          continue;
+        }
       }
-      //count += 1; // Check the amount of while loops
     }
 
     // OpenMP environment freeing variables
@@ -684,7 +774,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     cudaFree(machine_pair_order_d);
     free(parents);
     free(bounds);
-    
+
+    // HERE THERE IS SOMETHING WITH lock_p VARIABLE!
 #pragma omp critical
     {
       const int poolLocSize = pool_loc.size;
@@ -697,16 +788,23 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
     eachExploredTree[gpuID] = tree;
     eachExploredSol[gpuID] = sol;
+    eachBest[gpuID] = best_l;
 
     deleteSinglePool(&pool_loc);
   }
   endTime = omp_get_wtime();
   double t2 = endTime - startTime;
 
+  
   for (int i = 0; i < D; i++) {
     *exploredTree += eachExploredTree[i];
     *exploredSol += eachExploredSol[i];
   }
+  
+  // FIX THAT!
+  best = (min reduce eachBest);
+  
+  printf("Workload per GPU: %f", (double)100*eachExploredTree/(exploredTree));
 
   printf("\nSearch on GPU completed\n");
   printf("Size of the explored tree: %llu\n", *exploredTree);
