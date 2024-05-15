@@ -706,7 +706,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     
       
     while (1) {
-      // Dynamic workload bbalance
+      // Dynamic workload balance
       /*
 	Each task gets its parenst nodes from the pool
       */
@@ -728,13 +728,10 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
 	const int nbBlocks_lb1_d = ceil((double)nbBlocks/jobs); 
 
-	// Approach with parents_d as int**
-	//cudaMemcpy(parents_d, parents_h, (MAX_SIZE) * poolSize * sizeof(int), cudaMemcpyHostToDevice);
-
 	cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
 
 	// numBounds is the 'size' of the problem
-	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d/*, front, back, remain*/); 
+	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d); 
 	cudaDeviceSynchronize();
       
 	cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost); //size of copy is good
@@ -767,10 +764,11 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             while (nn < 10) {
               if (__sync_bool_compare_and_swap(&(victim.lock),false, true)) { // get the lock
 		int size = victim.size;
-		printf("Victims with ID[%d] and gpuID[%d] pool size = %d \n", victimID, gpuID, size);
+		printf("Victims with ID[%d] and gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
 		
 		if (size >= 2*m) {
 		  printf("Size of the pool is big enough\n");
+		  // Here size plays the role of variable hasWork
 		  Node* p = popBackBulkFree(&victim, m, M, &size);
 		  
 		  if (size == 0) { // there is no more work
@@ -836,6 +834,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     free(bounds);
 
     // HERE THERE IS SOMETHING WITH lock_p VARIABLE!
+    //Here we are reinserting the rest of the work in the CPU pool
 #pragma omp critical
     {
       const int poolLocSize = pool_loc.size;
