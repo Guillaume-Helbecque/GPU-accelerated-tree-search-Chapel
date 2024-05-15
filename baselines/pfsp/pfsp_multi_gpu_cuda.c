@@ -59,7 +59,7 @@ typedef struct
   bool lock;
 } SinglePool_ext;
 
-void initSinglePool(SinglePool* pool)
+void initSinglePool(SinglePool_ext* pool)
 {
   pool->elements = (Node*)malloc(CAPACITY * sizeof(Node));
   pool->capacity = CAPACITY;
@@ -68,7 +68,7 @@ void initSinglePool(SinglePool* pool)
   pool->lock = false;
 }
 
-void pushBack(SinglePool_ext* pool, Node* node) {
+void pushBack(SinglePool_ext* pool, Node node) {
   while (true) {
     if (__sync_bool_compare_and_swap(&(pool->lock), false, true)) {
       if (pool->front + pool->size >= pool->capacity) {
@@ -77,7 +77,7 @@ void pushBack(SinglePool_ext* pool, Node* node) {
       }
 
       // Copy node to the end of elements array
-      memcpy(pool->elements[(pool->front + pool->size)], node, sizeof(Node));
+      pool->elements[pool->front + pool->size] = node;
       pool->size += 1;
       pool->lock = false;
       return;
@@ -87,8 +87,8 @@ void pushBack(SinglePool_ext* pool, Node* node) {
   }
 }
 
-void pushBackBulk(SinglePool_ext* pool, SinglePool_ext* nodes) {
-  int s = nodes->size;
+void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
+  int s = size;
   while (true) {
     if (__sync_bool_compare_and_swap(&(pool->lock), false, true)) {
       if (pool->front + pool->size >= pool->capacity) {
@@ -98,7 +98,7 @@ void pushBackBulk(SinglePool_ext* pool, SinglePool_ext* nodes) {
       
       // Copy of elements from nodes to the end of elements array of pool
       for(int i = 0; i < s; i++)
-	memcpy(pool->elements[(pool->front + pool->size)+i], nodes.elements[i], sizeof(Node));
+	pool->elements[pool->front + pool->size+i] = nodes[i];
       pool->size += s;
       pool->lock = false;
       return;
@@ -116,7 +116,7 @@ Node popBack(SinglePool_ext* pool, int* hasWork) {
 	pool->size -= 1;
 	// Copy last element to elt
 	Node elt;
-	memcpy(elt, pool->elements[(pool->front + pool->size)], sizeof(Node));
+	elt = pool->elements[pool->front + pool->size];
 	pool->lock = false;
 	return elt;
       } else {
@@ -150,7 +150,7 @@ int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
 	int poolSize = MIN(pool->size,M);
 	pool->size -= poolSize;
 	for(int i = 0; i < poolSize; i++)
-	  memcpy(parents[i], pool->elements[(pool->front + pool->size)+i], sizeof(Node));
+	  parents[i] = pool->elements[pool->front + pool->size+i];
 	pool->lock = false;
 	return poolSize;
       }
@@ -161,12 +161,12 @@ int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
 }
 
 Node* popBackBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize){
-  if(pool.size >= 2*m) {
-    *poolSize = pool.size/2;
-    pool.size -= *poolSize;
+  if(pool->size >= 2*m) {
+    *poolSize = pool->size/2;
+    pool->size -= *poolSize;
     Node* parents = (Node*)malloc(*poolSize * sizeof(Node));
     for(int i = 0; i < *poolSize; i++)
-      memcpy(parents[i], pool->elements[(pool->front + pool->size)+i], sizeof(Node));
+      parents[i] = pool->elements[pool->front + pool->size+i];
     return parents;
   }else{
     return NULL;
@@ -180,7 +180,7 @@ Node popFront(SinglePool_ext* pool, int* hasWork) {
   if(pool->size > 0) {
     *hasWork = 1;
     Node node;
-    memcpy(node,pool->elements[pool.front],sizeof(Node));
+    node = pool->elements[pool->front];
     pool->front += 1;
     pool->size -= 1;
     return node;
@@ -197,6 +197,64 @@ void deleteSinglePool_ext(SinglePool_ext* pool) {
   pool->size = 0;
   pool->lock = false;
 }
+
+/******************************************************************************
+Auxiliary functions
+******************************************************************************/
+
+// Function to check if all elements in an array of atomic bool are IDLE
+bool _allIdle(const bool arr[], int size) {
+  for (int i = 0; i < size; i++) {
+    if (arr[i] == false) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Function to check if all elements in arr are IDLE and update flag accordingly
+bool allIdle(const bool arr[], int size, bool *flag) {
+  if (*flag) {
+    return true; // fast exit
+  } else {
+    if (_allIdle(arr, size)) {
+      *flag = true;
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+
+// Helper function to generate a random permutation of indices from 0 to D-1
+void permute(int *victims, int D) {
+  for (int i = 0; i < D; i++) {
+    victims[i] = i;
+  }
+  
+  // Fisher-Yates shuffle algorithm to permute the array
+  for (int i = D - 1; i > 0; i--) {
+    int j = rand() % (i + 1);
+    int temp = victims[i];
+    victims[i] = victims[j];
+    victims[j] = temp;
+  }
+}
+
+// Function to find the minimum value in an array of integers
+int findMin(int arr[], int size) {
+  int minVal = arr[0];  // Initialize minVal with the first element
+  
+  // Iterate through the array to find the minimum value
+  for (int i = 1; i < size; i++) {
+    if (arr[i] < minVal) {
+      minVal = arr[i];  // Update minVal if current element is smaller
+    }
+  }
+  
+  return minVal;  // Return the minimum value
+}
+
 
 /*******************************************************************************
 Implementation of the parallel CUDA GPU PFSP search.
@@ -258,7 +316,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
       break;
 
     case 'm':
-      if (value < 25 || value > 100) {
+      if (value < 25 || value > 600) {
 	fprintf(stderr, "Error: unsupported minimal pool for GPU initialization\n");
 	exit(EXIT_FAILURE);
       }
@@ -474,7 +532,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   Node root;
   initRoot(&root, jobs);
 
-  SinglePool pool;
+  SinglePool_ext pool;
   initSinglePool(&pool);
 
   pushBack(&pool, root);
@@ -546,15 +604,18 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   const int c = poolSize / D;
   const int l = poolSize - (D-1)*c;
   const int f = pool.front;
-  bool lock_p;
+  //bool lock_p;
   
   pool.front = 0;
   pool.size = 0;
 
-  //var multiPool: [0..#D] SinglePool_ext(Node); //Don't know if this is necessary
-
-
-#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool, lbound1, lbound2)
+  // Initialize each pool ?
+  SinglePool_ext multiPool[D]; //Don't know if this is necessary
+  for(int i = 0; i < D; i++)
+    initSinglePool(&multiPool[i]);
+  
+  
+#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool, multiPool, lbound1, lbound2)
   for (int gpuID = 0; gpuID < D; gpuID++) {
     cudaSetDevice(gpuID);
     
@@ -610,11 +671,15 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     lbound2_d.nb_jobs = lbound2->nb_jobs;
     lbound2_d.nb_machines = lbound2->nb_machines;
 
-    const int nSteal, nSSteal;
+    int nSteal, nSSteal;
     unsigned long long int tree = 0, sol = 0;
-    SinglePool pool_loc;
-    initSinglePool(&pool_loc);
-    int best_l = best;
+    SinglePool_ext pool_loc = multiPool[gpuID];
+    //initSinglePool(&pool_loc);
+
+    // How to relate this pool_loc to multiPool?
+    //ref pool_loc = multiPool[gpuID];
+    
+    int best_l = *best;
     bool taskState = false;
 
     // each task gets its chunk
@@ -641,33 +706,17 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     
       
     while (1) {
-      /*
-	Each task gets its parents nodes from the pool
-      */
-
-      // Static workload balance
-      /* int poolSize = pool_loc.size; */
-      /* if (poolSize >= m) { */
-      /* 	poolSize = MIN(poolSize,M); */
-      
-      /* 	for(int i= 0; i < poolSize; i++) { */
-      /* 	  int hasWork = 0; */
-      /* 	  parents[i] = popBack(&pool_loc,&hasWork); */
-      /* 	  // Approach with parents_d as int** */
-      /* 	  //parents[i] = popBack_p(&pool, &hasWork, parents_h, i);  */
-      /* 	  if (!hasWork) break; */
-      /* 	} */
-
       // Dynamic workload bbalance
-
+      /*
+	Each task gets its parenst nodes from the pool
+      */
+      
       int poolSize = popBackBulk(&pool_loc, m, M, parents);
-
-
-      // HOW TO ADAPT THOOSE IDLE AND BUSY STATES IN C?
+      
       if (poolSize > 0) {
-        if (taskState == IDLE) {
-          taskState = BUSY;
-          eachTaskState[gpuID].write(BUSY);
+        if (taskState == true) {
+          taskState = false;
+          eachTaskState[gpuID] = false;
         }
       
 	/*
@@ -685,7 +734,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
 
 	// numBounds is the 'size' of the problem
-	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, best, lbound1_d, lbound2_d, parents_d, bounds_d/*, front, back, remain*/); 
+	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d/*, front, back, remain*/); 
 	cudaDeviceSynchronize();
       
 	cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost); //size of copy is good
@@ -693,196 +742,179 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	/*
 	  each task generates and inserts its children nodes to the pool.
 	*/
-	generate_children(parents, poolSize, jobs, bounds, &tree, &sol, best, &pool_loc);
+	generate_children(parents, poolSize, jobs, bounds, &tree, &sol, &best_l, &pool_loc);
       }
       else {
         // work stealing
         int tries = 0;
         bool steal = false;
-
-	// ADAPT PERMUTE
-        const victims = permute(0..#D);
-
-        label WS0 while (tries < D && steal == false) {
-          const victimID = victims[tries];
-
+	//adaptation of permute from chapel
+	int victims[D];
+	permute(victims,D);
+	
+        while (tries < D && steal == false) {
+          int victimID = victims[tries];
+	  
           if (victimID != gpuID) { // if not me
-            ref victim = multiPool[victimID];
-            nSteal += 1;
-            var nn = 0;
-
-            label WS1 while (nn < 10) {
-              if victim.lock.compareAndSwap(false, true) { // get the lock
-		  const size = victim.size;
-
+            SinglePool_ext victim = multiPool[victimID];
+            nSteal ++;
+            int nn = 0;
+	    
+            while (nn < 10) {
+              if (__sync_bool_compare_and_swap(&(victim.lock),false, true)) { // get the lock
+		  int size = victim.size;
+		  
 		  if (size >= 2*m) {
-		    var (hasWork, p) = victim.popBackBulkFree(m, M);
-		    if (hasWork == 0) {
-		      victim.lock.write(false); // reset lock
-		      halt("DEADCODE in work stealing");
+		    Node* p = popBackBulkFree(&victim, m, M, &size);
+		    
+		    if (size == 0) { // there is no more work
+		      victim.lock = false; // reset lock
+		      //fprintf(stderr, "DEADCODE in work stealing\n");
+		      //exit(EXIT_FAILURE);
 		    }
-
+		    
 		    /* for i in 0..#(size/2) {
 		       pool_loc.pushBack(p[i]);
 		       } */
-		    pool_loc.pushBackBulk(p);
-
+		    
+		    pushBackBulk(&pool_loc, p, size);
+		    
 		    steal = true;
-		    nSSteal += 1;
-		    victim.lock.write(false); // reset lock
-		    break WS0;
+		    nSSteal++;
+		    victim.lock = false; // reset lock
+		    break; // Break out of WS0 loop
 		  }
-
-		  victim.lock.write(false); // reset lock
-		  break WS1;
+		  
+		  victim.lock = false; // reset lock
+		  break; // Break out of WS1 loop
 		}
-
-              nn += 1;
-              currentTask.yieldExecution();
-            }
-          }
-          tries += 1;
-        }
-
-        if (steal == false) {
-          // termination
-          if (taskState == BUSY) {
-            taskState = IDLE;
-            eachTaskState[gpuID].write(IDLE);
-          }
-          if allIdle(eachTaskState, allTasksIdleFlag) {
+		
+		nn ++;
+		}
+	    }
+	    tries ++;
+	  }
+	  
+	  if (steal == false) {
+	    // termination
+	    if (taskState == false) {
+	      taskState = true;
+	      eachTaskState[gpuID] = true;
+	    }
+	    if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
 	      /* writeln("task ", gpuID, " exits normally"); */
 	      break;
 	    }
-          continue;
-        } else {
-          continue;
-        }
+	    continue;
+	  } else {
+	    continue;
+	  }
+	}
       }
-    }
+      
+      
+      // OpenMP environment freeing variables
+      cudaFree(parents_d);
+      cudaFree(bounds_d);
+      cudaFree(p_times_d);
+      cudaFree(min_heads_d);
+      cudaFree(min_tails_d);
+      cudaFree(johnson_schedule_d);
+      cudaFree(lags_d);
+      cudaFree(machine_pairs_1_d);
+      cudaFree(machine_pairs_2_d);
+      cudaFree(machine_pair_order_d);
+      free(parents);
+      free(bounds);
 
-    // OpenMP environment freeing variables
-    cudaFree(parents_d);
-    cudaFree(bounds_d);
-    cudaFree(p_times_d);
-    cudaFree(min_heads_d);
-    cudaFree(min_tails_d);
-    cudaFree(johnson_schedule_d);
-    cudaFree(lags_d);
-    cudaFree(machine_pairs_1_d);
-    cudaFree(machine_pairs_2_d);
-    cudaFree(machine_pair_order_d);
-    free(parents);
-    free(bounds);
-
-    // HERE THERE IS SOMETHING WITH lock_p VARIABLE!
+      // HERE THERE IS SOMETHING WITH lock_p VARIABLE!
 #pragma omp critical
-    {
-      const int poolLocSize = pool_loc.size;
-      for (int i = 0; i < poolLocSize; i++) {
-        int hasWork = 0;
-        pushBack(&pool, popBack(&pool_loc, &hasWork));
-        if (!hasWork) break;
+      {
+	const int poolLocSize = pool_loc.size;
+	for (int i = 0; i < poolLocSize; i++) {
+	  int hasWork = 0;
+	  pushBack(&pool, popBack(&pool_loc, &hasWork));
+	  if (!hasWork) break;
+	}
       }
+
+      eachExploredTree[gpuID] = tree;
+      eachExploredSol[gpuID] = sol;
+      eachBest[gpuID] = best_l;
+
+      deleteSinglePool_ext(&pool_loc);
     }
+    endTime = omp_get_wtime();
+    double t2 = endTime - startTime;
 
-    eachExploredTree[gpuID] = tree;
-    eachExploredSol[gpuID] = sol;
-    eachBest[gpuID] = best_l;
+  
+    for (int i = 0; i < D; i++) {
+      *exploredTree += eachExploredTree[i];
+      *exploredSol += eachExploredSol[i];
+    }
+    *best = findMin(eachBest,D);
 
-    deleteSinglePool(&pool_loc);
+    printf("\nSearch on GPU completed\n");
+    printf("Size of the explored tree: %llu\n", *exploredTree);
+    printf("Number of explored solutions: %llu\n", *exploredSol);
+    printf("Elapsed time: %f [s]\n", t2);
+    for(int gpuID = 0; gpuID < D; gpuID++)
+      printf("Workload for GPU[%d]: %f\n", gpuID,(double)100*eachExploredTree[gpuID]/((double)*exploredTree));
+
+    
+    /*
+      Step 3: We complete the depth-first search on CPU.
+    */
+
+    startTime = omp_get_wtime();
+    while (1) {
+      int hasWork = 0;
+      Node parent = popBack(&pool, &hasWork);
+      if (!hasWork) break;
+
+      decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
+    }
+    endTime = omp_get_wtime();
+    double t3 = endTime - startTime;
+    *elapsedTime = t1 + t2 + t3;
+    printf("\nSearch on CPU completed\n");
+    printf("Size of the explored tree: %llu\n", *exploredTree);
+    printf("Number of explored solutions: %llu\n", *exploredSol);
+    printf("Elapsed time: %f [s]\n", t3);
+
+    printf("\nExploration terminated.\n");
+    // printf("Cuda kernel calls: %d\n", count);
+
+    printf("\nExploration terminated.\n");
+    //printf("\n%d while loops execute.\n", count);
+
+    // Freeing memory for structs 
+    deleteSinglePool_ext(&pool);
+    free_bound_data(lbound1);
+    free_johnson_bd_data(lbound2);
   }
-  endTime = omp_get_wtime();
-  double t2 = endTime - startTime;
 
-  
-  for (int i = 0; i < D; i++) {
-    *exploredTree += eachExploredTree[i];
-    *exploredSol += eachExploredSol[i];
+  int main(int argc, char* argv[])
+  {
+    int inst, lb, ub, m, M, nbGPU;
+    parse_parameters(argc, argv, &inst, &lb, &ub, &m, &M, &nbGPU);
+    
+    int jobs = taillard_get_nb_jobs(inst);
+    int machines = taillard_get_nb_machines(inst);
+
+    print_settings(inst, machines, jobs, ub, lb, nbGPU);
+
+    int optimum = (ub == 1) ? taillard_get_best_ub(inst) : INT_MAX;
+    unsigned long long int exploredTree = 0;
+    unsigned long long int exploredSol = 0;
+
+    double elapsedTime;
+
+    pfsp_search(inst, lb, m, M, nbGPU, &optimum, &exploredTree, &exploredSol, &elapsedTime);
+
+    print_results(optimum, exploredTree, exploredSol, elapsedTime);
+
+    printf("We are done\n");
+
+    return 0;
   }
-  
-  // FIX THAT!
-  best = (min reduce eachBest);
-  
-  printf("Workload per GPU: %f", (double)100*eachExploredTree/(exploredTree));
-
-  printf("\nSearch on GPU completed\n");
-  printf("Size of the explored tree: %llu\n", *exploredTree);
-  printf("Number of explored solutions: %llu\n", *exploredSol);
-  printf("Elapsed time: %f [s]\n", t2);
-
-  /*
-    Step 3: We complete the depth-first search on CPU.
-  */
-
-  startTime = omp_get_wtime();
-  while (1) {
-    int hasWork = 0;
-    Node parent = popBack(&pool, &hasWork);
-    if (!hasWork) break;
-
-    decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
-  }
-  endTime = omp_get_wtime();
-  double t3 = endTime - startTime;
-  *elapsedTime = t1 + t2 + t3;
-  printf("\nSearch on CPU completed\n");
-  printf("Size of the explored tree: %llu\n", *exploredTree);
-  printf("Number of explored solutions: %llu\n", *exploredSol);
-  printf("Elapsed time: %f [s]\n", t3);
-
-  printf("\nExploration terminated.\n");
-  // printf("Cuda kernel calls: %d\n", count);
-
-  deleteSinglePool(&pool);
-  
-  
-  //clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-  //*elapsedTime = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-
-  printf("\nExploration terminated.\n");
-  //printf("\n%d while loops execute.\n", count);
-
-  // Freeing memory for structs 
-  //deleteSinglePool(&pool);
-  free_bound_data(lbound1);
-  free_johnson_bd_data(lbound2);
-
-  /* // Freeing memory for device */
-  //cudaFree(parents_d);
-  //cudaFree(bounds_d);
- 
-
-  /* //Freeing memory for host */
-  //free(parents_h);
-  //free(parents);
-  //free(bounds);
-}
-
-int main(int argc, char* argv[])
-{
-  int inst, lb, ub, m, M, nbGPU;
-  printf("I am before parse_parameters\n");
-  parse_parameters(argc, argv, &inst, &lb, &ub, &m, &M, &nbGPU);
-  printf("I am past parse_parameters\n");
-  //exit(1);
-
-  int jobs = taillard_get_nb_jobs(inst);
-  int machines = taillard_get_nb_machines(inst);
-
-  print_settings(inst, machines, jobs, ub, lb, nbGPU);
-
-  int optimum = (ub == 1) ? taillard_get_best_ub(inst) : INT_MAX;
-  unsigned long long int exploredTree = 0;
-  unsigned long long int exploredSol = 0;
-
-  double elapsedTime;
-
-  pfsp_search(inst, lb, m, M, nbGPU, &optimum, &exploredTree, &exploredSol, &elapsedTime);
-
-  print_results(optimum, exploredTree, exploredSol, elapsedTime);
-
-  printf("We are done\n");
-
-  return 0;
-}
