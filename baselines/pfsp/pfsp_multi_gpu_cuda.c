@@ -769,6 +769,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 		int size = victim.size;
 		
 		if (size >= 2*m) {
+		  printf("Size of the pool is big enough\n");
 		  Node* p = popBackBulkFree(&victim, m, M, &size);
 		  
 		  if (size == 0) { // there is no more work
