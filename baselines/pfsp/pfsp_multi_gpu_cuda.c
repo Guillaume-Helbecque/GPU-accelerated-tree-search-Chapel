@@ -767,7 +767,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             while (nn < 10) {
               if (__sync_bool_compare_and_swap(&(victim.lock),false, true)) { // get the lock
 		int size = victim.size;
-		printf("Victims pool size = %d \n", size);
+		printf("Victims with ID[%d] and gpuID[%d] pool size = %d \n", victimID, gpuID, size);
+		
 		if (size >= 2*m) {
 		  printf("Size of the pool is big enough\n");
 		  Node* p = popBackBulkFree(&victim, m, M, &size);
