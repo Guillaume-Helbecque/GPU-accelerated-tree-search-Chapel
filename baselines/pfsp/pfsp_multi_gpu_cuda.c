@@ -228,7 +228,7 @@ bool allIdle(const bool arr[], int size, bool *flag) {
 }
 
 void permute(int* arr, int n) {
-  srand(time(NULL));  // Seed for random number generation
+  //srand(time(NULL));  // Seed for random number generation
   //int i, j, temp;
 
   for (int i = 0; i < n; i++) {
@@ -908,6 +908,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
 int main(int argc, char* argv[])
 {
+  srand(time(NULL));
+  
   int inst, lb, ub, m, M, nbGPU;
   parse_parameters(argc, argv, &inst, &lb, &ub, &m, &M, &nbGPU);
     
