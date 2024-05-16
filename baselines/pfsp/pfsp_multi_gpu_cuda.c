@@ -610,8 +610,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   pool.front = 0;
   pool.size = 0;
 
-  // Initialize each pool ?
-  SinglePool_ext multiPool[D]; //Don't know if this is necessary
+  SinglePool_ext multiPool[D];
   for(int i = 0; i < D; i++)
     initSinglePool(&multiPool[i]);
   
@@ -672,14 +671,10 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     lbound2_d.nb_jobs = lbound2->nb_jobs;
     lbound2_d.nb_machines = lbound2->nb_machines;
 
-    int nSteal, nSSteal;
+    int nSteal = 0, nSSteal = 0;
     unsigned long long int tree = 0, sol = 0;
     SinglePool_ext* pool_loc;
     pool_loc = &multiPool[gpuID];
-    //initSinglePool(&pool_loc);
-
-    // How to relate this pool_loc to multiPool?
-    //ref pool_loc = multiPool[gpuID];
     
     int best_l = *best;
     bool taskState = false;
@@ -759,22 +754,23 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
           int victimID = victims[tries];
 	  
           if (victimID != gpuID) { // if not me
-            SinglePool_ext victim = multiPool[victimID];
+            SinglePool_ext* victim;
+	    victim = &multiPool[victimID];
             nSteal ++;
             int nn = 0;
 	    
             while (nn < 10) {
-              if (__sync_bool_compare_and_swap(&(victim.lock),false, true)) { // get the lock
-		int size = victim.size;
+              if (__sync_bool_compare_and_swap(&(victim->lock),false, true)) { // get the lock
+		int size = victim->size;
 		//printf("Victims with ID[%d] and gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
 		
 		if (size >= 2*m) {
 		  //printf("Size of the pool is big enough\n");
 		  // Here size plays the role of variable hasWork
-		  Node* p = popBackBulkFree(&victim, m, M, &size);
+		  Node* p = popBackBulkFree(victim, m, M, &size);
 		  
 		  if (size == 0) { // there is no more work
-		    victim.lock = false; // reset lock
+		    victim->lock = false; // reset lock
 		    //fprintf(stderr, "DEADCODE in work stealing\n");
 		    //exit(EXIT_FAILURE);
 		  }
@@ -787,11 +783,11 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 		  
 		  steal = true;
 		  nSSteal++;
-		  victim.lock = false; // reset lock
+		  victim->lock = false; // reset lock
 		  break; // Break out of WS0 loop
 		}
 		
-		victim.lock = false; // reset lock
+		victim->lock = false; // reset lock
 		break; // Break out of WS1 loop
 	      }
 	      
@@ -924,17 +920,6 @@ int main(int argc, char* argv[])
   pfsp_search(inst, lb, m, M, nbGPU, &optimum, &exploredTree, &exploredSol, &elapsedTime);
 
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
-
-
-  /* int victims[10]; */
-
-  /* permute(victims,10); */
-
-  /* for(int i = 0; i < 10; i++) */
-  /*   printf("victims[%d] = %d\n",i,victims[i]); */
-
-  
-  /* printf("We are done\n"); */
 
   return 0;
 }
