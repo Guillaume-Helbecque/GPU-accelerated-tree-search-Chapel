@@ -745,15 +745,15 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       }
       else {
         // work stealing
-	printf("I am going through work stealing?\n");
+	//printf("I am going through work stealing?\n");
         int tries = 0;
         bool steal = false;
 	//adaptation of permute from chapel
 	int victims[D];
 	permute(victims,D);
 
-	for(int i = 0; i < D; i++)
-	  printf("Victims[%d] = %d \n", i, victims[i]);
+	/* for(int i = 0; i < D; i++) */
+	/*   printf("Victims[%d] = %d \n", i, victims[i]); */
 	
         while (tries < D && steal == false) {
           int victimID = victims[tries];
@@ -766,10 +766,10 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             while (nn < 10) {
               if (__sync_bool_compare_and_swap(&(victim.lock),false, true)) { // get the lock
 		int size = victim.size;
-		printf("Victims with ID[%d] and gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
+		//printf("Victims with ID[%d] and gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
 		
 		if (size >= 2*m) {
-		  printf("Size of the pool is big enough\n");
+		  //printf("Size of the pool is big enough\n");
 		  // Here size plays the role of variable hasWork
 		  Node* p = popBackBulkFree(&victim, m, M, &size);
 		  
@@ -799,8 +799,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	    }
 	  }
 	  tries ++;
-	  if(tries == D)
-	    printf("We tried all other pools on GPU[%d]\n",gpuID);
+	  /* if(tries == D) */
+	  /*   printf("We tried all other pools on GPU[%d]\n",gpuID); */
 	}
 	
 	if (steal == false) {
