@@ -227,19 +227,23 @@ bool allIdle(const bool arr[], int size, bool *flag) {
   }
 }
 
-// Helper function to generate a random permutation of indices from 0 to D-1
-void permute(int *victims, int D) {
-  for (int i = 0; i < D; i++) {
-    victims[i] = i;
-  }
-  
-  // Fisher-Yates shuffle algorithm to permute the array
-  for (int i = D - 1; i > 0; i--) {
-    int j = rand() % (i + 1);
-    int temp = victims[i];
-    victims[i] = victims[j];
-    victims[j] = temp;
-  }
+void my_swap(int *a, int *b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+void permute(int arr[], int n) {
+    srand(time(NULL)); // Initialize random seed
+
+    // Start from the last element and swap one by one
+    for (int i = n - 1; i > 0; i--) {
+        // Generate a random index in the range [0, i]
+        int j = rand() % (i + 1);
+
+        // Swap current element with randomly selected element
+        my_swap(&arr[i], &arr[j]);
+    }
 }
 
 // Function to find the minimum value in an array of integers
