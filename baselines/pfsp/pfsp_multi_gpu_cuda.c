@@ -227,23 +227,20 @@ bool allIdle(const bool arr[], int size, bool *flag) {
   }
 }
 
-void my_swap(int *a, int *b) {
-    int temp = *a;
-    *a = *b;
-    *b = temp;
-}
-
-void permute(int arr[], int n) {
-    srand(time(NULL)); // Initialize random seed
-
-    // Start from the last element and swap one by one
-    for (int i = n - 1; i > 0; i--) {
-        // Generate a random index in the range [0, i]
-        int j = rand() % (i + 1);
-
-        // Swap current element with randomly selected element
-        my_swap(&arr[i], &arr[j]);
-    }
+void permute(int* arr, int n) {
+  srand(time(NULL));  // Seed for random number generation
+  int i, j, temp;
+  
+  // Iterate over each element in the array
+  for (i = n - 1; i > 0; i--) {
+    // Select a random index from 0 to i (inclusive)
+    j = rand() % (i + 1);
+    
+    // Swap arr[i] with the randomly selected element arr[j]
+    temp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = temp;
+  }
 }
 
 // Function to find the minimum value in an array of integers
