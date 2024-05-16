@@ -229,15 +229,19 @@ bool allIdle(const bool arr[], int size, bool *flag) {
 
 void permute(int* arr, int n) {
   srand(time(NULL));  // Seed for random number generation
-  int i, j, temp;
+  //int i, j, temp;
+
+  for (int i = 0; i < n; i++) {
+        arr[i] = i;
+  }
   
   // Iterate over each element in the array
-  for (i = n - 1; i > 0; i--) {
+  for (int i = n - 1; i > 0; i--) {
     // Select a random index from 0 to i (inclusive)
-    j = rand() % (i + 1);
+    int j = rand() % (i + 1);
     
     // Swap arr[i] with the randomly selected element arr[j]
-    temp = arr[i];
+    int temp = arr[i];
     arr[i] = arr[j];
     arr[j] = temp;
   }
@@ -918,6 +922,12 @@ int main(int argc, char* argv[])
 
   double elapsedTime;
 
+  /* int victims[10]; */
+  /* permute(victims,10); */
+
+  /* for(int i = 0; i < 10; i++) */
+  /*   printf("victims[%d] = %d \n", i, victims[i]); */
+  
   pfsp_search(inst, lb, m, M, nbGPU, &optimum, &exploredTree, &exploredSol, &elapsedTime);
 
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
