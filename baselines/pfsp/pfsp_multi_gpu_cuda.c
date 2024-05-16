@@ -173,6 +173,7 @@ Node* popBackBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolS
   }
   
   Node* parents = NULL;
+  *poolSize = 0;
   return parents;
 }
 
@@ -673,7 +674,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
     int nSteal, nSSteal;
     unsigned long long int tree = 0, sol = 0;
-    SinglePool_ext pool_loc = multiPool[gpuID];
+    SinglePool_ext* pool_loc;
+    pool_loc = &multiPool[gpuID];
     //initSinglePool(&pool_loc);
 
     // How to relate this pool_loc to multiPool?
@@ -684,14 +686,14 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
     // each task gets its chunk
     for (int i = 0; i < c; i++) {
-      pool_loc.elements[i] = pool.elements[gpuID+f+i*D];
+      pool_loc->elements[i] = pool.elements[gpuID+f+i*D];
     }
-    pool_loc.size += c;
+    pool_loc->size += c;
     if (gpuID == D-1) {
       for (int i = c; i < l; i++) {
-        pool_loc.elements[i] = pool.elements[(D*c)+f+i-c];
+        pool_loc->elements[i] = pool.elements[(D*c)+f+i-c];
       }
-      pool_loc.size += l-c;
+      pool_loc->size += l-c;
     }
     
     // Allocating parents vector on CPU and GPU
@@ -711,7 +713,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	Each task gets its parenst nodes from the pool
       */
       
-      int poolSize = popBackBulk(&pool_loc, m, M, parents);
+      int poolSize = popBackBulk(pool_loc, m, M, parents);
       
       if (poolSize > 0) {
         if (taskState == true) {
@@ -739,7 +741,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	/*
 	  each task generates and inserts its children nodes to the pool.
 	*/
-	generate_children(parents, poolSize, jobs, bounds, &tree, &sol, &best_l, &pool_loc);
+	generate_children(parents, poolSize, jobs, bounds, &tree, &sol, &best_l, pool_loc);
       }
       else {
         // work stealing
@@ -781,7 +783,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 		     pool_loc.pushBack(p[i]);
 		     } */
 		  
-		  pushBackBulk(&pool_loc, p, size);
+		  pushBackBulk(pool_loc, p, size);
 		  
 		  steal = true;
 		  nSSteal++;
@@ -837,10 +839,10 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     //Here we are reinserting the rest of the work in the CPU pool
 #pragma omp critical
     {
-      const int poolLocSize = pool_loc.size;
+      const int poolLocSize = pool_loc->size;
       for (int i = 0; i < poolLocSize; i++) {
 	int hasWork = 0;
-	pushBack(&pool, popBack(&pool_loc, &hasWork));
+	pushBack(&pool, popBack(pool_loc, &hasWork));
 	if (!hasWork) break;
       }
     }
@@ -849,8 +851,12 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     eachExploredSol[gpuID] = sol;
     eachBest[gpuID] = best_l;
 
-    deleteSinglePool_ext(&pool_loc);
+    deleteSinglePool_ext(pool_loc);
   }
+  // freeing multiPool?
+  //for(int i = 0; i < D; i++)
+  //initSinglePool(&multiPool[i]);
+
   endTime = omp_get_wtime();
   double t2 = endTime - startTime;
 
@@ -919,7 +925,16 @@ int main(int argc, char* argv[])
 
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
 
-  printf("We are done\n");
+
+  /* int victims[10]; */
+
+  /* permute(victims,10); */
+
+  /* for(int i = 0; i < 10; i++) */
+  /*   printf("victims[%d] = %d\n",i,victims[i]); */
+
+  
+  /* printf("We are done\n"); */
 
   return 0;
 }
