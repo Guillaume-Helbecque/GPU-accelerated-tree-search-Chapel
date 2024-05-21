@@ -69,7 +69,7 @@ void initSinglePool(SinglePool_ext* pool)
   pool->capacity = CAPACITY;
   pool->front = 0;
   pool->size = 0;
-  atomic_store(&pool->lock,false);
+  atomic_store(&(pool->lock),false);
 }
 
 void pushBack(SinglePool_ext* pool, Node node) {
@@ -85,7 +85,7 @@ void pushBack(SinglePool_ext* pool, Node node) {
       // Copy node to the end of elements array
       pool->elements[pool->front + pool->size] = node;
       pool->size += 1;
-      atomic_store(&pool->lock,false);
+      atomic_store(&(pool->lock),false);
       return;
     }
 
@@ -108,7 +108,7 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
       for(int i = 0; i < s; i++)
 	pool->elements[pool->front + pool->size+i] = nodes[i];
       pool->size += s;
-      atomic_store(&pool->lock,false);
+      atomic_store(&(pool->lock),false);
       return;
     }
     
@@ -130,7 +130,7 @@ Node popBack(SinglePool_ext* pool, int* hasWork) {
 	atomic_store(&pool->lock,false);
 	return elt;
       } else {
-	atomic_store(&pool->lock,false);
+	atomic_store(&(pool->lock),false);
 	break;
       }
     }
@@ -155,7 +155,7 @@ int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
   while(true) {
     if (atomic_compare_exchange_strong(&(pool->lock), &desired, expected)) {
       if (pool->size < m) {
-	atomic_store(&pool->lock,false);
+	atomic_store(&(pool->lock),false);
 	break;
       }
       else{
@@ -163,7 +163,7 @@ int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
 	pool->size -= poolSize;
 	for(int i = 0; i < poolSize; i++)
 	  parents[i] = pool->elements[pool->front + pool->size+i];
-	atomic_store(&pool->lock,false);
+	atomic_store(&(pool->lock),false);
 	return poolSize;
       }
     }
@@ -563,9 +563,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   _Atomic bool eachTaskState[D]; // one task per GPU
   for(int i = 0; i < D; i++)
     atomic_store(&eachTaskState[i],false);
-  bool expected = IDLE;
-  bool desired = BUSY;
-
+ 
   // Timer
   // struct timespec start, end;
   // clock_gettime(CLOCK_MONOTONIC_RAW, &start);
@@ -640,6 +638,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 #pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool, multiPool, lbound1, lbound2)
   for (int gpuID = 0; gpuID < D; gpuID++) {
     cudaSetDevice(gpuID);
+
+    bool expected = IDLE;
+    bool desired = BUSY;
     
     int nSteal = 0, nSSteal = 0;
     
@@ -792,7 +793,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 		  Node* p = popBackBulkFree(victim, m, M, &size);
 		  
 		  if (size == 0) { // there is no more work
-		    victim->lock = false; // reset lock
+		    atomic_store(&(victim->lock), false); // reset lock
 		    //fprintf(stderr, "DEADCODE in work stealing\n");
 		    //exit(EXIT_FAILURE);
 		  }
