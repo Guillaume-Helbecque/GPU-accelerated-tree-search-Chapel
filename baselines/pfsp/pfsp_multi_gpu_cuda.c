@@ -624,6 +624,26 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   for (int gpuID = 0; gpuID < D; gpuID++) {
     cudaSetDevice(gpuID);
     
+    int nSteal = 0, nSSteal = 0;
+    
+    unsigned long long int tree = 0, sol = 0;
+    SinglePool_ext* pool_loc;
+    pool_loc = &multiPool[gpuID]; 
+    int best_l = *best;
+    bool taskState = false;
+
+    // each task gets its chunk
+    for (int i = 0; i < c; i++) {
+      pool_loc->elements[i] = pool.elements[gpuID+f+i*D];
+    }
+    pool_loc->size += c;
+    if (gpuID == D-1) {
+      for (int i = c; i < l; i++) {
+        pool_loc->elements[i] = pool.elements[(D*c)+f+i-c];
+      }
+      pool_loc->size += l-c;
+    }
+    
     // Vectors for deep copy of lbound1 to device
     lb1_bound_data lbound1_d;
     int* p_times_d;
@@ -675,26 +695,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     lbound2_d.nb_machine_pairs = lbound2->nb_machine_pairs;
     lbound2_d.nb_jobs = lbound2->nb_jobs;
     lbound2_d.nb_machines = lbound2->nb_machines;
-
-    int nSteal = 0, nSSteal = 0;
-    unsigned long long int tree = 0, sol = 0;
-    SinglePool_ext* pool_loc;
-    pool_loc = &multiPool[gpuID];
-    
-    int best_l = *best;
-    bool taskState = false;
-
-    // each task gets its chunk
-    for (int i = 0; i < c; i++) {
-      pool_loc->elements[i] = pool.elements[gpuID+f+i*D];
-    }
-    pool_loc->size += c;
-    if (gpuID == D-1) {
-      for (int i = c; i < l; i++) {
-        pool_loc->elements[i] = pool.elements[(D*c)+f+i-c];
-      }
-      pool_loc->size += l-c;
-    }
     
     // Allocating parents vector on CPU and GPU
     Node* parents = (Node*)malloc(M * sizeof(Node));
@@ -767,7 +767,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             while (nn < 10) {
               if (__sync_bool_compare_and_swap(&(victim->lock),false, true)) { // get the lock
 		int size = victim->size;
-		//printf("Victims with ID[%d] and gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
+		printf("Victim with ID[%d] and our gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
 		
 		if (size >= 2*m) {
 		  //printf("Size of the pool is big enough\n");
