@@ -218,7 +218,7 @@ Auxiliary functions
 // Function to check if all elements in an array of atomic bool are IDLE
 bool _allIdle(const _Atomic bool arr[], int size) {
   for (int i = 0; i < size; i++) {
-    if (arr[i] == false) {
+    if (atomic_load(&arr[i]) == false) {
       return false;
     }
   }
@@ -227,11 +227,11 @@ bool _allIdle(const _Atomic bool arr[], int size) {
 
 // Function to check if all elements in arr are IDLE and update flag accordingly
 bool allIdle(const _Atomic bool arr[], int size, _Atomic bool *flag) {
-  if (*flag) {
+  if (atomic_load(flag)) {
     return true; // fast exit
   } else {
     if (_allIdle(arr, size)) {
-      *flag = true;
+      atomic_store(flag,true);
       return true;
     } else {
       return false;
