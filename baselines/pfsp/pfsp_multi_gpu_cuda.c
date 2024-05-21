@@ -13,6 +13,7 @@
 #include <math.h>
 #include <omp.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 //#include <cuda.h>
 #include <cuda_runtime.h>
 
@@ -50,13 +51,16 @@ void initRoot(Node* root, const int jobs)
 
 #define CAPACITY 1024
 
+#define BUSY false
+#define IDLE true
+
 typedef struct
 {
   Node* elements;
   int capacity;
   int front;
   int size;
-  bool lock;
+  _Atomic bool lock;
 } SinglePool_ext;
 
 void initSinglePool(SinglePool_ext* pool)
@@ -65,12 +69,14 @@ void initSinglePool(SinglePool_ext* pool)
   pool->capacity = CAPACITY;
   pool->front = 0;
   pool->size = 0;
-  pool->lock = false;
+  atomic_store(&pool->lock,false);
 }
 
 void pushBack(SinglePool_ext* pool, Node node) {
+  bool expected = IDLE;
+  bool desired = BUSY;
   while (true) {
-    if (__sync_bool_compare_and_swap(&(pool->lock), false, true)) {
+    if (atomic_compare_exchange_strong(&(pool->lock), &desired, expected)) {
       if (pool->front + pool->size >= pool->capacity) {
 	pool->capacity *= 2;
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
@@ -79,7 +85,7 @@ void pushBack(SinglePool_ext* pool, Node node) {
       // Copy node to the end of elements array
       pool->elements[pool->front + pool->size] = node;
       pool->size += 1;
-      pool->lock = false;
+      atomic_store(&pool->lock,false);
       return;
     }
 
@@ -89,8 +95,10 @@ void pushBack(SinglePool_ext* pool, Node node) {
 
 void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
   int s = size;
+  bool expected = IDLE;
+  bool desired = BUSY;
   while (true) {
-    if (__sync_bool_compare_and_swap(&(pool->lock), false, true)) {
+    if (atomic_compare_exchange_strong(&(pool->lock),&desired, expected)) {
       if (pool->front + pool->size >= pool->capacity) {
 	pool->capacity *= 2;
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
@@ -100,7 +108,7 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
       for(int i = 0; i < s; i++)
 	pool->elements[pool->front + pool->size+i] = nodes[i];
       pool->size += s;
-      pool->lock = false;
+      atomic_store(&pool->lock,false);
       return;
     }
     
@@ -109,18 +117,20 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
 }
 
 Node popBack(SinglePool_ext* pool, int* hasWork) {
+  bool expected = IDLE;
+  bool desired = BUSY;
   while (true) {
-    if (__sync_bool_compare_and_swap(&(pool->lock), false, true)) {
+    if (atomic_compare_exchange_strong(&(pool->lock), &desired, expected)) {
       if (pool->size > 0) {
 	*hasWork = 1;
 	pool->size -= 1;
 	// Copy last element to elt
 	Node elt;
 	elt = pool->elements[pool->front + pool->size];
-	pool->lock = false;
+	atomic_store(&pool->lock,false);
 	return elt;
       } else {
-	pool->lock = false;
+	atomic_store(&pool->lock,false);
 	break;
       }
     }
@@ -140,10 +150,12 @@ Node popBackFree(SinglePool_ext* pool, int* hasWork) {
 }
 
 int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
+  bool expected = IDLE;
+  bool desired = BUSY;
   while(true) {
-    if (__sync_bool_compare_and_swap(&(pool->lock), false, true)) {
+    if (atomic_compare_exchange_strong(&(pool->lock), &desired, expected)) {
       if (pool->size < m) {
-	pool->lock = false;
+	atomic_store(&pool->lock,false);
 	break;
       }
       else{
@@ -151,7 +163,7 @@ int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
 	pool->size -= poolSize;
 	for(int i = 0; i < poolSize; i++)
 	  parents[i] = pool->elements[pool->front + pool->size+i];
-	pool->lock = false;
+	atomic_store(&pool->lock,false);
 	return poolSize;
       }
     }
@@ -196,7 +208,7 @@ void deleteSinglePool_ext(SinglePool_ext* pool) {
   pool->capacity = 0;
   pool->front = 0;
   pool->size = 0;
-  pool->lock = false;
+  atomic_store(&pool->lock,false);
 }
 
 /******************************************************************************
@@ -204,7 +216,7 @@ Auxiliary functions
 ******************************************************************************/
 
 // Function to check if all elements in an array of atomic bool are IDLE
-bool _allIdle(const bool arr[], int size) {
+bool _allIdle(const _Atomic bool arr[], int size) {
   for (int i = 0; i < size; i++) {
     if (arr[i] == false) {
       return false;
@@ -214,7 +226,7 @@ bool _allIdle(const bool arr[], int size) {
 }
 
 // Function to check if all elements in arr are IDLE and update flag accordingly
-bool allIdle(const bool arr[], int size, bool *flag) {
+bool allIdle(const _Atomic bool arr[], int size, _Atomic bool *flag) {
   if (*flag) {
     return true; // fast exit
   } else {
@@ -544,10 +556,12 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   pushBack(&pool, root);
 
   // Boolean variables for dynamic workload balance
-  bool allTasksIdleFlag = false;
-  bool eachTaskState[D]; // one task per GPU
+  _Atomic bool allTasksIdleFlag = false;
+  _Atomic bool eachTaskState[D]; // one task per GPU
   for(int i = 0; i < D; i++)
-    eachTaskState[i] = false;
+    atomic_store(&eachTaskState[i],false);
+  bool expected = IDLE;
+  bool desired = BUSY;
 
   // Timer
   // struct timespec start, end;
@@ -718,7 +732,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       if (poolSize > 0) {
         if (taskState == true) {
           taskState = false;
-          eachTaskState[gpuID] = false;
+          atomic_store(&eachTaskState[gpuID],false);
         }
       
 	/*
@@ -765,9 +779,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             int nn = 0;
 	    
             while (nn < 10) {
-              if (__sync_bool_compare_and_swap(&(victim->lock),false, true)) { // get the lock
+	      if (atomic_compare_exchange_strong(&(victim->lock),&desired, expected)){ // get the lock
 		int size = victim->size;
-		printf("Victim with ID[%d] and our gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
+		//printf("Victim with ID[%d] and our gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
 		
 		if (size >= 2*m) {
 		  //printf("Size of the pool is big enough\n");
@@ -788,11 +802,11 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 		  
 		  steal = true;
 		  nSSteal++;
-		  victim->lock = false; // reset lock
+		  atomic_store(&(victim->lock), false); // reset lock
 		  break; // Break out of WS0 loop
 		}
 		
-		victim->lock = false; // reset lock
+		atomic_store(&(victim->lock), false);// reset lock
 		break; // Break out of WS1 loop
 	      }
 	      
@@ -808,7 +822,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	  // termination
 	  if (taskState == false) {
 	    taskState = true;
-	    eachTaskState[gpuID] = true;
+	    atomic_store(&eachTaskState[gpuID],true);
 	  }
 	  if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
 	    /* writeln("task ", gpuID, " exits normally"); */
