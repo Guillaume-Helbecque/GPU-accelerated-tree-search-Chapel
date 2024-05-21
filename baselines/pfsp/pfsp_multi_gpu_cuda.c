@@ -63,6 +63,17 @@ typedef struct
   _Atomic bool lock;
 } SinglePool_ext;
 
+bool compare_and_swap(_Atomic bool* object, bool expected, bool desired) {
+    // Read the original value
+    bool original = atomic_load(object);
+
+    // Perform the atomic compare and exchange operation
+    atomic_compare_exchange_strong(object, &expected, desired);
+
+    // Return the original value before the operation
+    return original;
+}
+
 void initSinglePool(SinglePool_ext* pool)
 {
   pool->elements = (Node*)malloc(CAPACITY * sizeof(Node));
@@ -73,10 +84,10 @@ void initSinglePool(SinglePool_ext* pool)
 }
 
 void pushBack(SinglePool_ext* pool, Node node) {
-  bool expected = IDLE;
-  bool desired = BUSY;
+  bool desired = IDLE;
+  bool expected = BUSY;
   while (true) {
-    if (atomic_compare_exchange_strong(&(pool->lock), &desired, expected)) {
+    if (compare_and_swap(&(pool->lock), expected, desired)) {
       if (pool->front + pool->size >= pool->capacity) {
 	pool->capacity *= 2;
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
@@ -95,10 +106,10 @@ void pushBack(SinglePool_ext* pool, Node node) {
 
 void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
   int s = size;
-  bool expected = IDLE;
-  bool desired = BUSY;
+  bool desired = IDLE;
+  bool expected = BUSY;
   while (true) {
-    if (atomic_compare_exchange_strong(&(pool->lock),&desired, expected)) {
+    if (compare_and_swap(&(pool->lock), expected, desired)) {
       if (pool->front + pool->size >= pool->capacity) {
 	pool->capacity *= 2;
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
@@ -117,10 +128,10 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
 }
 
 Node popBack(SinglePool_ext* pool, int* hasWork) {
-  bool expected = IDLE;
-  bool desired = BUSY;
+  bool desired = IDLE;
+  bool expected = BUSY;
   while (true) {
-    if (atomic_compare_exchange_strong(&(pool->lock), &desired, expected)) {
+    if (compare_and_swap(&(pool->lock), expected, desired)) {
       if (pool->size > 0) {
 	*hasWork = 1;
 	pool->size -= 1;
@@ -150,10 +161,10 @@ Node popBackFree(SinglePool_ext* pool, int* hasWork) {
 }
 
 int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
-  bool expected = IDLE;
-  bool desired = BUSY;
+  bool desired = IDLE;
+  bool expected = BUSY;
   while(true) {
-    if (atomic_compare_exchange_strong(&(pool->lock), &desired, expected)) {
+    if (compare_and_swap(&(pool->lock), expected, desired)) {
       if (pool->size < m) {
 	atomic_store(&(pool->lock),false);
 	break;
@@ -639,8 +650,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   for (int gpuID = 0; gpuID < D; gpuID++) {
     cudaSetDevice(gpuID);
 
-    bool expected = IDLE;
-    bool desired = BUSY;
+    bool desired = IDLE;
+    bool expected = BUSY;
     
     int nSteal = 0, nSSteal = 0;
     
@@ -781,9 +792,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	    victim = &multiPool[victimID];
             nSteal ++;
             int nn = 0;
-	    
+	   
             while (nn < 10) {
-	      if (atomic_compare_exchange_strong(&(victim->lock),&desired, expected)){ // get the lock
+	      if (compare_and_swap(&(victim->lock), expected, desired)){ // get the lock
 		int size = victim->size;
 		//printf("Victim with ID[%d] and our gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
 		
