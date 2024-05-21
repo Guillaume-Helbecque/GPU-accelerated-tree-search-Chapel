@@ -572,8 +572,11 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   // Boolean variables for dynamic workload balance
   _Atomic bool allTasksIdleFlag = false;
   _Atomic bool eachTaskState[D]; // one task per GPU
-  for(int i = 0; i < D; i++)
+  for(int i = 0; i < D; i++){
     atomic_store(&eachTaskState[i],false);
+    bool value = atomic_load(&eachTaskState[i]);
+    printf("For gpuID[%d] TaskState = %d\n",i,value);
+  }
  
   // Timer
   // struct timespec start, end;
