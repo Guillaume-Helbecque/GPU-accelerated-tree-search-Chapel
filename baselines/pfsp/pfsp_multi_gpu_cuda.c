@@ -821,6 +821,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       }
     }
     
+    double time_partial = omp_get_wtime();
+
+    printf("\nTime for GPU[%d] = %f\n", gpuID, time_partial - startTime);
     
     // OpenMP environment freeing variables
     cudaFree(parents_d);
