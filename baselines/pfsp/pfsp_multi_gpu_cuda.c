@@ -572,11 +572,11 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   // Boolean variables for dynamic workload balance
   _Atomic bool allTasksIdleFlag = false;
   _Atomic bool eachTaskState[D]; // one task per GPU
-  for(int i = 0; i < D; i++){
+  for(int i = 0; i < D; i++)//{
     atomic_store(&eachTaskState[i],false);
-    bool value = atomic_load(&eachTaskState[i]);
-    printf("For gpuID[%d] TaskState = %d\n",i,value);
-  }
+    //bool value = atomic_load(&eachTaskState[i]);
+    //printf("For gpuID[%d] TaskState = %d\n",i,value);
+    //}
  
   // Timer
   // struct timespec start, end;
@@ -804,9 +804,10 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 		if (size >= 2*m) {
 		  //printf("Size of the pool is big enough\n");
 		  // Here size plays the role of variable hasWork
-		  Node* p = popBackBulkFree(victim, m, M, &size);
+		  int hasWork = 0;
+		  Node* p = popBackBulkFree(victim, m, M, &hasWork);
 		  
-		  if (size == 0) { // there is no more work
+		  if (hasWork == 0) { // there is no more work
 		    atomic_store(&(victim->lock), false); // reset lock
 		    //fprintf(stderr, "DEADCODE in work stealing\n");
 		    //exit(EXIT_FAILURE);
