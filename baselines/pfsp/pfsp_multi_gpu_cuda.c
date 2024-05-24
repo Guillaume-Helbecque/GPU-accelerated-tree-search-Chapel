@@ -84,10 +84,10 @@ void initSinglePool(SinglePool_ext* pool)
 }
 
 void pushBack(SinglePool_ext* pool, Node node) {
-  bool desired = IDLE;
-  bool expected = BUSY;
+  bool desired = true;
+  bool expected = false;
   while (true) {
-    if (compare_and_swap(&(pool->lock), expected, desired)) {
+    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
       if (pool->front + pool->size >= pool->capacity) {
 	pool->capacity *= 2;
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
@@ -98,6 +98,8 @@ void pushBack(SinglePool_ext* pool, Node node) {
       pool->size += 1;
       atomic_store(&(pool->lock),false);
       return;
+    } else{
+      return;
     }
 
     // Yield execution (use appropriate synchronization in actual implementation)
@@ -106,10 +108,10 @@ void pushBack(SinglePool_ext* pool, Node node) {
 
 void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
   int s = size;
-  bool desired = IDLE;
-  bool expected = BUSY;
+  bool desired = true;
+  bool expected = false;
   while (true) {
-    if (compare_and_swap(&(pool->lock), expected, desired)) {
+    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
       if (pool->front + pool->size >= pool->capacity) {
 	pool->capacity *= 2;
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
@@ -122,16 +124,18 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
       atomic_store(&(pool->lock),false);
       return;
     }
-    
+    else{
+      return;
+    }    
     // Yield execution (use appropriate synchronization in actual implementation)
   }
 }
 
 Node popBack(SinglePool_ext* pool, int* hasWork) {
-  bool desired = IDLE;
-  bool expected = BUSY;
+  bool desired = true;
+  bool expected = false;
   while (true) {
-    if (compare_and_swap(&(pool->lock), expected, desired)) {
+    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
       if (pool->size > 0) {
 	*hasWork = 1;
 	pool->size -= 1;
@@ -144,6 +148,8 @@ Node popBack(SinglePool_ext* pool, int* hasWork) {
 	atomic_store(&(pool->lock),false);
 	break;
       }
+    } else{
+      return (Node){0};
     }
     // Yield execution (use appropriate synchronization in actual implementation)
   }
@@ -161,10 +167,10 @@ Node popBackFree(SinglePool_ext* pool, int* hasWork) {
 }
 
 int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
-  bool desired = IDLE;
-  bool expected = BUSY;
+  bool desired = true;
+  bool expected = false;
   while(true) {
-    if (compare_and_swap(&(pool->lock), expected, desired)) {
+    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
       if (pool->size < m) {
 	atomic_store(&(pool->lock),false);
 	break;
@@ -177,6 +183,8 @@ int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
 	atomic_store(&(pool->lock),false);
 	return poolSize;
       }
+    }else{
+      return pool->size;
     }
     // Yield execution (use appropriate synchronization in actual implementation)
   }
@@ -653,8 +661,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   for (int gpuID = 0; gpuID < D; gpuID++) {
     cudaSetDevice(gpuID);
 
-    bool desired = IDLE;
-    bool expected = BUSY;
+    bool desired = true;
+    bool expected = false;
     
     int nSteal = 0, nSSteal = 0;
     
@@ -797,17 +805,17 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             int nn = 0;
 	   
             while (nn < 10) {
-	      if (compare_and_swap(&(victim->lock), expected, desired)){ // get the lock
+	      if (atomic_compare_exchange_strong(&(victim->lock), &expected, desired)){ // get the lock
 		int size = victim->size;
 		//printf("Victim with ID[%d] and our gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
 		
 		if (size >= 2*m) {
 		  //printf("Size of the pool is big enough\n");
 		  // Here size plays the role of variable hasWork
-		  int hasWork = 0;
-		  Node* p = popBackBulkFree(victim, m, M, &hasWork);
+		  //int hasWork = 0;
+		  Node* p = popBackBulkFree(victim, m, M, &size);
 		  
-		  if (hasWork == 0) { // there is no more work
+		  if (size == 0) { // there is no more work
 		    atomic_store(&(victim->lock), false); // reset lock
 		    //fprintf(stderr, "DEADCODE in work stealing\n");
 		    //exit(EXIT_FAILURE);
