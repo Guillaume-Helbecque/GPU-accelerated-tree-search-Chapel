@@ -200,6 +200,7 @@ Node* popBackBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolS
       parents[i] = pool->elements[pool->front + pool->size+i];
     return parents;
   }else{
+    printf("DEADCODE\n");
     return NULL;
   }
   
