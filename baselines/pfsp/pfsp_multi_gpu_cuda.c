@@ -63,16 +63,16 @@ typedef struct
   _Atomic bool lock;
 } SinglePool_ext;
 
-bool compare_and_swap(_Atomic bool* object, bool expected, bool desired) {
-    // Read the original value
-    bool original = atomic_load(object);
+/* bool compare_and_swap(_Atomic bool* object, bool expected, bool desired) { */
+/*     // Read the original value */
+/*     bool original = atomic_load(object); */
 
-    // Perform the atomic compare and exchange operation
-    atomic_compare_exchange_strong(object, &expected, desired);
+/*     // Perform the atomic compare and exchange operation */
+/*     atomic_compare_exchange_strong(object, &expected, desired); */
 
-    // Return the original value before the operation
-    return original;
-}
+/*     // Return the original value before the operation */
+/*     return original; */
+/* } */
 
 void initSinglePool(SinglePool_ext* pool)
 {
@@ -98,9 +98,9 @@ void pushBack(SinglePool_ext* pool, Node node) {
       pool->size += 1;
       atomic_store(&(pool->lock),false);
       return;
-    } else{
-      return;
-    }
+    } /* else{ */
+    /*   return; */
+    /* } */
 
     // Yield execution (use appropriate synchronization in actual implementation)
   }
@@ -124,9 +124,9 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
       atomic_store(&(pool->lock),false);
       return;
     }
-    else{
-      return;
-    }    
+    /* else{ */
+    /*   return; */
+    /* }    */ 
     // Yield execution (use appropriate synchronization in actual implementation)
   }
 }
@@ -148,9 +148,9 @@ Node popBack(SinglePool_ext* pool, int* hasWork) {
 	atomic_store(&(pool->lock),false);
 	break;
       }
-    } else{
-      return (Node){0};
-    }
+    } /* else{ */
+    /*   return (Node){0}; */
+    /* } */
     // Yield execution (use appropriate synchronization in actual implementation)
   }
   return (Node){0};
@@ -183,9 +183,9 @@ int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
 	atomic_store(&(pool->lock),false);
 	return poolSize;
       }
-    }else{
-      return pool->size;
-    }
+    }/* else{ */
+    /*   return pool->size; */
+    /* } */
     // Yield execution (use appropriate synchronization in actual implementation)
   }
   return 0;
