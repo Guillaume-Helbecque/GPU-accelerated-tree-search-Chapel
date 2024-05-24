@@ -818,6 +818,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 		  
 		  if (size == 0) { // there is no more work
 		    atomic_store(&(victim->lock), false); // reset lock
+		    printf("\nDEADCODE\n");
 		    //fprintf(stderr, "DEADCODE in work stealing\n");
 		    //exit(EXIT_FAILURE);
 		  }
