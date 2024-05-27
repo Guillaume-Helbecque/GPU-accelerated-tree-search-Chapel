@@ -87,7 +87,7 @@ void pushBack(SinglePool_ext* pool, Node node) {
   bool desired = true;
   bool expected = false;
   while (true) {
-    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
+    if (atomic_compare_exchange_weak(&(pool->lock), &expected, desired)) {
       if (pool->front + pool->size >= pool->capacity) {
 	pool->capacity *= 2;
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
@@ -111,7 +111,7 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
   bool desired = true;
   bool expected = false;
   while (true) {
-    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
+    if (atomic_compare_exchange_weak(&(pool->lock), &expected, desired)) {
       if (pool->front + pool->size >= pool->capacity) {
 	pool->capacity *= 2;
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
@@ -135,7 +135,7 @@ Node popBack(SinglePool_ext* pool, int* hasWork) {
   bool desired = true;
   bool expected = false;
   while (true) {
-    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
+    if (atomic_compare_exchange_weak(&(pool->lock), &expected, desired)) {
       if (pool->size > 0) {
 	*hasWork = 1;
 	pool->size -= 1;
@@ -170,7 +170,7 @@ int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
   bool desired = true;
   bool expected = false;
   while(true) {
-    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
+    if (atomic_compare_exchange_weak(&(pool->lock), &expected, desired)) {
       if (pool->size < m) {
 	atomic_store(&(pool->lock),false);
 	break;
@@ -806,7 +806,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             int nn = 0;
 	   
             while (nn < 10) {
-	      if (atomic_compare_exchange_strong(&(victim->lock), &expected, desired)){ // get the lock
+	      if (atomic_compare_exchange_weak(&(victim->lock), &expected, desired)){ // get the lock
 		int size = victim->size;
 		//printf("Victim with ID[%d] and our gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
 		
