@@ -87,7 +87,8 @@ void pushBack(SinglePool_ext* pool, Node node) {
   bool desired = true;
   bool expected = false;
   while (true) {
-    if (atomic_compare_exchange_weak(&(pool->lock), &expected, desired)) {
+    // We just leave this while loop after the next if has a true value as argument
+    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
       if (pool->front + pool->size >= pool->capacity) {
 	pool->capacity *= 2;
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
@@ -98,9 +99,7 @@ void pushBack(SinglePool_ext* pool, Node node) {
       pool->size += 1;
       atomic_store(&(pool->lock),false);
       return;
-    } /* else{ */
-    /*   return; */
-    /* } */
+    } 
 
     // Yield execution (use appropriate synchronization in actual implementation)
   }
@@ -111,7 +110,7 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
   bool desired = true;
   bool expected = false;
   while (true) {
-    if (atomic_compare_exchange_weak(&(pool->lock), &expected, desired)) {
+    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
       if (pool->front + pool->size >= pool->capacity) {
 	pool->capacity *= 2;
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
@@ -123,10 +122,7 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
       pool->size += s;
       atomic_store(&(pool->lock),false);
       return;
-    }
-    /* else{ */
-    /*   return; */
-    /* }    */ 
+    } 
     // Yield execution (use appropriate synchronization in actual implementation)
   }
 }
@@ -135,7 +131,7 @@ Node popBack(SinglePool_ext* pool, int* hasWork) {
   bool desired = true;
   bool expected = false;
   while (true) {
-    if (atomic_compare_exchange_weak(&(pool->lock), &expected, desired)) {
+    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
       if (pool->size > 0) {
 	*hasWork = 1;
 	pool->size -= 1;
@@ -148,9 +144,8 @@ Node popBack(SinglePool_ext* pool, int* hasWork) {
 	atomic_store(&(pool->lock),false);
 	break;
       }
-    } /* else{ */
-    /*   return (Node){0}; */
-    /* } */
+    }
+    
     // Yield execution (use appropriate synchronization in actual implementation)
   }
   return (Node){0};
@@ -170,7 +165,7 @@ int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
   bool desired = true;
   bool expected = false;
   while(true) {
-    if (atomic_compare_exchange_weak(&(pool->lock), &expected, desired)) {
+    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
       if (pool->size < m) {
 	atomic_store(&(pool->lock),false);
 	break;
@@ -183,9 +178,7 @@ int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
 	atomic_store(&(pool->lock),false);
 	return poolSize;
       }
-    }/* else{ */
-    /*   return pool->size; */
-    /* } */
+    }
     // Yield execution (use appropriate synchronization in actual implementation)
   }
   return 0;
