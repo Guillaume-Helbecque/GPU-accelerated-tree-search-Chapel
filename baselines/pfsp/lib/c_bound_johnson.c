@@ -26,8 +26,6 @@ lb2_bound_data* new_johnson_bd_data(const lb1_bound_data *const lb1_data/*, enum
 
   b->lags = malloc(b->nb_machine_pairs*b->nb_jobs*sizeof(int));
   b->johnson_schedules = malloc(b->nb_machine_pairs*b->nb_jobs*sizeof(int));
-  // b->machine_pairs[0] = malloc(b->nb_machine_pairs*sizeof(int));
-  // b->machine_pairs[1] = malloc(b->nb_machine_pairs*sizeof(int));
   b->machine_pairs_1 = malloc(b->nb_machine_pairs*sizeof(int));
   b->machine_pairs_2 = malloc(b->nb_machine_pairs*sizeof(int));
   b->machine_pair_order = malloc(b->nb_machine_pairs*sizeof(int));
@@ -40,8 +38,6 @@ void free_johnson_bd_data(lb2_bound_data* lb2_data)
   if (lb2_data) {
     free(lb2_data->lags);
     free(lb2_data->johnson_schedules);
-    /* free(lb2_data->machine_pairs[0]); */
-    /* free(lb2_data->machine_pairs[1]); */
     free(lb2_data->machine_pairs_1);
     free(lb2_data->machine_pairs_2);
     free(lb2_data->machine_pair_order);
@@ -65,8 +61,6 @@ void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/)
       unsigned c = 0;
       for (int i = 0; i < lb2_data->nb_machines-1; i++) {
         for (int j = i+1; j < lb2_data->nb_machines; j++) {
-          /* lb2_data->machine_pairs[0][c] = i; */
-          /* lb2_data->machine_pairs[1][c] = j; */
 	  lb2_data->machine_pairs_1[c] = i;
           lb2_data->machine_pairs_2[c] = j;
           lb2_data->machine_pair_order[c] = c;
@@ -78,9 +72,7 @@ void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/)
     case LB2_NABESHIMA:
     {
       for (int i = 0; i < lb2_data->nb_machines-1; i++) {
-        /* lb2_data->machine_pairs[0][i] = i; */
-        /* lb2_data->machine_pairs[1][i] = i+1; */
-	lb2_data->machine_pairs_1[i] = i;
+       	lb2_data->machine_pairs_1[i] = i;
         lb2_data->machine_pairs_2[i] = i+1;
         lb2_data->machine_pair_order[i] = i;
       }
@@ -89,9 +81,7 @@ void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/)
     case LB2_LAGEWEG:
     {
       for (int i = 0; i < lb2_data->nb_machines-1; i++) {
-        /* lb2_data->machine_pairs[0][i] = i; */
-        /* lb2_data->machine_pairs[1][i] = lb2_data->nb_machines-1; */
-	lb2_data->machine_pairs_1[i] = i;
+       	lb2_data->machine_pairs_1[i] = i;
         lb2_data->machine_pairs_2[i] = lb2_data->nb_machines-1;
         lb2_data->machine_pair_order[i] = i;
       }
@@ -106,8 +96,6 @@ void fill_lags(const int *const lb1_p_times, const lb2_bound_data *const lb2_dat
   const int N = lb2_data->nb_jobs;
 
   for (int i = 0; i < lb2_data->nb_machine_pairs; i++) {
-    /* const int m1 = lb2_data->machine_pairs[0][i]; */
-    /* const int m2 = lb2_data->machine_pairs[1][i]; */
     const int m1 = lb2_data->machine_pairs_1[i];
     const int m2 = lb2_data->machine_pairs_2[i];
 
@@ -165,8 +153,6 @@ void fill_johnson_schedules(const int *const lb1_p_times, const lb2_bound_data *
 
   //for all machine-pairs
   for (int k = 0; k < lb2_data->nb_machine_pairs; k++) {
-    /* int m1 = lb2_data->machine_pairs[0][k]; */
-    /* int m2 = lb2_data->machine_pairs[1][k]; */
     int m1 = lb2_data->machine_pairs_1[k];
     int m2 = lb2_data->machine_pairs_2[k];
     
@@ -230,8 +216,6 @@ int lb_makespan(const int* const lb1_p_times, const lb2_bound_data* const lb2_da
   for (int l = 0; l < lb2_data->nb_machine_pairs; l++) {
     int i = lb2_data->machine_pair_order[l];
 
-    /* int ma0 = lb2_data->machine_pairs[0][i]; */
-    /* int ma1 = lb2_data->machine_pairs[1][i]; */
     int ma0 = lb2_data->machine_pairs_1[i];
     int ma1 = lb2_data->machine_pairs_2[i];
     
@@ -271,85 +255,85 @@ int lb2_bound(const lb1_bound_data* const lb1_data, const lb2_bound_data* const 
 
 // UNUSED FUNCTIONS
 
-/* //allows variable nb of machine pairs and get machine pair the realized best lb */
-/* int lb_makespan_learn(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int *best_index) */
-/* { */
-/*   int lb = 0; */
+/*
+//allows variable nb of machine pairs and get machine pair the realized best lb
+int lb_makespan_learn(const int* const lb1_p_times, const lb2_bound_data* const lb2_data, const int* const flag, const int* const front, const int* const back, const int minCmax, const int nb_pairs, int *best_index)
+{
+  int lb = 0;
 
-/*   for (int l = 0; l < nb_pairs; l++) { */
-/*     int i = lb2_data->machine_pair_order[l]; */
-    
-/*     /\* int ma0 = lb2_data->machine_pairs[0][i]; *\/ */
-/*     /\* int ma1 = lb2_data->machine_pairs[1][i]; *\/ */
-/*     int ma0 = lb2_data->machine_pairs_1[i]; */
-/*     int ma1 = lb2_data->machine_pairs_2[i]; */
+  for (int l = 0; l < nb_pairs; l++) {
+    int i = lb2_data->machine_pair_order[l];
    
-/*     int tmp0 = front[ma0]; */
-/*     int tmp1 = front[ma1]; */
+    int ma0 = lb2_data->machine_pairs_1[i];
+    int ma1 = lb2_data->machine_pairs_2[i];
+   
+    int tmp0 = front[ma0];
+    int tmp1 = front[ma1];
 
-/*     compute_cmax_johnson(lb1_p_times, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i); */
+    compute_cmax_johnson(lb1_p_times, lb2_data, flag, &tmp0, &tmp1, ma0, ma1, i);
 
-/*     tmp1 = MAX(tmp1 + back[ma1], tmp0 + back[ma0]); */
+    tmp1 = MAX(tmp1 + back[ma1], tmp0 + back[ma0]);
 
-/*     if (tmp1 > lb) { */
-/*       *best_index = i; */
-/*       lb = tmp1; */
-/*     } */
-/*     // lb=MAX(lb,tmp1); */
+    if (tmp1 > lb) {
+      *best_index = i;
+      lb = tmp1;
+    }
+    // lb=MAX(lb,tmp1);
 
-/*     if (lb > minCmax) { */
-/*       break; */
-/*     } */
-/*   } */
+    if (lb > minCmax) {
+      break;
+    }
+  }
 
-/*   return lb; */
-/* } */
+  return lb;
+}
 
 
-/* void lb2_children_bounds(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, const int best_cmax, const int direction) */
-/* { */
-/*   const int N = lb1_data->nb_jobs; */
+void lb2_children_bounds(const lb1_bound_data* const lb1_data, const lb2_bound_data* const lb2_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, const int best_cmax, const int direction)
+{
+  const int N = lb1_data->nb_jobs;
 
-/*   int tmp_perm[N]; */
-/*   memcpy(tmp_perm, permutation, N*sizeof(int)); */
+  int tmp_perm[N];
+  memcpy(tmp_perm, permutation, N*sizeof(int));
 
-/*   switch (direction) { */
-/*     case -1: */
-/*      { */
-/*       for (int i = limit1 + 1; i < limit2; i++) { */
-/*         int job = tmp_perm[i]; */
+  switch (direction) {
+    case -1:
+     {
+      for (int i = limit1 + 1; i < limit2; i++) {
+        int job = tmp_perm[i];
 
-/*         swap(&tmp_perm[i], &tmp_perm[limit1 + 1]); */
-/*         lb_begin[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1+1, limit2, best_cmax); */
-/*         swap(&tmp_perm[i], &tmp_perm[limit1 + 1]); */
-/*       } */
-/*       break; */
-/*     } */
-/*     case 0: */
-/*     { */
-/*       for (int i = limit1 + 1; i < limit2; i++) { */
-/*         int job = tmp_perm[i]; */
+        swap(&tmp_perm[i], &tmp_perm[limit1 + 1]);
+        lb_begin[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1+1, limit2, best_cmax);
+        swap(&tmp_perm[i], &tmp_perm[limit1 + 1]);
+      }
+      break;
+    }
+    case 0:
+    {
+      for (int i = limit1 + 1; i < limit2; i++) {
+        int job = tmp_perm[i];
 
-/*         swap(&tmp_perm[i], &tmp_perm[limit1 + 1]); */
-/*         lb_begin[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1+1, limit2, best_cmax); */
-/*         swap(&tmp_perm[i], &tmp_perm[limit1 + 1]); */
+        swap(&tmp_perm[i], &tmp_perm[limit1 + 1]);
+        lb_begin[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1+1, limit2, best_cmax);
+        swap(&tmp_perm[i], &tmp_perm[limit1 + 1]);
 
-/*         swap(&tmp_perm[i], &tmp_perm[limit2 - 1]); */
-/*         lb_end[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1, limit2-1, best_cmax); */
-/*         swap(&tmp_perm[i], &tmp_perm[limit2 - 1]); */
-/*       } */
-/*       break; */
-/*     } */
-/*     case 1: */
-/*     { */
-/*       for (int i = limit1 + 1; i < limit2; i++) { */
-/*         int job = tmp_perm[i]; */
+        swap(&tmp_perm[i], &tmp_perm[limit2 - 1]);
+        lb_end[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1, limit2-1, best_cmax);
+        swap(&tmp_perm[i], &tmp_perm[limit2 - 1]);
+      }
+      break;
+    }
+    case 1:
+    {
+      for (int i = limit1 + 1; i < limit2; i++) {
+        int job = tmp_perm[i];
 
-/*         swap(&tmp_perm[i], &tmp_perm[limit2 - 1]); */
-/*         lb_end[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1, limit2-1, best_cmax); */
-/*         swap(&tmp_perm[i], &tmp_perm[limit2 - 1]); */
-/*       } */
-/*       break; */
-/*     } */
-/*   } */
-/* } */
+        swap(&tmp_perm[i], &tmp_perm[limit2 - 1]);
+        lb_end[job] = lb2_bound(lb1_data, lb2_data, tmp_perm, limit1, limit2-1, best_cmax);
+        swap(&tmp_perm[i], &tmp_perm[limit2 - 1]);
+      }
+      break;
+    }
+  }
+}
+*/
