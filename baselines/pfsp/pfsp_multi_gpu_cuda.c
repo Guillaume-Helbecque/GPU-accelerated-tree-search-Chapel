@@ -1,5 +1,5 @@
 /*
-  Single CUDA GPU B&B to solve Taillard instances of the PFSP in C.
+  Multi-GPU B&B to solve Taillard instances of the PFSP in C+CUDA.
 */
 
 #include <stdio.h>
@@ -12,7 +12,6 @@
 #include <time.h>
 #include <math.h>
 #include <omp.h>
-//#include <cuda.h>
 #include <cuda_runtime.h>
 
 #include "lib/c_bound_simple.h"
@@ -24,6 +23,8 @@
 /*******************************************************************************
 Implementation of PFSP Nodes.
 *******************************************************************************/
+
+// TO DO: create separate files that deal with nodes and another one that deals with pools
 
 // BLOCK_SIZE, MAX_JOBS and struct Node are defined in parameters.h
 
@@ -98,24 +99,6 @@ Node popFront(SinglePool* pool, int* hasWork)
   return (Node){0};
 }
 
-// Function for approach considering parents_d as int** instead of Node*
- 
-/* // Integer i represents the lines of 2D table parents_h */
-/* Node popBack_p(SinglePool* pool, int* hasWork, int* parents_h, int i) */
-/* { */
-/*   if (pool->size > 0) { */
-/*     *hasWork = 1; */
-/*     Node myNode = pool->elements[--pool->size]; */
-/*     for(int j = 0; j < MAX_JOBS; j++) */
-/*       parents_h[i*(MAX_SIZE) + j] = myNode.prmu[j]; */
-/*     parents_h[i*(MAX_SIZE) + 20] = myNode.depth; */
-/*     parents_h[i*(MAX_SIZE) + 21] = myNode.limit1; */
-/*     return myNode; */
-/*   } */
-
-/*   return (Node){0}; */
-/* } */
-
 void deleteSinglePool(SinglePool* pool)
 {
   free(pool->elements);
@@ -181,7 +164,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
       break;
 
     case 'm':
-      if (value < 25 || value > 100) {
+      if (value < 1 || value > 100) {
 	fprintf(stderr, "Error: unsupported minimal pool for GPU initialization\n");
 	exit(EXIT_FAILURE);
       }
@@ -189,7 +172,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
       break;
 
     case 'M':
-      if (value < 45000 || value > 50000) {
+      if (value < *m) {
 	fprintf(stderr, "Error: unsupported maximal pool for GPU initialization\n");
 	exit(EXIT_FAILURE);
       }
@@ -215,8 +198,8 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
 void print_settings(const int inst, const int machines, const int jobs, const int ub, const int lb, const int D)
 {
   printf("\n=================================================\n");
-  printf("Parallel multi-GPU CUDA with %d GPU's\n\n", D);
-  printf("Resolution of PFSP Taillard's instance: ta%d (m = %d, n = %d) using parallel GPU CUDA\n", inst, machines, jobs);
+  printf("Multi-GPU C+CUDA %d GPU's\n\n", D);
+  printf("Resolution of PFSP Taillard's instance: ta%d (m = %d, n = %d)\n", inst, machines, jobs);
   if (ub == 0) printf("Initial upper bound: inf\n");
   else /* if (ub == 1) */ printf("Initial upper bound: opt\n");
   if (lb == 0) printf("Lower bound function: lb1_d\n");
@@ -246,7 +229,8 @@ inline void swap(int* a, int* b)
 }
 
 // Evaluate and generate children nodes on CPU.
-void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const Node parent, int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool* pool)
+void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const Node parent,
+		   int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool* pool)
 {
   for (int i = parent.limit1+1; i < jobs; i++) {
     Node child;
@@ -375,8 +359,8 @@ void generate_children(Node* parents, const int size, const int jobs, int* bound
 	if(lowerbound < *best) {
 	  Node child;
 	  memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
-	  swap(&child.prmu[parent.depth], &child.prmu[j]);
-	  child.depth = parent.depth + 1;
+	  swap(&child.prmu[depth], &child.prmu[j]);
+	  child.depth = depth + 1;
 	  child.limit1 = parent.limit1 + 1;
 	  
 	  pushBack(pool, child);
@@ -387,16 +371,14 @@ void generate_children(Node* parents, const int size, const int jobs, int* bound
   }
 }
 
-// Single-GPU PFSP search
+// Multi-GPU PFSP search
 void pfsp_search(const int inst, const int lb, const int m, const int M, const int D, int* best,
 		 unsigned long long int* exploredTree, unsigned long long int* exploredSol,
 		 double* elapsedTime)
 {
-
   // Initializing problem
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
-  //int count = 0;
   
   // Starting pool
   Node root;
@@ -408,8 +390,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   pushBack(&pool, root);
 
   // Timer
-  // struct timespec start, end;
-  // clock_gettime(CLOCK_MONOTONIC_RAW, &start);
   double startTime, endTime;
     
   // Bounding data
@@ -424,14 +404,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   fill_lags(lbound1->p_times, lbound2);
   fill_johnson_schedules(lbound1->p_times, lbound2);
 
-  // Approach having parents_d as int**
-  // parents_h is a table of integers of size M * (MAX_JOBS+2)
-  // Each 22 components we have: first 20 for the prmu, 1 for depth and 1 for limit1
-  // int *parents_h = (int*) malloc((M*(MAX_JOBS+2))*sizeof(int));
-  // Allocation of parents_d on the GPU
-  // int *parents_d;
-  // cudaMalloc((void**)&parents_d, (M*(MAX_JOBS+2))*sizeof(int));
-  
   /*
     Step 1: We perform a partial breadth-first search on CPU in order to create
     a sufficiently large amount of work for GPU computation.
@@ -475,7 +447,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 #pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, pool, lbound1, lbound2)
   for (int gpuID = 0; gpuID < D; gpuID++) {
     cudaSetDevice(gpuID);
-    
+
+    // TO DO: add function 'copyBoundsDevice' to perform the deep copy of bounding data
     // Vectors for deep copy of lbound1 to device
     lb1_bound_data lbound1_d;
     int* p_times_d;
@@ -528,7 +501,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     lbound2_d.nb_jobs = lbound2->nb_jobs;
     lbound2_d.nb_machines = lbound2->nb_machines;
 
-    
+    // Local pools retrieving their respective works from pool
     unsigned long long int tree = 0, sol = 0;
     SinglePool pool_loc;
     initSinglePool(&pool_loc);
@@ -563,8 +536,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	for(int i= 0; i < poolSize; i++) {
 	  int hasWork = 0;
 	  parents[i] = popBack(&pool_loc,&hasWork);
-	  // Approach with parents_d as int**
-	  //parents[i] = popBack_p(&pool, &hasWork, parents_h, i); 
 	  if (!hasWork) break;
 	}
 	
@@ -577,17 +548,14 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
 	const int nbBlocks_lb1_d = ceil((double)nbBlocks/jobs); 
 
-	// Approach with parents_d as int**
-	//cudaMemcpy(parents_d, parents_h, (MAX_SIZE) * poolSize * sizeof(int), cudaMemcpyHostToDevice);
-
 	cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
 
 	// numBounds is the 'size' of the problem
-	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, best, lbound1_d, lbound2_d, parents_d, bounds_d/*, front, back, remain*/); 
+	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, best, lbound1_d, lbound2_d, parents_d, bounds_d); 
 	cudaDeviceSynchronize();
       
-	cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost); //size of copy is good
-
+	cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
+	
 	/*
 	  each task generates and inserts its children nodes to the pool.
 	*/
@@ -596,10 +564,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       else {
 	break;
       }
-      //count += 1; // Check the amount of while loops
     }
 
-    // OpenMP environment freeing variables
+    // Freeing variables from OpenMP environment
     cudaFree(parents_d);
     cudaFree(bounds_d);
     cudaFree(p_times_d);
@@ -662,45 +629,23 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   printf("Elapsed time: %f [s]\n", t3);
 
   printf("\nExploration terminated.\n");
-  // printf("Cuda kernel calls: %d\n", count);
 
+  // Freeing memory for structs common to all steps 
   deleteSinglePool(&pool);
-  
-  
-  //clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-  //*elapsedTime = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-
-  printf("\nExploration terminated.\n");
-  //printf("\n%d while loops execute.\n", count);
-
-  // Freeing memory for structs 
-  //deleteSinglePool(&pool);
   free_bound_data(lbound1);
   free_johnson_bd_data(lbound2);
 
-  /* // Freeing memory for device */
-  //cudaFree(parents_d);
-  //cudaFree(bounds_d);
- 
-
-  /* //Freeing memory for host */
-  //free(parents_h);
-  //free(parents);
-  //free(bounds);
 }
 
 int main(int argc, char* argv[])
 {
-  int inst, lb, ub, m, M, nbGPU;
-  printf("I am before parse_parameters\n");
-  parse_parameters(argc, argv, &inst, &lb, &ub, &m, &M, &nbGPU);
-  printf("I am past parse_parameters\n");
-  //exit(1);
-
+  int inst, lb, ub, m, M, D;
+  parse_parameters(argc, argv, &inst, &lb, &ub, &m, &M, &D);
+  
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
 
-  print_settings(inst, machines, jobs, ub, lb, nbGPU);
+  print_settings(inst, machines, jobs, ub, lb, D);
 
   int optimum = (ub == 1) ? taillard_get_best_ub(inst) : INT_MAX;
   unsigned long long int exploredTree = 0;
@@ -708,11 +653,9 @@ int main(int argc, char* argv[])
 
   double elapsedTime;
 
-  pfsp_search(inst, lb, m, M, nbGPU, &optimum, &exploredTree, &exploredSol, &elapsedTime);
+  pfsp_search(inst, lb, m, M, D, &optimum, &exploredTree, &exploredSol, &elapsedTime);
 
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
-
-  printf("We are done\n");
 
   return 0;
 }
