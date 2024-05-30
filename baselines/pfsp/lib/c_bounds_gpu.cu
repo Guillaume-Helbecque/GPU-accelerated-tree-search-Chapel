@@ -168,7 +168,7 @@ add_back_and_bound_gpu(const lb1_bound_data lb1_data, const int job, const int *
 }
 
 __device__ void
-lb1_bound_gpu(const lb1_bound_data lb1_data, const int * const permutation, const int limit1, const int limit2, int *bounds /*, int *front, int *back, int *remain*/)
+lb1_bound_gpu(const lb1_bound_data lb1_data, const int * const permutation, const int limit1, const int limit2, int *bounds)
 {
   int nb_machines = lb1_data.nb_machines;
   int front[MAX_MACHINES];
@@ -245,9 +245,6 @@ __device__ void lb1_children_bounds_gpu(const lb1_bound_data lb1_data, const int
 // NB3: also compute total idle time added to partial schedule (can be used a criterion for job ordering)
 // nOps : m*(3 add+2 max)  ---> O(m)
 
-
-// I still have to free the memory from the two machine bounds functions where we use malloc
-// Might as well give some of other Jan's alternatives a try to reduce cost of constant memory allocation and liberation
 
 //------------------Two-machine bound functions(johnson)---------------------------
 
@@ -361,36 +358,8 @@ __device__ void lb2_bound_gpu(const lb1_bound_data lb1_data, const lb2_bound_dat
 
 
 //-----------------FOR JOHSON BOUNDING-----------------
-// typedef struct johnson_job
-// {
-//   int job; //job-id
-//   int partition; //in partition 0 or 1
-//   int ptm1; //processing time on m1
-//   int ptm2; //processing time on m2
-// } johnson_job;
 
 // //(after partitioning) sorting jobs in ascending order with this comparator yield an optimal schedule for the associated 2-machine FSP [Johnson, S. M. (1954). Optimal two-and three-stage production schedules with setup times included.closed access Naval research logistics quarterly, 1(1), 61–68.]
-// __device__ int johnson_comp_gpu(const void * elem1, const void * elem2)
-// {
-//   johnson_job j1 = *((johnson_job*)elem1);
-//   johnson_job j2 = *((johnson_job*)elem2);
-
-//   //partition 0 before 1
-//   if (j1.partition == 0 && j2.partition == 1) return -1;
-//   if (j1.partition == 1 && j2.partition == 0) return 1;
-
-//   //in partition 0 increasing value of ptm1
-//   if (j1.partition == 0) {
-//     if (j2.partition == 1) return -1;
-//     return j1.ptm1 - j2.ptm1;
-//   }
-//   //in partition 1 decreasing value of ptm1
-//   if (j1.partition == 1) {
-//     if (j2.partition == 0) return 1;
-//     return j2.ptm2 - j1.ptm2;
-//   }
-//   return 0;
-// }
 
 // __device__ inline int compute_cmax_johnson_gpu(const int* const lb1_p_times, const lb2_bound_data lb2_data, const int* const flag, int *tmp0, int *tmp1, int ma0, int ma1, int ind)
 // {
@@ -421,13 +390,6 @@ __device__ void lb2_bound_gpu(const lb1_bound_data lb1_data, const lb2_bound_dat
 //     flags[permutation[j]] = 1;
 //   for (int j = limit2; j < N; j++)
 //     flags[permutation[j]] = 1;
-// }
-
-// __device__ inline void swap(int *a, int *b)
-// {
-//   int tmp = *a;
-//   *a = *b;
-//   *b = tmp;
 // }
 
 // //allows variable nb of machine pairs and get machine pair the realized best lb
