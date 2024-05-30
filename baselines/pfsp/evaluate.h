@@ -1,9 +1,7 @@
 #ifndef EVALUATE_H
 #define EVALUATE_H
 
-#include <cuda.h>
-#include <stdlib.h>
-#include "parameters.h"
+#include "parameters.h" // For Nodes definition
 #include "lib/c_bound_simple.h" // For structs definitions
 #include "lib/c_bound_johnson.h" // For structs definitions
 
