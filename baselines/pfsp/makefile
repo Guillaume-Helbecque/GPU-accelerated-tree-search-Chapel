@@ -6,14 +6,14 @@ CUDA_COMPILER := nvcc
 HIP_COMPILER  := hipcc
 
 C_COMMON_OPTS    := -O3 -Wall -g
-CUDA_COMMON_OPTS := -O3 -arch=sm_70 #$(C_COMMON_OPTS) -arch=sm_70 #for grid5k
+CUDA_COMMON_OPTS := -O3 -arch=sm_86 #check how to adapt SM automatically
 HIP_COMMON_OPTS  := $(C_COMMON_OPTS) -offload-arch=gfx906
 
 HIP_PATCH_G5K    := DEVICE_LIB_PATH=/opt/rocm-4.5.0/amdgcn/bitcode/
 
 # Source files
 C_SOURCES    :=  lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multi_gpu_cuda.c
-CUDA_SOURCES :=  evaluate.cu lib/c_bounds_gpu.cu # lib/c_bound_johnson_gpu_cuda.cu pfsp_multigpu_cuda.cu
+CUDA_SOURCES :=  evaluate.cu lib/c_bounds_gpu.cu
 
 # Object files
 C_OBJECTS    := $(C_SOURCES:.c=.o)
@@ -82,24 +82,6 @@ pfsp_cuda.out: evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_
 
 pfsp_multi_cuda.out: evaluate.o pfsp_multi_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o
 	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp evaluate.o pfsp_multi_gpu_cuda.o  c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o -o pfsp_multi_cuda.out -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
-
-# EVERYTHING FROM THE OLD COMPILATION
-
-# pfsp_gpu_cuda.o: pfsp_gpu_cuda.cu
-# 	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -dc $< -o $@
-
-# #	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) lib/c_bound_simple.o $< -o exe.o 
-# 	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) lib/c_bound_simple_gpu_cuda.o pfsp_gpu_cuda.o -dlink -o exe.o
-# # $(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -dc $< -o $@
-# # $(CUDA_COMPILER) $(CUDA_COMMON_OPTS) $(CUDA_OBJECTS) -dlink -o exe.o
-# # gcc exe.o $(CUDA_OBJECTS) $(C_OBJECTS) -lcudart -o exe
-
-#gcc exe.o $(CUDA_OBJECTS) $(C_OBJECTS) -lcudart -o exe
-
-#exe.o: pfsp_gpu_cuda.o lib/c_bound_simple_gpu_cuda.o
-#	$(CUDA_COMPILER) -x cu $(CUDA_COMMON_OPTS) -I. -dc $< -o $@
-
-
 
 # Pattern rule for hybrid OpenMP+CUDA source files
 # pfsp_multigpu_cuda.o: pfsp_multigpu_cuda.cu
