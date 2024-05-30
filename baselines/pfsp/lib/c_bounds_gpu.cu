@@ -323,7 +323,6 @@ __device__ void lb2_bound_gpu(const lb1_bound_data lb1_data, const lb2_bound_dat
 
 //-----------------FOR SIMPLE BOUNDING----------------
 
-// This function is not being used in fact
 // //----------------------evaluate (partial) schedules---------------------
 // __device__ int eval_solution_gpu(const lb1_bound_data lb1_data, const int* const permutation)
 // {
