@@ -45,18 +45,18 @@ evaluate.o : evaluate.cu
 pfsp_c.o: pfsp_c.c
 	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@
 
-#pfsp_gpu_cuda.o: pfsp_gpu_cuda.c
-#	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@ -I/share/compilers/nvidia/cuda/12.0/include
-
-#pfsp_multi_gpu_cuda.o: pfsp_multi_gpu_cuda.c
-#	$(C_COMPILER) $(C_COMMON_OPTS) -c -fopenmp $< -o $@ -I/share/compilers/nvidia/cuda/12.0/include
-
-#Grid5000 compilation
 pfsp_gpu_cuda.o: pfsp_gpu_cuda.c
-	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@ -I/usr/local/cuda-11.2/targets/x86_64-linux/include/
+	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@ -I/share/compilers/nvidia/cuda/12.0/include
 
 pfsp_multigpu_cuda.o: pfsp_multigpu_cuda.c
-	$(C_COMPILER) $(C_COMMON_OPTS) -c -fopenmp $< -o $@ -I/usr/local/cuda-11.2/targets/x86_64-linux/include/
+	$(C_COMPILER) $(C_COMMON_OPTS) -c -fopenmp $< -o $@ -I/share/compilers/nvidia/cuda/12.0/include
+
+#Grid5000 compilation
+#pfsp_gpu_cuda.o: pfsp_gpu_cuda.c
+#	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@ -I/usr/local/cuda-11.2/targets/x86_64-linux/include/
+
+#pfsp_multigpu_cuda.o: pfsp_multigpu_cuda.c
+#	$(C_COMPILER) $(C_COMMON_OPTS) -c -fopenmp $< -o $@ -I/usr/local/cuda-11.2/targets/x86_64-linux/include/
 
 
 # Pattern rule for CUDA source files
@@ -69,19 +69,19 @@ c_bounds_gpu.o: lib/c_bounds_gpu.cu
 pfsp_c.out: pfsp_c.o c_taillard.o c_bound_simple.o c_bound_johnson.o
 	$(C_COMPILER) $(C_COMMON_OPTS) pfsp_c.o c_taillard.o c_bound_simple.o c_bound_johnson.o   -o pfsp_c.out
 
-#pfsp_cuda.out: evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o
-#	$(C_COMPILER) $(C_COMMON_OPTS) evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o -o pfsp_cuda.out -lcudart #-L/share/compilers/nvidia/cuda/12.0/lib64 -lcudart
+pfsp_cuda.out: evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o
+	$(C_COMPILER) $(C_COMMON_OPTS) evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o -o pfsp_cuda.out -lm -lcudart #-L/share/compilers/nvidia/cuda/12.0/lib64 -lcudart
 
-#pfsp_multi_cuda.out: evaluate.o pfsp_multi_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o
-#	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp evaluate.o pfsp_multi_gpu_cuda.o  c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o -o pfsp_multi_cuda.out -lcudart #-L/share/compilers/nvidia/cuda/12.0/lib64 -lcudart
+pfsp_multi_cuda.out: evaluate.o pfsp_multigpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o
+	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp evaluate.o pfsp_multigpu_cuda.o  c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o -o pfsp_multi_cuda.out -lm -lcudart #-L/share/compilers/nvidia/cuda/12.0/lib64 -lcudart
 
 
 # Grid5000 compilation
-pfsp_cuda.out: evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o
-	$(C_COMPILER) $(C_COMMON_OPTS) evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o -o pfsp_cuda.out -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
+#pfsp_cuda.out: evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o
+#	$(C_COMPILER) $(C_COMMON_OPTS) evaluate.o pfsp_gpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o -o pfsp_cuda.out -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
 
-pfsp_multi_cuda.out: evaluate.o pfsp_multigpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o
-	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp evaluate.o pfsp_multigpu_cuda.o  c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o -o pfsp_multi_cuda.out -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
+#pfsp_multi_cuda.out: evaluate.o pfsp_multigpu_cuda.o c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o
+#	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp evaluate.o pfsp_multigpu_cuda.o  c_taillard.o c_bound_simple.o c_bound_johnson.o c_bounds_gpu.o -o pfsp_multi_cuda.out -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
 
 # Pattern rule for hybrid OpenMP+CUDA source files
 # pfsp_multigpu_cuda.o: pfsp_multigpu_cuda.cu
