@@ -39,7 +39,7 @@ all: $(EXECUTABLES)
 	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -c $< -o $@
 
 # Build executable for CPU only
-pfsp_c.out: pfsp_c.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o
+pfsp_c.out: pfsp_c.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool.o
 	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@
 
 # Build executable for CUDA

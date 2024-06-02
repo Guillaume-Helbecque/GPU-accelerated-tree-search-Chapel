@@ -1,5 +1,5 @@
-#ifndef POOL_H
-#define POOL_H
+#ifndef POOL_EXT_H
+#define POOL_EXT_H
 
 #include "PFSP_node.h"
 #include "c_bound_simple.h"
@@ -42,4 +42,4 @@ Node popFront(SinglePool_ext* pool, int* hasWork);
 
 void deleteSinglePool_ext(SinglePool_ext* pool);
 
-#endif // POOL_H
+#endif // POOL_EXT_H
