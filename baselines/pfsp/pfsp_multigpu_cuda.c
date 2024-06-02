@@ -19,7 +19,7 @@
 #include "lib/c_bound_simple.h"
 #include "lib/c_bound_johnson.h"
 #include "lib/c_taillard.h"
-#include "evaluate.h"
+#include "lib/evaluate.h"
 
 /******************************************************************************
 CUDA error checking
@@ -33,24 +33,7 @@ void gpuAssert(cudaError_t code, const char *file, int line, bool abort) {
   }
 }
 
-/*******************************************************************************
-Implementation of PFSP Nodes.
-*******************************************************************************/
-
 // TO DO: create separate files that deal with nodes and another one that deals with pools
-
-// BLOCK_SIZE, MAX_JOBS and struct Node are defined in parameters.h
-
-// Initialization of nodes is done by CPU only
-
-void initRoot(Node* root, const int jobs)
-{
-  root->depth = 0;
-  root->limit1 = -1;
-  for (int i = 0; i < jobs; i++) {
-    root->prmu[i] = i;
-  }
-}
 
 // Pools are managed by the CPU only
 
@@ -651,7 +634,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   SinglePool_ext multiPool[D];
   for(int i = 0; i < D; i++)
     initSinglePool(&multiPool[i]);
-  
+
+  omp_lock_t myLock;
+  omp_init_lock(&myLock);
   
 #pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool, multiPool, lbound1, lbound2)
   for (int gpuID = 0; gpuID < D; gpuID++) {
@@ -895,11 +880,12 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     eachBest[gpuID] = best_l;
 
     deleteSinglePool_ext(pool_loc);
-  }
+  } // End of parallel region
 
   endTime = omp_get_wtime();
   double t2 = endTime - startTime;
 
+  omp_destroy_lock(&myLock);
   
   for (int i = 0; i < D; i++) {
     *exploredTree += eachExploredTree[i];

@@ -1,3 +1,6 @@
+#ifndef PFSP_NODE_H
+#define PFSP_NODE_H
+
 #include <stdlib.h>
 #include <stdint.h>
 
@@ -14,4 +17,6 @@ typedef struct
   int prmu[MAX_JOBS];
 } Node;
 
+void initRoot (Node *root, const int jobs);
 
+#endif // PFSP_NODE_H
