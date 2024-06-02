@@ -21,6 +21,7 @@
 #include "lib/c_taillard.h"
 #include "lib/evaluate.h"
 #include "lib/Pool_ext.h"
+#include "lib/Auxiliary.h"
 
 /******************************************************************************
 CUDA error checking
@@ -34,71 +35,8 @@ void gpuAssert(cudaError_t code, const char *file, int line, bool abort) {
   }
 }
 
-/******************************************************************************
-Auxiliary functions
-******************************************************************************/
-
-// Function to check if all elements in an array of atomic bool are IDLE
-bool _allIdle(_Atomic bool arr[], int size) {
-  bool value;
-  for (int i = 0; i < size; i++) {
-    value = atomic_load(&arr[i]);
-    if (value == false) {
-      return false;
-    }
-  }
-  return true;
-}
-
-// Function to check if all elements in arr are IDLE and update flag accordingly
-bool allIdle(_Atomic bool arr[], int size, _Atomic bool *flag) {
-  bool value = atomic_load(flag);
-  if (value) {
-    return true; // fast exit
-  } else {
-    if (_allIdle(arr, size)) {
-      atomic_store(flag,true);
-      return true;
-    } else {
-      return false;
-    }
-  }
-}
-
-void permute(int* arr, int n) {
-  for (int i = 0; i < n; i++) {
-        arr[i] = i;
-  }
-  
-  // Iterate over each element in the array
-  for (int i = n - 1; i > 0; i--) {
-    // Select a random index from 0 to i (inclusive)
-    int j = rand() % (i + 1);
-    
-    // Swap arr[i] with the randomly selected element arr[j]
-    int temp = arr[i];
-    arr[i] = arr[j];
-    arr[j] = temp;
-  }
-}
-
-// Function to find the minimum value in an array of integers
-int findMin(int arr[], int size) {
-  int minVal = arr[0];  // Initialize minVal with the first element
-  
-  // Iterate through the array to find the minimum value
-  for (int i = 1; i < size; i++) {
-    if (arr[i] < minVal) {
-      minVal = arr[i];  // Update minVal if current element is smaller
-    }
-  }
-  
-  return minVal;  // Return the minimum value
-}
-
-
 /*******************************************************************************
-Implementation of the parallel CUDA GPU PFSP search.
+Implementation of the parallel Multi-GPU C+CUDA+OpenMP PFSP search.
 *******************************************************************************/
 
 void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* m, int *M, int *D)
@@ -191,7 +129,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
 void print_settings(const int inst, const int machines, const int jobs, const int ub, const int lb, const int D)
 {
   printf("\n=================================================\n");
-  printf("Multi-GPU C+CUDA %d GPU's\n\n", D);
+  printf("Multi-GPU C+CUDA+OpenMP %d GPU's\n\n", D);
   printf("Resolution of PFSP Taillard's instance: ta%d (m = %d, n = %d)\n", inst, machines, jobs);
   if (ub == 0) printf("Initial upper bound: inf\n");
   else /* if (ub == 1) */ printf("Initial upper bound: opt\n");
@@ -384,9 +322,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   _Atomic bool eachTaskState[D]; // one task per GPU
   for(int i = 0; i < D; i++)//{
     atomic_store(&eachTaskState[i],false);
-    //bool value = atomic_load(&eachTaskState[i]);
-    //printf("For gpuID[%d] TaskState = %d\n",i,value);
-    //}
+  //bool value = atomic_load(&eachTaskState[i]);
+  //printf("For gpuID[%d] TaskState = %d\n",i,value);
+  //}
  
   // Timer
   double startTime, endTime;
