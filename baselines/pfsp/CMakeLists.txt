@@ -14,6 +14,12 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_${CUDA_ARCHITECTURE}")
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/lib)
 
+# Find CUDA Toolkit
+find_package(CUDAToolkit REQUIRED)
+
+# Include CUDA directories
+include_directories(${CUDAToolkit_INCLUDE_DIRS})
+
 # Specify the source files
 set(SOURCES
     pfsp_c.c
@@ -50,8 +56,8 @@ set(CUDA_C_SOURCES
 add_executable(pfsp_gpu_cuda.out ${CUDA_C_SOURCES})
 
 # Link CUDA runtime library (if needed)
-find_package(CUDAToolkit REQUIRED)
-target_link_libraries(pfsp_gpu_cuda.out PRIVATE cudart)
+#find_package(CUDAToolkit REQUIRED)
+target_link_libraries(pfsp_gpu_cuda.out PRIVATE ${CUDAToolkit_LIBRARIES})
 
 # Add compile options for the second executable if needed
 target_compile_options(pfsp_gpu_cuda.out PRIVATE -Wall -O3 -g)
@@ -74,7 +80,7 @@ set(CUDA_C_OMP_SOURCES
 add_executable(pfsp_multigpu_cuda.out ${CUDA_C_OMP_SOURCES})
 
 # Link CUDA runtime library (if needed)
-target_link_libraries(pfsp_multigpu_cuda.out PRIVATE cudart OpenMP::OpenMP_C)
+target_link_libraries(pfsp_multigpu_cuda.out PRIVATE ${CUDAToolkit_LIBRARIES} OpenMP::OpenMP_C)
 
 # Add compile options for the third executable if needed
 target_compile_options(pfsp_multigpu_cuda.out PRIVATE -Wall -O3 -fopenmp -g)
