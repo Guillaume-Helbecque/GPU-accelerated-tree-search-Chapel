@@ -19,6 +19,7 @@
 #include "lib/c_bound_johnson.h"
 #include "lib/c_taillard.h"
 #include "lib/evaluate.h"
+#include "lib/Pool.h"
 
 /******************************************************************************
 CUDA error checking
@@ -30,58 +31,6 @@ void gpuAssert(cudaError_t code, const char *file, int line, bool abort) {
     fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
     if (abort) exit(code);
   }
-}
-
-/* //TO DO: create separate files that deal with nodes and another one that deals with pools */
-
-/*******************************************************************************
-Implementation of a dynamic-sized single pool data structure.
-Its initial capacity is 1024, and we reallocate a new container with double
-the capacity when it is full. Since we perform only DFS, it only supports
-'pushBack' and 'popBack' operations.
-*******************************************************************************/
-
-// Pools are managed by the CPU only
-
-#define CAPACITY 1024
-
-typedef struct
-{
-  Node* elements;
-  int capacity;
-  int size;
-} SinglePool;
-
-void initSinglePool(SinglePool* pool)
-{
-  pool->elements = (Node*)malloc(CAPACITY * sizeof(Node));
-  pool->capacity = CAPACITY;
-  pool->size = 0;
-}
-
-void pushBack(SinglePool* pool, Node node)
-{
-  if (pool->size >= pool->capacity) {
-    pool->capacity *= 2;
-    pool->elements = (Node*)realloc(pool->elements, pool->capacity * sizeof(Node));
-  }
-
-  pool->elements[pool->size++] = node;
-}
-
-Node popBack(SinglePool* pool, int* hasWork)
-{
-  if (pool->size > 0) {
-    *hasWork = 1;
-    return pool->elements[--pool->size];
-  }
-
-  return (Node){0};
-}
-
-void deleteSinglePool(SinglePool* pool)
-{
-  free(pool->elements);
 }
 
 /*******************************************************************************
