@@ -66,9 +66,6 @@ bool allIdle(_Atomic bool arr[], int size, _Atomic bool *flag) {
 }
 
 void permute(int* arr, int n) {
-  //srand(time(NULL));  // Seed for random number generation
-  //int i, j, temp;
-
   for (int i = 0; i < n; i++) {
         arr[i] = i;
   }
