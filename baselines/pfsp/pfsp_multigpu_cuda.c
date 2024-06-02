@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
@@ -18,7 +19,8 @@
 #include "lib/c_bound_simple.h"
 #include "lib/c_bound_johnson.h"
 #include "lib/c_taillard.h"
-#include "evaluate.h"
+#include "lib/evaluate.h"
+#include "lib/Pool_multi.h"
 
 /******************************************************************************
 CUDA error checking
@@ -33,91 +35,7 @@ void gpuAssert(cudaError_t code, const char *file, int line, bool abort) {
 }
 
 /*******************************************************************************
-Implementation of PFSP Nodes.
-*******************************************************************************/
-
-// TO DO: create separate files that deal with nodes and another one that deals with pools
-
-// BLOCK_SIZE, MAX_JOBS and struct Node are defined in parameters.h
-
-// Initialization of nodes is done by CPU only
-
-void initRoot(Node* root, const int jobs)
-{
-  root->depth = 0;
-  root->limit1 = -1;
-  for (int i = 0; i < jobs; i++) {
-    root->prmu[i] = i;
-  }
-}
-
-/*******************************************************************************
-Implementation of a dynamic-sized single pool data structure.
-Its initial capacity is 1024, and we reallocate a new container with double
-the capacity when it is full. Since we perform only DFS, it only supports
-'pushBack' and 'popBack' operations.
-*******************************************************************************/
-
-// Pools are managed by the CPU only
-
-#define CAPACITY 1024
-
-typedef struct
-{
-  Node* elements;
-  int capacity;
-  int front;
-  int size;
-} SinglePool;
-
-void initSinglePool(SinglePool* pool)
-{
-  pool->elements = (Node*)malloc(CAPACITY * sizeof(Node));
-  pool->capacity = CAPACITY;
-  pool->front = 0;
-  pool->size = 0;
-}
-
-void pushBack(SinglePool* pool, Node node)
-{
-  if (pool->front + pool->size >= pool->capacity) {
-    pool->capacity *= 2;
-    pool->elements = (Node*)realloc(pool->elements, pool->capacity * sizeof(Node));
-  }
-  
-  pool->elements[pool->front + pool->size] = node;
-  pool->size += 1;
-}
-
-Node popBack(SinglePool* pool, int* hasWork)
-{
-  if (pool->size > 0) {
-    *hasWork = 1;
-    pool->size--;
-    return pool->elements[pool->front + pool->size];
-  }
-
-  return (Node){0};
-}
-
-Node popFront(SinglePool* pool, int* hasWork)
-{
-  if (pool->size > 0) {
-    *hasWork = 1;
-    pool->size--;
-    return pool->elements[pool->front++];
-  }
-
-  return (Node){0};
-}
-
-void deleteSinglePool(SinglePool* pool)
-{
-  free(pool->elements);
-}
-
-/*******************************************************************************
-Implementation of the parallel CUDA GPU PFSP search.
+Implementation of the parallel Multi-GPU C+CUDA+OpenMP PFSP search.
 *******************************************************************************/
 
 void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* m, int *M, int *D)
@@ -210,7 +128,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
 void print_settings(const int inst, const int machines, const int jobs, const int ub, const int lb, const int D)
 {
   printf("\n=================================================\n");
-  printf("Multi-GPU C+CUDA %d GPU's\n\n", D);
+  printf("Multi-GPU C+CUDA+OpenMP %d GPU's\n\n", D);
   printf("Resolution of PFSP Taillard's instance: ta%d (m = %d, n = %d)\n", inst, machines, jobs);
   if (ub == 0) printf("Initial upper bound: inf\n");
   else /* if (ub == 1) */ printf("Initial upper bound: opt\n");

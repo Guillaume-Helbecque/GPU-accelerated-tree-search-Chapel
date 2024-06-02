@@ -14,76 +14,8 @@
 #include "lib/c_bound_simple.h"
 #include "lib/c_bound_johnson.h"
 #include "lib/c_taillard.h"
-
-/*******************************************************************************
-Implementation of PFSP Nodes.
-*******************************************************************************/
-
-#define MAX_JOBS 20
-
-typedef struct
-{
-  uint8_t depth;
-  int limit1;
-  int prmu[MAX_JOBS];
-} Node;
-
-void initRoot(Node* root, const int jobs)
-{
-  root->depth = 0;
-  root->limit1 = -1;
-  for (int i = 0; i < jobs; i++) {
-    root->prmu[i] = i;
-  }
-}
-
-/*******************************************************************************
-Implementation of a dynamic-sized single pool data structure.
-Its initial capacity is 1024, and we reallocate a new container with double
-the capacity when it is full. Since we perform only DFS, it only supports
-'pushBack' and 'popBack' operations.
-*******************************************************************************/
-
-#define CAPACITY 1024
-
-typedef struct
-{
-  Node* elements;
-  int capacity;
-  int size;
-} SinglePool;
-
-void initSinglePool(SinglePool* pool)
-{
-  pool->elements = (Node*)malloc(CAPACITY * sizeof(Node));
-  pool->capacity = CAPACITY;
-  pool->size = 0;
-}
-
-void pushBack(SinglePool* pool, Node node)
-{
-  if (pool->size >= pool->capacity) {
-    pool->capacity *= 2;
-    pool->elements = (Node*)realloc(pool->elements, pool->capacity * sizeof(Node));
-  }
-
-  pool->elements[pool->size++] = node;
-}
-
-Node popBack(SinglePool* pool, int* hasWork)
-{
-  if (pool->size > 0) {
-    *hasWork = 1;
-    return pool->elements[--pool->size];
-  }
-
-  return (Node){0};
-}
-
-void deleteSinglePool(SinglePool* pool)
-{
-  free(pool->elements);
-}
+#include "lib/PFSP_node.h"
+#include "lib/Pool.h"
 
 /*******************************************************************************
 Implementation of the sequential PFSP search.
