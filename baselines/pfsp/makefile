@@ -12,7 +12,7 @@ HIP_COMMON_OPTS  := $(C_COMMON_OPTS) -offload-arch=gfx906
 HIP_PATCH_G5K    := DEVICE_LIB_PATH=/opt/rocm-4.5.0/amdgcn/bitcode/
 
 # Source files
-C_SOURCES    :=  lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c lib/PFSP_node.c lib/Pool.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c
+C_SOURCES    :=  lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c lib/PFSP_node.c lib/Pool.c lib/Pool_ext.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c
 CUDA_SOURCES :=  lib/evaluate.cu lib/c_bounds_gpu.cu
 
 # Object files
@@ -47,7 +47,7 @@ pfsp_gpu_cuda.out: pfsp_gpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_b
 	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@ -lm -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
 
 #Build executable for CUDA+OpenMP
-pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/c_bounds_gpu.o lib/evaluate.o lib/PFSP_node.o
+pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/c_bounds_gpu.o lib/evaluate.o lib/PFSP_node.o lib/Pool_ext.o
 	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
 
 # Pattern rule for HIP source files
