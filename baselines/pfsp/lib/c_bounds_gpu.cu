@@ -5,10 +5,11 @@
 
 #include "c_bound_simple.h"
 #include "c_bound_johnson.h"
+#include "PFSP_node.h"
 
 //Max size vectors for internal declarations in library
-#define MAX_MACHINES 20
-#define MAX_JOBS 20
+//#define MAX_MACHINES 40
+//#define MAX_JOBS 40
 
 
 //---------------One-machine bound functions-------------------
