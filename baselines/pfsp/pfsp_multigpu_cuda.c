@@ -588,9 +588,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
     printf("\nFor thread[%d] nb of stealing tries is %d and real nb of stealing is %d\n", omp_get_thread_num(), nSteal, nSSteal);
     
-    double time_partial = omp_get_wtime();
-
     // This comment has to go after the problem is solved
+    //double time_partial = omp_get_wtime();
     //printf("\nTime for GPU[%d] = %f, nb of nodes = %lld, nb of sols = %lld\n", gpuID, time_partial - startTime, tree, sol);
     
     // OpenMP environment freeing variables
