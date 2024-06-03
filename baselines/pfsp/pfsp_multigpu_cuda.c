@@ -388,7 +388,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   omp_lock_t myLock;
   omp_init_lock(&myLock);
   
-#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, allTasksIdleFlag, pool, multiPool, lbound1, lbound2)
+#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, /*allTasksIdleFlag,*/ pool, multiPool, lbound1, lbound2)
   for (int gpuID = 0; gpuID < D; gpuID++) {
     gpuErrchk(cudaSetDevice(gpuID));
 
@@ -508,7 +508,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	gpuErrchk(cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice));
 
 	// numBounds is the 'size' of the problem
-	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d); 
+ 	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d); 
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaDeviceSynchronize());
       
@@ -531,7 +531,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	/* for(int i = 0; i < D; i++) */
 	/*   printf("Victims[%d] = %d \n", i, victims[i]); */
 
-	int breakWS0 = 0;
+	//int breakWS0 = 0;
 	
         while (tries < D && steal == false) { //WS0 loop
           int victimID = victims[tries];
@@ -542,7 +542,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             nSteal ++;
             int nn = 0;
 	   
-            while (nn < 30) { //WS1 loop
+            while (nn < 10) { //WS1 loop
 	      if (atomic_compare_exchange_strong(&(victim->lock), &expected, desired)){ // get the lock
 		int size = victim->size;
 		//printf("Victim with ID[%d] and our gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
@@ -551,7 +551,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 		  //printf("Size of the pool is big enough\n");
 		  // Here size plays the role of variable hasWork
 		  //int hasWork = 0;
-		  Node* p = popBackBulkFree(victim, m, M, &size);
+		  Node* p = popBackBulkFree(victim, m, M, &size); // NO atomic_store inside
 		  
 		  if (size == 0) { // there is no more work
 		    atomic_store(&(victim->lock), false); // reset lock
@@ -564,16 +564,16 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 		     pool_loc.pushBack(p[i]);
 		     } */
 		  
-		  pushBackBulk(pool_loc, p, size);
+		  pushBackBulk(pool_loc, p, size); // atomic_store inside
 		  
 		  steal = true;
 		  nSSteal++;
 		  atomic_store(&(victim->lock), false); // reset lock
-		  breakWS0 = 1;
-		  break; // Break out of WS0 loop (How can I break from WS0 loop which is the most external loop)
+		  //breakWS0 = 1;
+		  goto WS0; // Break out of WS0 loop (How can I break from WS0 loop which is the most external loop)
 		}
 
-		if(breakWS0 == 1) break; //break of WS0 loop
+		//if(breakWS0 == 1) break; //break of WS0 loop
 		
 		atomic_store(&(victim->lock), false);// reset lock
 		break; // Break out of WS1 loop
@@ -582,10 +582,12 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	      nn ++;
 	    }
 	  }
+	
 	  tries ++;
 	  /* if(tries == D) */
 	  /*   printf("We tried all other pools on GPU[%d]\n",gpuID); */
 	}
+      WS0:
 	
 	if (steal == false) {
 	  // termination
