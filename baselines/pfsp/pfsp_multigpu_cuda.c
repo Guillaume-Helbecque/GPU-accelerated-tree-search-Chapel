@@ -360,7 +360,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   printf("Number of explored solutions: %llu\n", *exploredSol);
   printf("Elapsed time: %f [s]\n", t1);
 
-
+  printf("Hello 1 from before parallel step");
+  
   /*
     Step 2: We continue the search on GPU in a depth-first manner, until there
     is not enough work.
