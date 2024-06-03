@@ -530,8 +530,10 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
 	/* for(int i = 0; i < D; i++) */
 	/*   printf("Victims[%d] = %d \n", i, victims[i]); */
+
+	int breakWS0 = 0;
 	
-        while (tries < D && steal == false) {
+        while (tries < D && steal == false) { //WS0 loop
           int victimID = victims[tries];
 	  
           if (victimID != gpuID) { // if not me
@@ -540,7 +542,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             nSteal ++;
             int nn = 0;
 	   
-            while (nn < 30) {
+            while (nn < 30) { //WS1 loop
 	      if (atomic_compare_exchange_strong(&(victim->lock), &expected, desired)){ // get the lock
 		int size = victim->size;
 		//printf("Victim with ID[%d] and our gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
@@ -567,8 +569,11 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 		  steal = true;
 		  nSSteal++;
 		  atomic_store(&(victim->lock), false); // reset lock
-		  break; // Break out of WS0 loop
+		  breakWS0 = 1;
+		  break; // Break out of WS0 loop (How can I break from WS0 loop which is the most external loop)
 		}
+
+		if(breakWS0 == 1) break; //break of WS0 loop
 		
 		atomic_store(&(victim->lock), false);// reset lock
 		break; // Break out of WS1 loop
