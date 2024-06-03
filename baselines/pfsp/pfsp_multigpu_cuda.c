@@ -479,7 +479,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
       int poolSize = popBackBulk(pool_loc, m, M, parents);
       
-      if (poolSize > m) {
+      if (poolSize > 0) {
         if (taskState == true) {
           taskState = false;
           atomic_store(&eachTaskState[gpuID],false);
@@ -575,7 +575,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	    atomic_store(&eachTaskState[gpuID],true);
 	  }
 	  if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
-	    printf("Termination of the second step");
+	    //printf("Termination of the second step");
 	    // writeln("task ", gpuID, " exits normally");
 	    break;
 	  }
