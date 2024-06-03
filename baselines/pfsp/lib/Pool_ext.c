@@ -14,9 +14,9 @@ void initSinglePool(SinglePool_ext* pool)
 }
 
 void pushBack(SinglePool_ext* pool, Node node) {
-  bool desired = true;
-  bool expected = false;
   while (true) {
+    bool desired = true;
+    bool expected = false;
     // We just leave this while loop after the next if has a true value as argument
     if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
       if (pool->front + pool->size >= pool->capacity) {
@@ -37,9 +37,9 @@ void pushBack(SinglePool_ext* pool, Node node) {
 
 void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
   int s = size;
-  bool desired = true;
-  bool expected = false;
   while (true) {
+    bool desired = true;
+    bool expected = false;
     if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
       if (pool->front + pool->size >= pool->capacity) {
 	pool->capacity *= 2;
@@ -58,9 +58,9 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
 }
 
 Node popBack(SinglePool_ext* pool, int* hasWork) {
-  bool desired = true;
-  bool expected = false;
   while (true) {
+    bool desired = true;
+    bool expected = false;
     if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
       if (pool->size > 0) {
 	*hasWork = 1;
@@ -92,9 +92,9 @@ Node popBackFree(SinglePool_ext* pool, int* hasWork) {
 }
 
 int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
-  bool desired = true;
-  bool expected = false;
   while(true) {
+    bool desired = true;
+    bool expected = false;
     if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
       if (pool->size < m) {
 	atomic_store(&(pool->lock),false);

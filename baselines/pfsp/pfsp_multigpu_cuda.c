@@ -392,8 +392,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   for (int gpuID = 0; gpuID < D; gpuID++) {
     gpuErrchk(cudaSetDevice(gpuID));
 
-    bool desired = true;
-    bool expected = false;
+    // bool desired = true;
+    // bool expected = false;
     
     int nSteal = 0, nSSteal = 0;
     
@@ -543,6 +543,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             int nn = 0;
 	   
             while (nn < 10) { //WS1 loop
+	      bool expected = false;
+	      bool desired = true;
 	      if (atomic_compare_exchange_strong(&(victim->lock), &expected, desired)){ // get the lock
 		int size = victim->size;
 		//printf("Victim with ID[%d] and our gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
@@ -712,8 +714,20 @@ int main(int argc, char* argv[])
   double elapsedTime;
   
   pfsp_search(inst, lb, m, M, nbGPU, &optimum, &exploredTree, &exploredSol, &elapsedTime);
-
+  
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
+  /*
+  bool expected, desired, value;
+  _Atomic bool test;
+  expected = false;
+  desired = true;
 
+  atomic_store(&test,false);
+
+  value = atomic_compare_exchange_strong(&test,&expected,desired);
+
+  printf("Value = %d, test = %d, expected = %d, desired = %d \n", value, test, expected, desired);
+  */
+  
   return 0;
 }
