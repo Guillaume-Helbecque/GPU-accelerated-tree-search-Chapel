@@ -388,6 +388,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   for (int gpuID = 0; gpuID < D; gpuID++) {
     gpuErrchk(cudaSetDevice(gpuID));
 
+    printf("Hello 1 from thread [%d]", omp_get_thread_num());
+    
     int nSteal = 0, nSSteal = 0;
     
     unsigned long long int tree = 0, sol = 0;
@@ -471,6 +473,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     int* bounds = (int*)malloc((jobs*M) * sizeof(int));
     int *bounds_d;
     gpuErrchk(cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int)));
+
+    printf("Hello 2 from thread [%d]", omp_get_thread_num());
     
     while (1) {
       // Dynamic workload balance
@@ -504,6 +508,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       
 	gpuErrchk(cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost));
 
+	printf("Hello 3 from thread [%d]", omp_get_thread_num());
+	
 	/*
 	  each task generates and inserts its children nodes to the pool.
 	*/
@@ -568,6 +574,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	  tries ++;
 	}
       WS0:
+
+	printf("Hello 4 from thread [%d]", omp_get_thread_num());
 	
 	if (steal == false) {
 	  // termination
@@ -623,6 +631,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     eachBest[gpuID] = best_l;
 
     deleteSinglePool_ext(pool_loc);
+
+    printf("Hello 5 from thread [%d]", omp_get_thread_num());
   } // End of parallel region
 
   endTime = omp_get_wtime();
@@ -674,13 +684,13 @@ int main(int argc, char* argv[])
 {
   srand(time(NULL));
   
-  int inst, lb, ub, m, M, nbGPU;
-  parse_parameters(argc, argv, &inst, &lb, &ub, &m, &M, &nbGPU);
+  int inst, lb, ub, m, M, D;
+  parse_parameters(argc, argv, &inst, &lb, &ub, &m, &M, &D);
     
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
 
-  print_settings(inst, machines, jobs, ub, lb, nbGPU);
+  print_settings(inst, machines, jobs, ub, lb, D);
 
   int optimum = (ub == 1) ? taillard_get_best_ub(inst) : INT_MAX;
   unsigned long long int exploredTree = 0;
@@ -688,7 +698,7 @@ int main(int argc, char* argv[])
 
   double elapsedTime;
   
-  pfsp_search(inst, lb, m, M, nbGPU, &optimum, &exploredTree, &exploredSol, &elapsedTime);
+  pfsp_search(inst, lb, m, M, D, &optimum, &exploredTree, &exploredSol, &elapsedTime);
   
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
   
