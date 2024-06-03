@@ -360,8 +360,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   printf("Number of explored solutions: %llu\n", *exploredSol);
   printf("Elapsed time: %f [s]\n", t1);
 
-  printf("Hello 1 from before parallel step");
-  
   /*
     Step 2: We continue the search on GPU in a depth-first manner, until there
     is not enough work.
@@ -389,8 +387,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   for (int gpuID = 0; gpuID < D; gpuID++) {
     gpuErrchk(cudaSetDevice(gpuID));
 
-    printf("Hello 1 from thread [%d]", gpuID);
-    
     int nSteal = 0, nSSteal = 0;
     
     unsigned long long int tree = 0, sol = 0;
@@ -475,8 +471,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     int *bounds_d;
     gpuErrchk(cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int)));
 
-    //printf("Hello 2 from thread [%d]", omp_get_thread_num());
-    
     while (1) {
       // Dynamic workload balance
       /*
@@ -509,8 +503,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       
 	gpuErrchk(cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost));
 
-	//printf("Hello 3 from thread [%d]", omp_get_thread_num());
-	
 	/*
 	  each task generates and inserts its children nodes to the pool.
 	*/
@@ -576,8 +568,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	}
       WS0:
 
-	//printf("Hello 4 from thread [%d]", omp_get_thread_num());
-	
 	if (steal == false) {
 	  // termination
 	  if (taskState == false) {
@@ -633,7 +623,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
     deleteSinglePool_ext(pool_loc);
 
-    printf("Hello 5 from thread [%d]", omp_get_thread_num());
   } // End of parallel region
 
   endTime = omp_get_wtime();
