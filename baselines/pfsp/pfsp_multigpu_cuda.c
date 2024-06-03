@@ -399,7 +399,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     
     unsigned long long int tree = 0, sol = 0;
     SinglePool_ext* pool_loc;
-    pool_loc = &multiPool[gpuID]; 
+    pool_loc = &multiPool[omp_get_thread_num()]; 
     int best_l = *best;
     bool taskState = false;
 
@@ -493,7 +493,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       if (poolSize > 0) {
         if (taskState == true) {
           taskState = false;
-          atomic_store(&eachTaskState[gpuID],false);
+          atomic_store(&eachTaskState[omp_get_thread_num()],false);
         }
       
 	/*
@@ -591,7 +591,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	  if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
 	    printf("Termination of the second step");
 	    check = 1;
-	    /* writeln("task ", gpuID, " exits normally"); */
+	    // writeln("task ", gpuID, " exits normally");
 	    break;
 	  }
 	  continue;
@@ -600,6 +600,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	}
       }
     }
+
+    printf("For thread[%d] nb of stealing tries is %d and real nb of stealing is %d \n", omp_get_thread_num(), nSteal, nSSteal);
     
     double time_partial = omp_get_wtime();
 
