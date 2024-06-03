@@ -389,7 +389,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   for (int gpuID = 0; gpuID < D; gpuID++) {
     gpuErrchk(cudaSetDevice(gpuID));
 
-    printf("Hello 1 from thread [%d]", omp_get_thread_num());
+    //printf("Hello 1 from thread [%d]", omp_get_thread_num());
     
     int nSteal = 0, nSSteal = 0;
     
@@ -475,7 +475,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     int *bounds_d;
     gpuErrchk(cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int)));
 
-    printf("Hello 2 from thread [%d]", omp_get_thread_num());
+    //printf("Hello 2 from thread [%d]", omp_get_thread_num());
     
     while (1) {
       // Dynamic workload balance
@@ -509,7 +509,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       
 	gpuErrchk(cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost));
 
-	printf("Hello 3 from thread [%d]", omp_get_thread_num());
+	//printf("Hello 3 from thread [%d]", omp_get_thread_num());
 	
 	/*
 	  each task generates and inserts its children nodes to the pool.
@@ -576,7 +576,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	}
       WS0:
 
-	printf("Hello 4 from thread [%d]", omp_get_thread_num());
+	//printf("Hello 4 from thread [%d]", omp_get_thread_num());
 	
 	if (steal == false) {
 	  // termination
