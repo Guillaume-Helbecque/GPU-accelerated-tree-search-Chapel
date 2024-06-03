@@ -478,12 +478,15 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     int *bounds_d;
     gpuErrchk(cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int)));
     
-      
+    int check = 0;
+    
     while (1) {
       // Dynamic workload balance
       /*
 	Each task gets its parenst nodes from the pool
       */
+
+      if(check == 1) printf("Check is one. I should have ended by now.");
       
       int poolSize = popBackBulk(pool_loc, m, M, parents);
       
@@ -586,6 +589,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	    atomic_store(&eachTaskState[gpuID],true);
 	  }
 	  if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
+	    printf("Termination of the second step");
+	    check = 1;
 	    /* writeln("task ", gpuID, " exits normally"); */
 	    break;
 	  }
