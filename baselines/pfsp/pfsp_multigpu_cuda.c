@@ -389,13 +389,13 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   for (int gpuID = 0; gpuID < D; gpuID++) {
     gpuErrchk(cudaSetDevice(gpuID));
 
-    printf("Hello 1 from thread [%d]", omp_get_thread_num());
+    printf("Hello 1 from thread [%d]", gpuID);
     
     int nSteal = 0, nSSteal = 0;
     
     unsigned long long int tree = 0, sol = 0;
     SinglePool_ext* pool_loc;
-    pool_loc = &multiPool[omp_get_thread_num()]; 
+    pool_loc = &multiPool[gpuID]; 
     int best_l = *best;
     bool taskState = false;
     bool expected = false;
@@ -488,7 +488,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       if (poolSize > 0) {
         if (taskState == true) {
           taskState = false;
-          atomic_store(&eachTaskState[omp_get_thread_num()],false);
+          atomic_store(&eachTaskState[gpuID],false);
         }
       
 	/*
