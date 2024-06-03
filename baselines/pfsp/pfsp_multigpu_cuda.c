@@ -388,7 +388,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   omp_lock_t myLock;
   omp_init_lock(&myLock);
   
-#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool, multiPool, lbound1, lbound2)
+#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, allTasksIdleFlag, pool, multiPool, lbound1, lbound2)
   for (int gpuID = 0; gpuID < D; gpuID++) {
     gpuErrchk(cudaSetDevice(gpuID));
 
