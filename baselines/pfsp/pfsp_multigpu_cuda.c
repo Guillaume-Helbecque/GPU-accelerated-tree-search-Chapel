@@ -541,7 +541,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             int nn = 0;
 	   
             while (nn < 30) {
-	      if (atomic_compare_exchange_weak(&(victim->lock), &expected, desired)){ // get the lock
+	      if (atomic_compare_exchange_strong(&(victim->lock), &expected, desired)){ // get the lock
 		int size = victim->size;
 		//printf("Victim with ID[%d] and our gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
 		
