@@ -322,9 +322,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   _Atomic bool eachTaskState[D]; // one task per GPU
   for(int i = 0; i < D; i++)//{
     atomic_store(&eachTaskState[i],false);
-  //bool value = atomic_load(&eachTaskState[i]);
-  //printf("For gpuID[%d] TaskState = %d\n",i,value);
-  //}
  
   // Timer
   double startTime, endTime;
@@ -385,16 +382,12 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   for(int i = 0; i < D; i++)
     initSinglePool(&multiPool[i]);
 
-  omp_lock_t myLock;
-  omp_init_lock(&myLock);
-  
-#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, /*allTasksIdleFlag,*/ pool, multiPool, lbound1, lbound2)
+  //int best_l = *best;
+
+#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool, multiPool, lbound1, lbound2) //reduction(min:best_l)
   for (int gpuID = 0; gpuID < D; gpuID++) {
     gpuErrchk(cudaSetDevice(gpuID));
 
-    // bool desired = true;
-    // bool expected = false;
-    
     int nSteal = 0, nSSteal = 0;
     
     unsigned long long int tree = 0, sol = 0;
@@ -402,6 +395,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     pool_loc = &multiPool[omp_get_thread_num()]; 
     int best_l = *best;
     bool taskState = false;
+    bool expected = false;
 
     // each task gets its chunk
     for (int i = 0; i < c; i++) {
@@ -478,16 +472,12 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     int *bounds_d;
     gpuErrchk(cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int)));
     
-    int check = 0;
-    
     while (1) {
       // Dynamic workload balance
       /*
 	Each task gets its parenst nodes from the pool
       */
 
-      if(check == 1) printf("Check is one. I should have ended by now.");
-      
       int poolSize = popBackBulk(pool_loc, m, M, parents);
       
       if (poolSize > 0) {
@@ -521,15 +511,10 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       }
       else {
         // work stealing
-	//printf("I am going through work stealing?\n");
-        int tries = 0;
+	int tries = 0;
         bool steal = false;
-	//adaptation of permute from chapel
 	int victims[D];
 	permute(victims,D);
-
-	/* for(int i = 0; i < D; i++) */
-	/*   printf("Victims[%d] = %d \n", i, victims[i]); */
 
 	//int breakWS0 = 0;
 	
@@ -543,16 +528,11 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             int nn = 0;
 	   
             while (nn < 10) { //WS1 loop
-	      bool expected = false;
-	      bool desired = true;
-	      if (atomic_compare_exchange_strong(&(victim->lock), &expected, desired)){ // get the lock
+	      expected = false;
+	      if (atomic_compare_exchange_strong(&(victim->lock), &expected, true)){ // get the lock
 		int size = victim->size;
-		//printf("Victim with ID[%d] and our gpuID[%d] has pool size = %d \n", victimID, gpuID, size);
-		
+				
 		if (size >= 2*m) {
-		  //printf("Size of the pool is big enough\n");
-		  // Here size plays the role of variable hasWork
-		  //int hasWork = 0;
 		  Node* p = popBackBulkFree(victim, m, M, &size); // NO atomic_store inside
 		  
 		  if (size == 0) { // there is no more work
@@ -572,7 +552,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 		  nSSteal++;
 		  atomic_store(&(victim->lock), false); // reset lock
 		  //breakWS0 = 1;
-		  goto WS0; // Break out of WS0 loop (How can I break from WS0 loop which is the most external loop)
+		  goto WS0; // Break out of WS0 loop
 		}
 
 		//if(breakWS0 == 1) break; //break of WS0 loop
@@ -586,8 +566,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	  }
 	
 	  tries ++;
-	  /* if(tries == D) */
-	  /*   printf("We tried all other pools on GPU[%d]\n",gpuID); */
 	}
       WS0:
 	
@@ -599,7 +577,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	  }
 	  if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
 	    printf("Termination of the second step");
-	    check = 1;
 	    // writeln("task ", gpuID, " exits normally");
 	    break;
 	  }
@@ -610,7 +587,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       }
     }
 
-    printf("For thread[%d] nb of stealing tries is %d and real nb of stealing is %d \n", omp_get_thread_num(), nSteal, nSSteal);
+    printf("\nFor thread[%d] nb of stealing tries is %d and real nb of stealing is %d\n", omp_get_thread_num(), nSteal, nSSteal);
     
     double time_partial = omp_get_wtime();
 
@@ -651,8 +628,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   endTime = omp_get_wtime();
   double t2 = endTime - startTime;
 
-  omp_destroy_lock(&myLock);
-  
   for (int i = 0; i < D; i++) {
     *exploredTree += eachExploredTree[i];
     *exploredSol += eachExploredSol[i];
@@ -716,18 +691,6 @@ int main(int argc, char* argv[])
   pfsp_search(inst, lb, m, M, nbGPU, &optimum, &exploredTree, &exploredSol, &elapsedTime);
   
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
-  /*
-  bool expected, desired, value;
-  _Atomic bool test;
-  expected = false;
-  desired = true;
-
-  atomic_store(&test,false);
-
-  value = atomic_compare_exchange_strong(&test,&expected,desired);
-
-  printf("Value = %d, test = %d, expected = %d, desired = %d \n", value, test, expected, desired);
-  */
   
   return 0;
 }

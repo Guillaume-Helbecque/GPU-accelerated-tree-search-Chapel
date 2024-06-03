@@ -14,11 +14,11 @@ void initSinglePool(SinglePool_ext* pool)
 }
 
 void pushBack(SinglePool_ext* pool, Node node) {
+  bool expected = false;
   while (true) {
-    bool desired = true;
-    bool expected = false;
+    expected = false;
     // We just leave this while loop after the next if has a true value as argument
-    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
+    if (atomic_compare_exchange_strong(&(pool->lock), &expected, true)) {
       if (pool->front + pool->size >= pool->capacity) {
 	pool->capacity *= 2;
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
@@ -37,10 +37,10 @@ void pushBack(SinglePool_ext* pool, Node node) {
 
 void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
   int s = size;
+  bool expected = false;
   while (true) {
-    bool desired = true;
-    bool expected = false;
-    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
+    expected = false;
+    if (atomic_compare_exchange_strong(&(pool->lock), &expected, true)) {
       if (pool->front + pool->size >= pool->capacity) {
 	pool->capacity *= 2;
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
@@ -58,10 +58,10 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
 }
 
 Node popBack(SinglePool_ext* pool, int* hasWork) {
+  bool expected = false;
   while (true) {
-    bool desired = true;
-    bool expected = false;
-    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
+    expected = false;   
+    if (atomic_compare_exchange_strong(&(pool->lock), &expected, false)) {
       if (pool->size > 0) {
 	*hasWork = 1;
 	pool->size -= 1;
@@ -92,10 +92,10 @@ Node popBackFree(SinglePool_ext* pool, int* hasWork) {
 }
 
 int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents){
+  bool expected = false;
   while(true) {
-    bool desired = true;
-    bool expected = false;
-    if (atomic_compare_exchange_strong(&(pool->lock), &expected, desired)) {
+    expected = false;    
+    if (atomic_compare_exchange_strong(&(pool->lock), &expected, true)) {
       if (pool->size < m) {
 	atomic_store(&(pool->lock),false);
 	break;
