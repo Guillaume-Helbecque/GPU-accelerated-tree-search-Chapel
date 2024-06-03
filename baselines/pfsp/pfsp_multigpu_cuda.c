@@ -591,7 +591,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     double time_partial = omp_get_wtime();
 
     // This comment has to go after the problem is solved
-    printf("\nTime for GPU[%d] = %f, nb of nodes = %lld, nb of sols = %lld\n", gpuID, time_partial - startTime, tree, sol);
+    //printf("\nTime for GPU[%d] = %f, nb of nodes = %lld, nb of sols = %lld\n", gpuID, time_partial - startTime, tree, sol);
     
     // OpenMP environment freeing variables
     gpuErrchk(cudaFree(parents_d));
