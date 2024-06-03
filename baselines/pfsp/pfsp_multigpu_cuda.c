@@ -479,7 +479,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
       int poolSize = popBackBulk(pool_loc, m, M, parents);
       
-      if (poolSize > 0) {
+      if (poolSize > m) {
         if (taskState == true) {
           taskState = false;
           atomic_store(&eachTaskState[gpuID],false);
