@@ -408,7 +408,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       pool_loc->size += l-c;
     }
     
-    // TO DO: add function 'copyBoundsDevice' to perform the deep copy of bounding data
+    // TODO: add function 'copyBoundsDevice' to perform the deep copy of bounding data
     // Vectors for deep copy of lbound1 to device
     lb1_bound_data lbound1_d;
     int* p_times_d;
