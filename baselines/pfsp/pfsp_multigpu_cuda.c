@@ -397,6 +397,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   for (int gpuID = 0; gpuID < D; gpuID++) {
     gpuErrchk(cudaSetDevice(gpuID));
 
+    printf("Hello from thread %d \n", omp_get_thread_num());
+    
     int nSteal = 0, nSSteal = 0;
     
     unsigned long long int tree = 0, sol = 0;
