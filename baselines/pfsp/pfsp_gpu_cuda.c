@@ -139,6 +139,16 @@ void print_results(const int optimum, const unsigned long long int exploredTree,
   printf("=================================================\n");
 }
 
+void print_results_file(const int inst, const int machines, const int jobs, const int lb, const int optimum,
+			const unsigned long long int exploredTree, const unsigned long long int exploredSol, const double timer)
+{
+  FILE *file;
+  file = fopen("stats_pfsp_gpu_cuda.dat","a");
+  fprintf(file,"ta%d lb%d S-GPU %.4f %llu %llu %d\n",inst,lb,timer,exploredTree,exploredSol,optimum);
+  fclose(file);
+  return;
+}
+
 inline void swap(int* a, int* b)
 {
   int tmp = *b;
@@ -477,6 +487,8 @@ int main(int argc, char* argv[])
   pfsp_search(inst, lb, m, M, &optimum, &exploredTree, &exploredSol, &elapsedTime);
 
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
+
+  print_results_file(inst, machines, jobs, lb, optimum, exploredTree, exploredSol, elapsedTime);
 
   return 0;
 }
