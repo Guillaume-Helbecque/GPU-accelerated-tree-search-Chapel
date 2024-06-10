@@ -1,6 +1,6 @@
 module Taillard
 {
-  const time_seeds: [0..#120] int(64) =
+  const time_seeds: [1..120] int(64) =
   [   873654221 /*ta001*/,    379008056 /*ta002*/,  1866992158 /*ta003*/, 216771124 /*ta004*/,  495070989 /*ta005*/,
       402959317 /*ta006*/,  1369363414 /*ta007*/, 2021925980 /*ta008*/, 573109518 /*ta009*/,  88325120 /*ta010*/,
       587595453 /*ta011*/,  1401007982 /*ta012*/, 873136276 /*ta013*/,  268827376 /*ta014*/,  1634173168 /*ta015*/,
@@ -86,7 +86,7 @@ module Taillard
   {
     const N = taillard_get_nb_jobs(id);
     const M = taillard_get_nb_machines(id);
-    var time_seed = time_seeds[id - 1];
+    var time_seed = time_seeds[id];
 
     for i in 0..#M {
       for j in 0..#N {

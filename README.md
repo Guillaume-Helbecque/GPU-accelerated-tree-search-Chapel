@@ -10,16 +10,16 @@ The algorithm is based on a general multi-pool approach equipped with a static l
 Each CPU manages its own pool of work, and we assume that one GPU is assigned per CPU.
 The tree exploration starts on the CPU, and each node taken from the work pool is evaluated, potentially pruned, and branched.
 In order to exploit GPU-acceleration, we offload a chunk of nodes on the GPU when the pool size is sufficiently large.
-When the GPU retrieves the nodes, the latter are evaluated in parallel and the non promising nodes are labeled.
-Then, the array of labels is sent back to the CPU, which uses it to prune and branch.
+When the GPU retrieves the nodes, the latter are evaluated in parallel and the results are sent back to the CPU, which uses them to prune or branch the nodes.
 This process is repeated until the pool is empty.
 
 ## Implementation
 
-The following Chapel implementations are available from the main directory:
+The following Chapel implementations are available:
 - `[nqueens/pfsp]_chpl.chpl`: sequential version;
 - `[nqueens/pfsp]_gpu_chpl.chpl`: single-GPU version;
-- `[nqueens/pfsp]_multigpu_chpl.chpl`: multi-GPU version.
+- `[nqueens/pfsp]_multigpu_chpl.chpl`: multi-GPU version (unstable);
+- `pfsp_dist_multigpu_chpl.chpl`: distributed multi-GPU version (unstable).
 
 In addition, the [baselines](./baselines/) directory contains the CUDA-based counterparts:
 - `[nqueens/pfsp]_c.c`: sequential version (C);
