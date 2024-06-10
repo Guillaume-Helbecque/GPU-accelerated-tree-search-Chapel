@@ -239,12 +239,10 @@ __device__ void lb1_children_bounds_gpu(const lb1_bound_data lb1_data, const int
   // }
 }
 
-// adds job to partial schedule in front and computes lower bound on optimal cost
 // NB1: schedule is no longer needed at this point
 // NB2: front, remain and back need to be set before calling this
 // NB3: also compute total idle time added to partial schedule (can be used a criterion for job ordering)
 // nOps : m*(3 add+2 max)  ---> O(m)
-
 
 //------------------Two-machine bound functions(johnson)---------------------------
 
@@ -357,8 +355,6 @@ __device__ void lb2_bound_gpu(const lb1_bound_data lb1_data, const lb2_bound_dat
 
 
 //-----------------FOR JOHSON BOUNDING-----------------
-
-// //(after partitioning) sorting jobs in ascending order with this comparator yield an optimal schedule for the associated 2-machine FSP [Johnson, S. M. (1954). Optimal two-and three-stage production schedules with setup times included.closed access Naval research logistics quarterly, 1(1), 61–68.]
 
 // __device__ inline int compute_cmax_johnson_gpu(const int* const lb1_p_times, const lb2_bound_data lb2_data, const int* const flag, int *tmp0, int *tmp1, int ma0, int ma1, int ind)
 // {
