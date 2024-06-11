@@ -25,7 +25,7 @@ module Pool
 
     proc ref pushBack(node: eltType) {
       if (this.front + this.size >= this.capacity) {
-        this.capacity *=2;
+        this.capacity *= 2;
         this.dom = 0..#this.capacity;
       }
 

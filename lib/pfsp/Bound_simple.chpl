@@ -1,5 +1,8 @@
 module Bound_simple
 {
+  param NUM_MACHINES = 20;
+  param NUM_JOBS = 20;
+
   record lb1_bound_data
   {
     // constants
@@ -91,11 +94,12 @@ module Bound_simple
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
-    var tmp: [0..#N] int; // initialized to 0
+    var tmp: [0..#N] int;
 
     for i in 0..#N {
       add_forward(permutation[i], data.p_times, N, M, tmp);
     }
+
     return tmp[M-1];
   }
 
@@ -128,16 +132,13 @@ module Bound_simple
     return lb;
   }
 
-  param NUM_MACHINES = 10;
-  param NUM_JOBS = 10;
-
   proc lb1_bound(const data: lb1_bound_data, const permutation, const limit1: int, const limit2: int): int
   {
     /* const M = data.nb_machines; */
 
-    var front: NUM_MACHINES*int; //[0..#M] int;
-    var back: NUM_MACHINES*int; //[0..#M] int;
-    var remain: NUM_MACHINES*int; //[0..#M] int;
+    var front: NUM_MACHINES*int;
+    var back: NUM_MACHINES*int;
+    var remain: NUM_MACHINES*int;
 
     schedule_front(data, permutation, limit1, front);
     schedule_back(data, permutation, limit2, back);
@@ -151,9 +152,9 @@ module Bound_simple
     /* const N = data.nb_jobs;
     const M = data.nb_machines; */
 
-    var front: NUM_MACHINES*int; //[0..#M] int;
-    var back: NUM_MACHINES*int; //[0..#M] int;
-    var remain: NUM_MACHINES*int; //[0..#M] int;
+    var front: NUM_MACHINES*int;
+    var back: NUM_MACHINES*int;
+    var remain: NUM_MACHINES*int;
 
     schedule_front(data, permutation, limit1, front);
     schedule_back(data, permutation, limit2, back);

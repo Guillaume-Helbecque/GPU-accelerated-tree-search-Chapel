@@ -5,6 +5,9 @@ module Bound_johnson
 
   enum lb2_variant { LB2_FULL, LB2_NABESHIMA, LB2_LAGEWEG, LB2_LEARN }
 
+  param NUM_MACHINES = 20;
+  param NUM_JOBS = 20;
+
   record lb2_bound_data
   {
     // constants
@@ -143,6 +146,7 @@ module Bound_johnson
       if (j2.partition == 0) then return 1;
       return j2.ptm2 - j1.ptm2;
     }
+
     return 0;
   }
 
@@ -188,6 +192,7 @@ module Bound_johnson
   {
     for j in 0..limit1 do
       flags[permutation[j]] = 1;
+
     for j in limit2..(N-1) do
       flags[permutation[j]] = 1;
   }
@@ -273,21 +278,18 @@ module Bound_johnson
     return lb;
   }
 
-  param NUM_MACHINES = 10;
-  param NUM_JOBS = 20;
-
   proc lb2_bound(const lb1_data: lb1_bound_data, const lb2_data: lb2_bound_data, const permutation, const limit1: int, const limit2: int, const best_cmax: int): int
   {
     /* const N = lb2_data.nb_jobs;
     const M = lb2_data.nb_machines; */
 
-    var front: NUM_MACHINES*int; //[0..#M] int;
-    var back: NUM_MACHINES* int; //[0..#M] int;
+    var front: NUM_MACHINES*int;
+    var back: NUM_MACHINES* int;
 
     schedule_front(lb1_data, permutation, limit1, front);
     schedule_back(lb1_data, permutation, limit2, back);
 
-    var flags: NUM_JOBS*int; //[0..#N] int;
+    var flags: NUM_JOBS*int;
     set_flags(permutation, limit1, limit2, NUM_JOBS, flags);
 
     return lb_makespan(lb1_data.p_times, lb2_data, flags, front, back, best_cmax);
