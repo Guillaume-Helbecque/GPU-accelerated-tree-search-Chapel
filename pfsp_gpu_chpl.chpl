@@ -9,45 +9,10 @@ config const BLOCK_SIZE = 512;
 
 use Pool;
 
+use PFSP_node;
 use Bound_johnson;
 use Bound_simple;
 use Taillard;
-
-/*******************************************************************************
-Implementation of PFSP Nodes.
-*******************************************************************************/
-
-config param MAX_JOBS = 20;
-
-record Node {
-  var depth: int;
-  var limit1: int; // left limit
-  var prmu: MAX_JOBS*int;
-
-  // default-initializer
-  proc init() {}
-
-  // root-initializer
-  proc init(jobs)
-  {
-    this.limit1 = -1;
-    init this;
-    for i in 0..#jobs do this.prmu[i] = i;
-  }
-
-  /*
-    NOTE: This copy-initializer makes the Node type "non-trivial" for `noinit`.
-    Perform manual copy in the code instead.
-  */
-  // copy-initializer
-  /* proc init(other: Node)
-  {
-    this.depth  = other.depth;
-    this.limit1 = other.limit1;
-    this.limit2 = other.limit2;
-    this.prmu   = other.prmu;
-  } */
-}
 
 /*******************************************************************************
 Implementation of the single-GPU PFSP search.
@@ -169,11 +134,11 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     } else { // if not leaf
       if (lowerbound < best) { // if child feasible
         var child = new Node();
-        child.depth = parent.depth + 1;
-        child.limit1 = parent.limit1;
+        child.depth = parent.depth;
+        child.limit1 = parent.limit1 + 1;
         child.prmu = parent.prmu;
-        child.limit1 += 1;
-        child.prmu[child.limit1] <=> child.prmu[i];
+        child.prmu[child.depth] <=> child.prmu[i];
+        child.depth += 1;
 
         pool.pushBack(child);
         tree_loc += 1;
