@@ -364,6 +364,31 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   pool.pushBack(root);
 
   var timer: stopwatch;
+
+  /*
+    Step 1: We perform a partial breadth-first search on CPU in order to create
+    a sufficiently large amount of work for GPU computation.
+  */
+  timer.start();
+
+  while (pool.size < m) {
+    var hasWork = 0;
+    var parent = pool.popFront(hasWork);
+    if !hasWork then break;
+
+    decompose(parent, exploredTree, exploredSol, best, pool);
+  }
+  timer.stop();
+  const res1 = (timer.elapsed(), exploredTree, exploredSol);
+  writeln("\nInitial search on CPU completed");
+  writeln("Size of the explored tree: ", res1[1]);
+  writeln("Number of explored solutions: ", res1[2]);
+  writeln("Elapsed time: ", res1[0], " [s]\n");
+
+  /*
+    Step 2: We continue the search on GPU in a depth-first manner until there
+    is not enough work.
+  */
   timer.start();
 
   var lbound1_d: lbound1.type;
@@ -383,16 +408,10 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   }
 
   while true {
-    var hasWork = 0;
-    var parent = pool.popBack(hasWork);
-    if !hasWork then break;
 
-    decompose(parent, exploredTree, exploredSol, best, pool);
-
-    var poolSize = min(pool.size, M);
-
-    // If 'poolSize' is sufficiently large, we offload the pool on GPU.
+    var poolSize = pool.size;
     if (poolSize >= m) {
+      poolSize = min(poolSize, M);
       var parents: [0..#poolSize] Node = noinit;
       for i in 0..#poolSize {
         var hasWork = 0;
@@ -418,12 +437,39 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
       */
       generate_children(parents, poolSize, bounds, exploredTree, exploredSol, best, pool);
     }
+    else {
+      break;
+    }
   }
+  timer.stop();
 
+  const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
+  writeln("Search on GPU completed");
+  writeln("Size of the explored tree: ", res2[1]);
+  writeln("Number of explored solutions: ", res2[2]);
+  writeln("Elapsed time: ", res2[0], " [s]\n");
+
+  /*
+    Step 3: We complete the depth-first search on CPU.
+  */
+  timer.start();
+  while true {
+    var hasWork = 0;
+    var parent = pool.popBack(hasWork);
+    if !hasWork then break;
+
+    decompose(parent, exploredTree, exploredSol, best, pool);
+  }
   timer.stop();
   elapsedTime = timer.elapsed();
+  const res3 = (elapsedTime, exploredTree, exploredSol) - res1 - res2;
+  writeln("Search on CPU completed");
+  writeln("Size of the explored tree: ", res3[1]);
+  writeln("Number of explored solutions: ", res3[2]);
+  writeln("Elapsed time: ", res3[0], " [s]");
 
   optimum = best;
+
   writeln("\nExploration terminated.");
 }
 
