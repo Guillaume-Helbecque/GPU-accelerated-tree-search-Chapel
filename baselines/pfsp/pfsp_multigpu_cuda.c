@@ -95,7 +95,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
       break;
 
     case 'm':
-      if (value < 1 || value > 100) {
+      if (value < 1) {
 	fprintf(stderr, "Error: unsupported minimal pool for GPU initialization\n");
 	exit(EXIT_FAILURE);
       }
