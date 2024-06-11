@@ -43,5 +43,6 @@ export CHPL_RT_NUM_GPUS_PER_LOCALE=4
 export GASNET_PHYSMEM_MAX='64 GB'
 
 cd $CHPL_HOME
+patch -p1 < $HERE/perf_patch.patch # see Chapel PR #24970 on Github (remove it when Chapel 2.1 is released)
 make -j $NUM_T_LOCALE
 cd $HERE/..
