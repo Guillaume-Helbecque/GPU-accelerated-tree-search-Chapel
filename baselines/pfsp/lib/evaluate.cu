@@ -4,7 +4,7 @@ extern "C" {
 
 #include <stdlib.h>
 #include "evaluate.h"
-#include "lib/c_bounds_gpu.cu"
+#include "c_bounds_gpu.cu"
   
   __device__ void swap_cuda(int* a, int* b)
   {
