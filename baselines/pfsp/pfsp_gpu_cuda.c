@@ -334,7 +334,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   fill_johnson_schedules(lbound1->p_times, lbound2);
 
 
-  // TO DO: add function 'copyBoundsDevice' to perform the deep copy of bounding data
+  // TODO: add function 'copyBoundsDevice' to perform the deep copy of bounding data
   // Vectors for deep copy of lbound1 to device
   lb1_bound_data lbound1_d;
   int* p_times_d;

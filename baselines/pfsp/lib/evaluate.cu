@@ -48,7 +48,7 @@ extern "C" {
     to the other lower bounds.
   */
   // Evaluate a bulk of parent nodes on GPU using lb1_d.
-  __global__ void evaluate_gpu_lb1_d(const int jobs, const int size, int best, Node* parents_d, const lb1_bound_data lbound1_d, int* bounds)
+  __global__ void evaluate_gpu_lb1_d(const int jobs, const int size, Node* parents_d, const lb1_bound_data lbound1_d, int* bounds)
   {
     int parentId = blockIdx.x * blockDim.x + threadIdx.x;
     
@@ -96,7 +96,7 @@ extern "C" {
     // 1D grid of 1D nbBlocks(_lb1_d) blocks with block size BLOCK_SIZE
     switch (lb) {
     case 0: // lb1_d
-      evaluate_gpu_lb1_d<<<nbBlocks_lb1_d, BLOCK_SIZE>>>(jobs, size, *best, parents, lbound1, bounds);
+      evaluate_gpu_lb1_d<<<nbBlocks_lb1_d, BLOCK_SIZE>>>(jobs, size, parents, lbound1, bounds);
       return;
       break;
 
