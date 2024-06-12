@@ -117,7 +117,7 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
-  var lb_begin: MAX_JOBS*int;
+  var lb_begin: MAX_JOBS*int(32);
 
   lb1_children_bounds(lbound1!.lb1_bound, parent.prmu, parent.limit1, jobs, lb_begin);
 
@@ -225,7 +225,7 @@ proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size, const best, const 
     const depth = parent.depth;
     var prmu = parent.prmu;
 
-    var lb_begin: MAX_JOBS*int; //[0..#size] int = noinit;
+    var lb_begin: MAX_JOBS*int(32);
 
     lb1_children_bounds(lbound1_d!.lb1_bound, parent.prmu, parent.limit1, jobs, lb_begin);
 
@@ -274,7 +274,7 @@ proc evaluate_gpu(const parents_d: [] Node, const size, const best, const lbound
 }
 
 // Generate children nodes (evaluated by GPU) on CPU.
-proc generate_children(const ref parents: [] Node, const size: int, const ref bounds: [] int,
+proc generate_children(const ref parents: [] Node, const size: int, const ref bounds: [] int(32),
   ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool: SinglePool(Node))
 {
   for i in 0..#size {
@@ -380,11 +380,11 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         something like that.
       */
       const numBounds = jobs * poolSize;
-      var bounds: [0..#numBounds] int = noinit;
+      var bounds: [0..#numBounds] int(32) = noinit;
 
       on device {
         const parents_d = parents; // host-to-device
-        var bounds_d: [0..#numBounds] int = noinit;
+        var bounds_d: [0..#numBounds] int(32) = noinit;
         evaluate_gpu(parents_d, numBounds, best, lbound1_d, lbound2_d, bounds_d);
         bounds = bounds_d; // device-to-host
       }

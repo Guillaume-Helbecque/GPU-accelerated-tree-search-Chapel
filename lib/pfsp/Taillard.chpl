@@ -26,7 +26,7 @@ module Taillard
       1368624604 /*ta111*/, 450181436 /*ta112*/,  1927888393 /*ta113*/, 1759567256 /*ta114*/, 606425239 /*ta115*/,
       19268348 /*ta116*/,   1298201670 /*ta117*/, 2041736264 /*ta118*/, 379756761 /*ta119*/,  28837162 /*ta120*/ ];
 
-  proc taillard_get_nb_jobs(const id: int): int
+  proc taillard_get_nb_jobs(const id: int): int(32)
   {
     if (id > 110) then return 500;
     if (id > 90) then return 200;
@@ -35,7 +35,7 @@ module Taillard
     /*if(id>0)*/ return 20;
   }
 
-  proc taillard_get_nb_machines(const id: int): int
+  proc taillard_get_nb_machines(const id: int): int(32)
   {
     if (id > 110) then return 20; //500x20
     if (id > 100) then return 20; //200x20
@@ -83,7 +83,7 @@ module Taillard
     return low + (value_0_1 * (high - low + 1)): int(64);
   }
 
-  proc taillard_get_processing_times(ref ptm: [] int, const id: int): void
+  proc taillard_get_processing_times(ref ptm: [] int(32), const id: int): void
   {
     const N = taillard_get_nb_jobs(id);
     const M = taillard_get_nb_machines(id);
@@ -91,7 +91,7 @@ module Taillard
 
     for i in 0..#M {
       for j in 0..#N {
-        ptm[i*N+j] = unif(time_seed, 1, 99): int;
+        ptm[i*N+j] = unif(time_seed, 1, 99):int(32);
       }
     }
   }
