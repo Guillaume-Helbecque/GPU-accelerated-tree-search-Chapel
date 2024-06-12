@@ -363,9 +363,10 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
   var multiPool: [0..#D] SinglePool_ext(Node);
 
-  coforall (gpuID, gpu) in zip(0..#D, here.gpus) with (ref pool,
-    ref eachExploredTree, ref eachExploredSol, ref eachBest,
-    ref eachTaskState, ref multiPool) {
+  coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol,
+    ref eachBest, ref eachTaskState, ref multiPool) {
+
+    const device = here.gpus[gpuID];
 
     var nSteal, nSSteal: int;
 
@@ -394,7 +395,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     var lbound1_d: lbound1.type;
     var lbound2_d: lbound2.type;
 
-    on gpu {
+    on device {
       lbound1_d = new WrapperLB1(jobs, machines);
       lbound1_d!.lb1_bound.p_times   = lbound1!.lb1_bound.p_times;
       lbound1_d!.lb1_bound.min_heads = lbound1!.lb1_bound.min_heads;
@@ -436,7 +437,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         const numBounds = jobs * poolSize;
         var bounds: [0..#numBounds] int = noinit;
 
-        on gpu {
+        on device {
           const parents_d = parents; // host-to-device
           var bounds_d: [0..#numBounds] int = noinit;
           evaluate_gpu(parents_d, numBounds, best_l, lbound1_d, lbound2_d, bounds_d);
