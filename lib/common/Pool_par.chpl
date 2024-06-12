@@ -1,4 +1,4 @@
-module Pool_ext
+module Pool_par
 {
   /*******************************************************************************
   Implementation of a dynamic-sized single pool data structure.
@@ -9,7 +9,7 @@ module Pool_ext
 
   config param CAPACITY = 1024000;
 
-  record SinglePool_ext {
+  record SinglePool_par {
     type eltType;
     var dom: domain(1);
     var elements: [dom] eltType;

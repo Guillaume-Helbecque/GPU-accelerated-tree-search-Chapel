@@ -91,11 +91,10 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 {
   for i in parent.limit1+1..(jobs-1) {
     var child = new Node();
-    child.depth = parent.depth;
+    child.depth = parent.depth + 1;
     child.limit1 = parent.limit1 + 1;
     child.prmu = parent.prmu;
-    child.prmu[child.depth] <=> child.prmu[i];
-    child.depth += 1;
+    child.prmu[parent.depth] <=> child.prmu[i];
 
     var lowerbound = lb1_bound(lbound1!.lb1_bound, child.prmu, child.limit1, jobs);
 
@@ -134,11 +133,10 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     } else { // if not leaf
       if (lowerbound < best) { // if child feasible
         var child = new Node();
-        child.depth = parent.depth;
+        child.depth = parent.depth + 1;
         child.limit1 = parent.limit1 + 1;
         child.prmu = parent.prmu;
-        child.prmu[child.depth] <=> child.prmu[i];
-        child.depth += 1;
+        child.prmu[parent.depth] <=> child.prmu[i];
 
         pool.pushBack(child);
         tree_loc += 1;
@@ -152,11 +150,10 @@ proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 {
   for i in parent.limit1+1..(jobs-1) {
     var child = new Node();
-    child.depth = parent.depth;
+    child.depth = parent.depth + 1;
     child.limit1 = parent.limit1 + 1;
     child.prmu = parent.prmu;
-    child.prmu[child.depth] <=> child.prmu[i];
-    child.depth += 1;
+    child.prmu[parent.depth] <=> child.prmu[i];
 
     var lowerbound = lb2_bound(lbound1!.lb1_bound, lbound2!.lb2_bound, child.prmu, child.limit1, jobs, best);
 
@@ -293,10 +290,10 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref bo
       } else { // if not leaf
         if (lowerbound < best) { // if child feasible
           var child = new Node();
-          child.prmu = parent.prmu;
-          child.prmu[parent.depth] <=> child.prmu[j];
           child.depth = parent.depth + 1;
           child.limit1 = parent.limit1 + 1;
+          child.prmu = parent.prmu;
+          child.prmu[parent.depth] <=> child.prmu[j];
 
           pool.pushBack(child);
           exploredTree += 1;

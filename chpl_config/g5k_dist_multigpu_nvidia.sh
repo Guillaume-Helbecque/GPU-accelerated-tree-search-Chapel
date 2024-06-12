@@ -44,12 +44,12 @@ export GASNET_PHYSMEM_MAX='64 GB'
 # GPU-related environment variables
 export CHPL_LOCALE_MODEL="gpu"
 export CHPL_GPU="nvidia"
-export CHPL_GPU_ARCH="sm_60"
+export CHPL_GPU_ARCH="sm_70"
 export CHPL_RT_NUM_GPUS_PER_LOCALE=2
 export CHPL_GPU_MEM_STRATEGY="array_on_device"
 
 # Install Chapel
 cd $CHPL_HOME
-patch -p1 < $HERE/perf_patch.patch # see Chapel PR #24970 on Github (remove it when Chapel 2.1 is released)
+patch -N -p1 < $HERE/perf_patch.patch # see Chapel PR #24970 on Github (remove it when Chapel 2.1 is released)
 make -j $NUM_T_LOCALE
 cd $HERE/..

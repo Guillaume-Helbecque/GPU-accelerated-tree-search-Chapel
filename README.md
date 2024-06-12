@@ -69,3 +69,8 @@ Problem-specific command-line options:
 ```
 ./nqueens_multigpu_cuda.o -N 17 -D 4
 ```
+
+## Related publications
+
+1. G. Helbecque, E. Krishnasamy, N. Melab, P. Bouvry. GPU-Accelerated Tree-Search in Chapel versus CUDA and HIP. *14th IEEE Workshop Parallel / Distributed Combinatorics and Optimization (PDCO 2024)*, San Francisco, USA, May 2024.
+2. G. Helbecque, E. Krishnasamy, N. Melab, P. Bouvry. GPU Computing in Chapel: Application to Tree-Search Algorithms. *International Conference in Optimization and Learning (OLA 2024)*, Dubrovnik, Croatia, May 2024.

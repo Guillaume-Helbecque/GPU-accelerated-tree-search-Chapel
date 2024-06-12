@@ -3,7 +3,7 @@
 # Configuration of Chapel for AMD (multi-)GPU-accelerated experiments on the
 # French national Grid5000 testbed (https://www.grid5000.fr/w/Grid5000:Home).
 
-# Load gcc, LLVM and cmake
+# Load modules
 module load gcc/12.2.0_gcc-10.4.0
 module load cmake/3.23.3_gcc-10.4.0
 module load rocm-opencl/5.2.0_gcc-10.4.0
@@ -37,6 +37,6 @@ export CHPL_GPU_MEM_STRATEGY="array_on_device"
 export GASNET_PHYSMEM_MAX='64 GB'
 
 cd $CHPL_HOME
-patch -p1 < $HERE/perf_patch.patch # see Chapel PR #24970 on Github (remove it when Chapel 2.1 is released)
+patch -N -p1 < $HERE/perf_patch.patch # see Chapel PR #24970 on Github (remove it when Chapel 2.1 is released)
 make -j $NUM_T_LOCALE
 cd $HERE/..
