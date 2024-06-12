@@ -175,13 +175,13 @@ proc decompose(const lb1_data, const lb2_data, const parent: Node, ref tree_loc:
 {
   select lb {
     when 0 {
-      decompose_lb1_d(lb1_data!.lb1_bound, parent, tree_loc, num_sol, best, pool);
+      decompose_lb1_d(lb1_data, parent, tree_loc, num_sol, best, pool);
     }
     when 1 {
-      decompose_lb1(lb1_data!.lb1_bound, parent, tree_loc, num_sol, best, pool);
+      decompose_lb1(lb1_data, parent, tree_loc, num_sol, best, pool);
     }
     otherwise { // 2
-      decompose_lb2(lb1_data!.lb1_bound, lb2_data!.lb2_bound, parent, tree_loc, num_sol, best, pool);
+      decompose_lb2(lb1_data, lb2_data, parent, tree_loc, num_sol, best, pool);
     }
   }
 }
@@ -321,21 +321,21 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   */
   timer.start();
 
-  var lbound1_p = new WrapperLB1(jobs, machines); //lb1_bound_data(jobs, machines);
-  taillard_get_processing_times(lbound1_p!.lb1_bound.p_times, inst);
-  fill_min_heads_tails(lbound1_p!.lb1_bound);
+  var lbound1 = new lb1_bound_data(jobs, machines);
+  taillard_get_processing_times(lbound1.p_times, inst);
+  fill_min_heads_tails(lbound1);
 
-  var lbound2_p = new WrapperLB2(jobs, machines);
-  fill_machine_pairs(lbound2_p!.lb2_bound/*, LB2_FULL*/);
-  fill_lags(lbound1_p!.lb1_bound.p_times, lbound2_p!.lb2_bound);
-  fill_johnson_schedules(lbound1_p!.lb1_bound.p_times, lbound2_p!.lb2_bound);
+  var lbound2 = new lb2_bound_data(jobs, machines);
+  fill_machine_pairs(lbound2/*, LB2_FULL*/);
+  fill_lags(lbound1.p_times, lbound2);
+  fill_johnson_schedules(lbound1.p_times, lbound2);
 
   while (pool.size < D*m) {
     var hasWork = 0;
     var parent = pool.popFront(hasWork);
     if !hasWork then break;
 
-    decompose(lbound1_p, lbound2_p, parent, exploredTree, exploredSol, best, pool);
+    decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
   }
   timer.stop();
   const res1 = (timer.elapsed(), exploredTree, exploredSol);
@@ -383,29 +383,20 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
       pool_loc.size += l-c;
     }
 
-    var lbound1 = new WrapperLB1(jobs, machines); //lb1_bound_data(jobs, machines);
-    taillard_get_processing_times(lbound1!.lb1_bound.p_times, inst);
-    fill_min_heads_tails(lbound1!.lb1_bound);
-
-    var lbound2 = new WrapperLB2(jobs, machines);
-    fill_machine_pairs(lbound2!.lb2_bound/*, LB2_FULL*/);
-    fill_lags(lbound1!.lb1_bound.p_times, lbound2!.lb2_bound);
-    fill_johnson_schedules(lbound1!.lb1_bound.p_times, lbound2!.lb2_bound);
-
-    var lbound1_d: lbound1.type;
-    var lbound2_d: lbound2.type;
+    var lbound1_d: WrapperLB1;
+    var lbound2_d: WrapperLB2;
 
     on device {
       lbound1_d = new WrapperLB1(jobs, machines);
-      lbound1_d!.lb1_bound.p_times   = lbound1!.lb1_bound.p_times;
-      lbound1_d!.lb1_bound.min_heads = lbound1!.lb1_bound.min_heads;
-      lbound1_d!.lb1_bound.min_tails = lbound1!.lb1_bound.min_tails;
+      lbound1_d!.lb1_bound.p_times   = lbound1.p_times;
+      lbound1_d!.lb1_bound.min_heads = lbound1.min_heads;
+      lbound1_d!.lb1_bound.min_tails = lbound1.min_tails;
 
       lbound2_d = new WrapperLB2(jobs, machines);
-      lbound2_d!.lb2_bound.johnson_schedules  = lbound2!.lb2_bound.johnson_schedules;
-      lbound2_d!.lb2_bound.lags               = lbound2!.lb2_bound.lags;
-      lbound2_d!.lb2_bound.machine_pairs      = lbound2!.lb2_bound.machine_pairs;
-      lbound2_d!.lb2_bound.machine_pair_order = lbound2!.lb2_bound.machine_pair_order;
+      lbound2_d!.lb2_bound.johnson_schedules  = lbound2.johnson_schedules;
+      lbound2_d!.lb2_bound.lags               = lbound2.lags;
+      lbound2_d!.lb2_bound.machine_pairs      = lbound2.machine_pairs;
+      lbound2_d!.lb2_bound.machine_pair_order = lbound2.machine_pair_order;
     }
 
     while true {
@@ -455,7 +446,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         var steal = false;
         const victims = permute(0..#D);
 
-        while (tries < D && steal == false) {
+        label WS0 while (tries < D && steal == false) {
           const victimID = victims[tries];
 
           if (victimID != gpuID) { // if not me
@@ -463,10 +454,10 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
             nSteal += 1;
             var nn = 0;
 
-            while (nn < 10) {
+            label WS1 while (nn < 10) {
               if victim.lock.compareAndSwap(false, true) { // get the lock
                 const size = victim.size;
-                /* writeln("victim size = ", size); */
+
                 if (size >= 2*m) {
                   var (hasWork, p) = victim.popBackBulkFree(m, M);
                   if (hasWork == 0) {
@@ -482,15 +473,15 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
                   steal = true;
                   nSSteal += 1;
                   victim.lock.write(false); // reset lock
-                  break;
+                  break WS0;
                 }
-                else {
-                  victim.lock.write(false); // reset lock
-                  break;
-                }
-              } else {
-                nn += 1;
+
+                victim.lock.write(false); // reset lock
+                break WS1;
               }
+
+              nn += 1;
+              currentTask.yieldExecution();
             }
           }
           tries += 1;
@@ -552,7 +543,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     var parent = pool.popBack(hasWork);
     if !hasWork then break;
 
-    decompose(lbound1_p, lbound2_p, parent, exploredTree, exploredSol, best, pool);
+    decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
   }
   timer.stop();
   elapsedTime = timer.elapsed();

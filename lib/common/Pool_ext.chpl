@@ -38,6 +38,8 @@ module Pool_ext
           this.lock.write(false);
           return;
         }
+
+        currentTask.yieldExecution();
       }
     }
 
@@ -59,6 +61,8 @@ module Pool_ext
           this.lock.write(false);
           return;
         }
+
+        currentTask.yieldExecution();
       }
     }
 
@@ -77,6 +81,8 @@ module Pool_ext
             break;
           }
         }
+
+        currentTask.yieldExecution();
       }
 
       var default: eltType;
@@ -109,6 +115,8 @@ module Pool_ext
             return (poolSize, parents);
           }
         }
+
+        currentTask.yieldExecution();
       }
 
       var parents: [0..-1] eltType = noinit;
