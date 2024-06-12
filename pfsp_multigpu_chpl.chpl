@@ -3,6 +3,7 @@
 */
 
 use Time;
+use Random;
 use GpuDiagnostics;
 
 config const BLOCK_SIZE = 512;
@@ -367,7 +368,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   const c = poolSize / D;
   const l = poolSize - (D-1)*c;
   const f = pool.front;
-  var lock: atomic bool;
+  var lock_p: atomic bool;
 
   pool.front = 0;
   pool.size = 0;
@@ -377,6 +378,8 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   coforall (gpuID, gpu) in zip(0..#D, here.gpus) with (ref pool,
     ref eachExploredTree, ref eachExploredSol, ref eachBest,
     ref eachTaskState, ref multiPool) {
+
+    var nSteal, nSSteal: int;
 
     var tree, sol: uint;
     ref pool_loc = multiPool[gpuID];
@@ -420,20 +423,22 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
       /*
         Each task gets its parents nodes from the pool.
       */
-      var poolSize = pool_loc.size;
-      if (poolSize >= m) {
+      var (poolSize, parents) = pool_loc.popBackBulk(m, M);
+
+      if (poolSize > 0) {
         if (taskState == IDLE) {
           taskState = BUSY;
           eachTaskState[gpuID].write(BUSY);
         }
 
-        poolSize = min(poolSize, M);
+        /* poolSize = min(poolSize, M);
+        var hasWork = 0;
         var parents: [0..#poolSize] Node = noinit;
-        for i in 0..#poolSize {
-          var hasWork = 0;
-          parents[i] = pool_loc.popBack(hasWork);
-          if !hasWork then break;
-        }
+        pool_loc.popBackBulk(poolSize, parents, hasWork);
+        if (hasWork == 0) {
+          writeln("DEADCODE in get parents");
+          break;
+        } */
 
         /*
           TODO: Optimize 'numBounds' based on the fact that the maximum number of
@@ -454,30 +459,84 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         generate_children(parents, poolSize, bounds, tree, sol, best_l, pool_loc);
       }
       else {
-        if (taskState == BUSY) {
-          taskState = IDLE;
-          eachTaskState[gpuID].write(IDLE);
+        // work stealing
+        var tries = 0;
+        var steal = false;
+        const victims = permute(0..#D);
+
+        while (tries < D && steal == false) {
+          const victimID = victims[tries];
+
+          if (victimID != gpuID) { // if not me
+            ref victim = multiPool[victimID];
+            nSteal += 1;
+            var nn = 0;
+
+            while (nn < 10) {
+              if victim.lock.compareAndSwap(false, true) { // get the lock
+                const size = victim.size;
+                /* writeln("victim size = ", size); */
+                if (size >= 2*m) {
+                  var (hasWork, p) = victim.popBackBulkFree(m, M);
+                  if (hasWork == 0) {
+                    victim.lock.write(false); // reset lock
+                    halt("DEADCODE in work stealing");
+                  }
+
+                  /* for i in 0..#(size/2) {
+                    pool_loc.pushBack(p[i]);
+                  } */
+                  pool_loc.pushBackBulk(p);
+
+                  steal = true;
+                  nSSteal += 1;
+                  victim.lock.write(false); // reset lock
+                  break;
+                }
+                else {
+                  victim.lock.write(false); // reset lock
+                  break;
+                }
+              } else {
+                nn += 1;
+              }
+            }
+          }
+          tries += 1;
         }
-        if allIdle(eachTaskState, allTasksIdleFlag) {
-          break;
+
+        if (steal == false) {
+          // termination
+          if (taskState == BUSY) {
+            taskState = IDLE;
+            eachTaskState[gpuID].write(IDLE);
+          }
+          if allIdle(eachTaskState, allTasksIdleFlag) {
+            writeln("task ", gpuID, " exits normally");
+            break;
+          }
+          continue;
+        } else {
+          continue;
         }
-        continue;
       }
     }
 
-    if lock.compareAndSwap(false, true) {
+    if lock_p.compareAndSwap(false, true) {
       const poolLocSize = pool_loc.size;
       for p in 0..#poolLocSize {
         var hasWork = 0;
         pool.pushBack(pool_loc.popBack(hasWork));
         if !hasWork then break;
       }
-      lock.write(false);
+      lock_p.write(false);
     }
 
     eachExploredTree[gpuID] = tree;
     eachExploredSol[gpuID] = sol;
     eachBest[gpuID] = best_l;
+
+    writeln("work stealing tries on tasks ", gpuID, " : ", nSteal, " and successes : ", nSSteal);
   }
   timer.stop();
 

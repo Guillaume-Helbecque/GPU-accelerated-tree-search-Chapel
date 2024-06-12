@@ -7,7 +7,7 @@ module Pool_ext
   'pushBack' and 'popBack' operations.
   *******************************************************************************/
 
-  config param CAPACITY = 1024;
+  config param CAPACITY = 1024000;
 
   record SinglePool_ext {
     type eltType;
@@ -16,24 +16,74 @@ module Pool_ext
     var capacity: int;
     var front: int;
     var size: int;
+    var lock: atomic bool;
 
     proc init(type eltType) {
       this.eltType = eltType;
-      this.dom = 0..#CAPACITY;
+      this.dom = {0..#CAPACITY};
       this.capacity = CAPACITY;
+      this.lock = false;
     }
 
     proc ref pushBack(node: eltType) {
-      if (this.front + this.size >= this.capacity) {
-        this.capacity *= 2;
-        this.dom = 0..#this.capacity;
-      }
+      while true {
+        if this.lock.compareAndSwap(false, true) {
+          if (this.front + this.size >= this.capacity) {
+            this.capacity *= 2;
+            this.dom = 0..#this.capacity;
+          }
 
-      this.elements[this.front + this.size] = node;
-      this.size += 1;
+          this.elements[this.front + this.size] = node;
+          this.size += 1;
+          this.lock.write(false);
+          return;
+        }
+      }
+    }
+
+    proc ref pushBackBulk(nodes: [] eltType) {
+      const s = nodes.size;
+
+      while true {
+        if this.lock.compareAndSwap(false, true) {
+          /*
+            TODO: Implement dynamic-size mechanism in that case.
+          */
+          /* if (this.front + this.size >= this.capacity) {
+            this.capacity *= 2;
+            this.dom = 0..#this.capacity;
+          } */
+
+          this.elements[(this.front + this.size)..#s] = nodes;
+          this.size += s;
+          this.lock.write(false);
+          return;
+        }
+      }
     }
 
     proc ref popBack(ref hasWork: int) {
+      while true {
+        if this.lock.compareAndSwap(false, true) {
+          if (this.size > 0) {
+            hasWork = 1;
+            this.size -= 1;
+            var elt = this.elements[this.front + this.size];
+            this.lock.write(false);
+            return elt;
+          }
+          else {
+            this.lock.write(false);
+            break;
+          }
+        }
+      }
+
+      var default: eltType;
+      return default;
+    }
+
+    proc ref popBackFree(ref hasWork: int) {
       if (this.size > 0) {
         hasWork = 1;
         this.size -= 1;
@@ -42,6 +92,41 @@ module Pool_ext
 
       var default: eltType;
       return default;
+    }
+
+    proc ref popBackBulk(const m: int, const M: int) {
+      while true {
+        if this.lock.compareAndSwap(false, true) {
+          if (this.size < m) {
+            this.lock.write(false);
+            break;
+          }
+          else {
+            const poolSize = min(this.size, M);
+            this.size -= poolSize;
+            var parents: [0..#poolSize] eltType = this.elements[(this.front + this.size)..#poolSize];
+            this.lock.write(false);
+            return (poolSize, parents);
+          }
+        }
+      }
+
+      var parents: [0..-1] eltType = noinit;
+      return (0, parents);
+    }
+
+    proc ref popBackBulkFree(const m: int, const M: int) {
+      if (this.size >= 2*m) {
+        const poolSize = this.size/2; //min(this.size, M);
+        this.size -= poolSize;
+        var parents: [0..#poolSize] eltType = this.elements[(this.front + this.size)..#poolSize];
+        return (poolSize, parents);
+      } else {
+        halt("DEADCODE");
+      }
+
+      var parents: [0..-1] eltType = noinit;
+      return (0, parents);
     }
 
     proc ref popFront(ref hasWork: int) {
