@@ -7,6 +7,7 @@ use GpuDiagnostics;
 
 config const BLOCK_SIZE = 512;
 
+use util;
 use Pool_ext;
 
 use PFSP_node;
@@ -320,6 +321,9 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   var pool = new SinglePool_ext(Node);
   pool.pushBack(root);
 
+  var allTasksIdleFlag: atomic bool = false;
+  var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
+
   var timer: stopwatch;
 
   /*
@@ -369,11 +373,13 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   pool.size = 0;
 
   coforall (gpuID, gpu) in zip(0..#D, here.gpus) with (ref pool,
-    ref eachExploredTree, ref eachExploredSol, ref eachBest) {
+    ref eachExploredTree, ref eachExploredSol, ref eachBest,
+    ref eachTaskState) {
 
     var tree, sol: uint;
     var pool_loc = new SinglePool_ext(Node);
     var best_l = best;
+    var taskState: bool = BUSY;
 
     // each task gets its chunk
     pool_loc.elements[0..#c] = pool.elements[gpuID+f.. by D #c];
@@ -414,6 +420,11 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
       */
       var poolSize = pool_loc.size;
       if (poolSize >= m) {
+        if (taskState == IDLE) {
+          taskState = BUSY;
+          eachTaskState[gpuID].write(BUSY);
+        }
+
         poolSize = min(poolSize, M);
         var parents: [0..#poolSize] Node = noinit;
         for i in 0..#poolSize {
@@ -441,7 +452,14 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         generate_children(parents, poolSize, bounds, tree, sol, best_l, pool_loc);
       }
       else {
-        break;
+        if (taskState == BUSY) {
+          taskState = IDLE;
+          eachTaskState[gpuID].write(IDLE);
+        }
+        if allIdle(eachTaskState, allTasksIdleFlag) {
+          break;
+        }
+        continue;
       }
     }
 
@@ -464,6 +482,8 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   exploredTree += (+ reduce eachExploredTree);
   exploredSol += (+ reduce eachExploredSol);
   best = (min reduce eachBest);
+
+  writeln("workload per GPU: ", 100.0*eachExploredTree/(exploredTree-res1[1]):real);
 
   const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
   writeln("Search on GPU completed");
