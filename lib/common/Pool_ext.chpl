@@ -100,7 +100,7 @@ module Pool_ext
       return default;
     }
 
-    proc ref popBackBulk(const m: int, const M: int) {
+    proc ref popBackBulk(const m: int, const M: int, ref parents) {
       while true {
         if this.lock.compareAndSwap(false, true) {
           if (this.size < m) {
@@ -110,17 +110,16 @@ module Pool_ext
           else {
             const poolSize = min(this.size, M);
             this.size -= poolSize;
-            var parents: [0..#poolSize] eltType = this.elements[(this.front + this.size)..#poolSize];
+            parents[0..#poolSize] = this.elements[(this.front + this.size)..#poolSize];
             this.lock.write(false);
-            return (poolSize, parents);
+            return poolSize;
           }
         }
 
         currentTask.yieldExecution();
       }
 
-      var parents: [0..-1] eltType = noinit;
-      return (0, parents);
+      return 0;
     }
 
     proc ref popBackBulkFree(const m: int, const M: int) {
