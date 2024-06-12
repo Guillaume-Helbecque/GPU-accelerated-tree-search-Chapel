@@ -108,7 +108,7 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
-  var lb_begin: MAX_JOBS*int;
+  var lb_begin: MAX_JOBS*int(32);
 
   lb1_children_bounds(lbound1, parent.prmu, parent.limit1, jobs, lb_begin);
 

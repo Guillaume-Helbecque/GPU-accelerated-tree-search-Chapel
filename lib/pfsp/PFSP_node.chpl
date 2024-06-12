@@ -7,9 +7,9 @@ module PFSP_node
   config param MAX_JOBS = 20;
 
   record Node {
-    var depth: int;
-    var limit1: int; // left limit
-    var prmu: MAX_JOBS*int;
+    var depth: int(32);
+    var limit1: int(32); // left limit
+    var prmu: MAX_JOBS*int(32);
 
     // default-initializer
     proc init() {}
@@ -19,7 +19,7 @@ module PFSP_node
     {
       this.limit1 = -1;
       init this;
-      for i in 0..#jobs do this.prmu[i] = i;
+      for i in 0..#jobs do this.prmu[i] = i:int(32);
     }
 
     /*
