@@ -17,8 +17,8 @@ module Pool_ext
     var front: int;
     var size: int;
 
-    proc init(type elemType) {
-      this.eltType = elemType;
+    proc init(type eltType) {
+      this.eltType = eltType;
       this.dom = 0..#CAPACITY;
       this.capacity = CAPACITY;
     }
