@@ -415,6 +415,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
     Step 2: We continue the search on GPU in a depth-first manner, until there
     is not enough work.
   */
+  
   while (1) {
     int poolSize = pool.size;
     if (poolSize >= m) {
@@ -457,6 +458,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   /*
     Step 3: We complete the depth-first search on CPU.
   */
+  
   while (1) {
     int hasWork = 0;
     Node parent = popBack(&pool, &hasWork);
