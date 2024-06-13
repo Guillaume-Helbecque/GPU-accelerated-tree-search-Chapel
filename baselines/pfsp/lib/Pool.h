@@ -16,6 +16,7 @@ typedef struct
 {
   Node* elements;
   int capacity;
+  int front;
   int size;
 } SinglePool;
 
@@ -24,6 +25,8 @@ void initSinglePool(SinglePool* pool);
 void pushBack(SinglePool* pool, Node node);
 
 Node popBack(SinglePool* pool, int* hasWork);
+
+Node popFront(SinglePool* pool, int* hasWork);
 
 void deleteSinglePool(SinglePool* pool);
 
