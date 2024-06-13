@@ -20,7 +20,7 @@
 #include "lib/c_bound_johnson.h"
 #include "lib/c_taillard.h"
 #include "lib/evaluate.h"
-#include "lib/Pool_multi.h"
+#include "lib/Pool.h"
 
 /******************************************************************************
 CUDA error checking

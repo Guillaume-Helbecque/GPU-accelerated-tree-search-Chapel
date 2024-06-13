@@ -73,7 +73,7 @@ set(CUDA_C_OMP_SOURCES
     lib/c_bound_simple.c
     lib/c_bound_johnson.c
     lib/PFSP_node.c
-    lib/Pool_multi.c
+    lib/Pool.c
 )
 
 add_executable(pfsp_multigpu_cuda.out ${CUDA_C_OMP_SOURCES})
