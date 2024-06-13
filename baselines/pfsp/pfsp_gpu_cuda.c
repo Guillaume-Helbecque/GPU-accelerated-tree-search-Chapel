@@ -397,19 +397,29 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   int *bounds_d;
   gpuErrchk(cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int)));
 
-  while (1) {
+  /*
+    Step 1: We perform a partial breadth-first search on CPU in order to create
+    a sufficiently large amount of work for GPU computation.
+  */
+    
+  while(pool.size < m) {
     // CPU side
     int hasWork = 0;
-    Node parent = popBack(&pool, &hasWork);
+    Node parent = popFront(&pool, &hasWork);
     if (!hasWork) break;
-
+    
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
+  }
 
-    int poolSize = MIN(pool.size,M);
-       
-    // If 'poolSize' is sufficiently large, we offload the pool on GPU.
+  /*
+    Step 2: We continue the search on GPU in a depth-first manner, until there
+    is not enough work.
+  */
+  while (1) {
+    int poolSize = pool.size;
     if (poolSize >= m) {
-      
+      poolSize = MIN(poolSize,M);
+
       for(int i= 0; i < poolSize; i++) {
 	int hasWork = 0;
 	parents[i] = popBack(&pool,&hasWork);
@@ -439,6 +449,20 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       */
       generate_children(parents, poolSize, jobs, bounds, exploredTree, exploredSol, best, &pool);
     }
+    else {
+      break;
+    }
+  }
+
+  /*
+    Step 3: We complete the depth-first search on CPU.
+  */
+  while (1) {
+    int hasWork = 0;
+    Node parent = popBack(&pool, &hasWork);
+    if (!hasWork) break;
+
+    decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
   }
   
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
