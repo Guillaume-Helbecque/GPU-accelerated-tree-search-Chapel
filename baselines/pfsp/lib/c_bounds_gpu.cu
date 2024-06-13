@@ -109,6 +109,11 @@ machine_bound_from_parts_gpu(const int * const front, const int * const back, co
   return lb;
 }
 
+// adds job to partial schedule in front and computes lower bound on optimal cost
+// NB1: schedule is no longer needed at this point
+// NB2: front, remain and back need to be set before calling this
+// NB3: also compute total idle time added to partial schedule (can be used a criterion for job ordering)
+// nOps : m*(3 add+2 max)  ---> O(m)
 __device__ int
 add_front_and_bound_gpu(const lb1_bound_data lb1_data, const int job, const int * const front, const int * const back, const int * const remain/*, int *delta_idle*/)
 {
@@ -239,11 +244,6 @@ __device__ void lb1_children_bounds_gpu(const lb1_bound_data lb1_data, const int
   //   }
   // }
 }
-
-// NB1: schedule is no longer needed at this point
-// NB2: front, remain and back need to be set before calling this
-// NB3: also compute total idle time added to partial schedule (can be used a criterion for job ordering)
-// nOps : m*(3 add+2 max)  ---> O(m)
 
 //------------------Two-machine bound functions(johnson)---------------------------
 
