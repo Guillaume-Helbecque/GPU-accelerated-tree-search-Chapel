@@ -14,76 +14,8 @@
 #include "lib/c_bound_simple.h"
 #include "lib/c_bound_johnson.h"
 #include "lib/c_taillard.h"
-
-/*******************************************************************************
-Implementation of PFSP Nodes.
-*******************************************************************************/
-
-#define MAX_JOBS 20
-
-typedef struct
-{
-  uint8_t depth;
-  int limit1;
-  int prmu[MAX_JOBS];
-} Node;
-
-void initRoot(Node* root, const int jobs)
-{
-  root->depth = 0;
-  root->limit1 = -1;
-  for (int i = 0; i < jobs; i++) {
-    root->prmu[i] = i;
-  }
-}
-
-/*******************************************************************************
-Implementation of a dynamic-sized single pool data structure.
-Its initial capacity is 1024, and we reallocate a new container with double
-the capacity when it is full. Since we perform only DFS, it only supports
-'pushBack' and 'popBack' operations.
-*******************************************************************************/
-
-#define CAPACITY 1024
-
-typedef struct
-{
-  Node* elements;
-  int capacity;
-  int size;
-} SinglePool;
-
-void initSinglePool(SinglePool* pool)
-{
-  pool->elements = (Node*)malloc(CAPACITY * sizeof(Node));
-  pool->capacity = CAPACITY;
-  pool->size = 0;
-}
-
-void pushBack(SinglePool* pool, Node node)
-{
-  if (pool->size >= pool->capacity) {
-    pool->capacity *= 2;
-    pool->elements = (Node*)realloc(pool->elements, pool->capacity * sizeof(Node));
-  }
-
-  pool->elements[pool->size++] = node;
-}
-
-Node popBack(SinglePool* pool, int* hasWork)
-{
-  if (pool->size > 0) {
-    *hasWork = 1;
-    return pool->elements[--pool->size];
-  }
-
-  return (Node){0};
-}
-
-void deleteSinglePool(SinglePool* pool)
-{
-  free(pool->elements);
-}
+#include "lib/PFSP_node.h"
+#include "lib/Pool.h"
 
 /*******************************************************************************
 Implementation of the sequential PFSP search.
@@ -190,7 +122,7 @@ void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const No
     swap(&child.prmu[parent.depth], &child.prmu[i]);
 
     int lowerbound = lb1_bound(lbound1, child.prmu, child.limit1, jobs);
-
+   
     if (child.depth == jobs) { // if child leaf
       *num_sol += 1;
 
@@ -323,12 +255,13 @@ void pfsp_search(const int inst, const int lb, int* best,
     if (!hasWork) break;
 
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
+
   }
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
   *elapsedTime = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 
   printf("\nExploration terminated.\n");
-
+  
   deleteSinglePool(&pool);
   free_bound_data(lbound1);
   free_johnson_bd_data(lbound2);
