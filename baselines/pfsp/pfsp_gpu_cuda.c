@@ -342,13 +342,13 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   int* min_tails_d;
 
   // Allocating and copying memory necessary for deep copy of lbound1
-  gpuErrchk(cudaMalloc((void**)&p_times_d, jobs*machines*sizeof(int)));
-  gpuErrchk(cudaMalloc((void**)&min_heads_d, machines*sizeof(int)));
-  gpuErrchk(cudaMalloc((void**)&min_tails_d, machines*sizeof(int)));
-  gpuErrchk(cudaMemcpy(p_times_d, lbound1->p_times, (jobs*machines)*sizeof(int), cudaMemcpyHostToDevice));
-  gpuErrchk(cudaMemcpy(min_heads_d, lbound1->min_heads, machines*sizeof(int), cudaMemcpyHostToDevice));
-  gpuErrchk(cudaMemcpy(min_tails_d, lbound1->min_tails, machines*sizeof(int), cudaMemcpyHostToDevice));
-
+  cudaMalloc((void**)&p_times_d, jobs*machines*sizeof(int));
+  cudaMalloc((void**)&min_heads_d, machines*sizeof(int));
+  cudaMalloc((void**)&min_tails_d, machines*sizeof(int));
+  cudaMemcpy(p_times_d, lbound1->p_times, (jobs*machines)*sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(min_heads_d, lbound1->min_heads, machines*sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(min_tails_d, lbound1->min_tails, machines*sizeof(int), cudaMemcpyHostToDevice);
+  
   // Deep copy of lbound1
   lbound1_d.p_times = p_times_d;
   lbound1_d.min_heads = min_heads_d;
@@ -366,17 +366,17 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
 
   // Allocating and copying memory necessary for deep copy of lbound2
   int nb_mac_pairs = lbound2->nb_machine_pairs;
-  gpuErrchk(cudaMalloc((void**)&johnson_schedule_d, (nb_mac_pairs*jobs) * sizeof(int)));
-  gpuErrchk(cudaMalloc((void**)&lags_d, (nb_mac_pairs*jobs) * sizeof(int)));
-  gpuErrchk(cudaMalloc((void**)&machine_pairs_1_d, nb_mac_pairs * sizeof(int)));
-  gpuErrchk(cudaMalloc((void**)&machine_pairs_2_d, nb_mac_pairs * sizeof(int)));
-  gpuErrchk(cudaMalloc((void**)&machine_pair_order_d, nb_mac_pairs * sizeof(int)));
-  gpuErrchk(cudaMemcpy(johnson_schedule_d, lbound2->johnson_schedules, (nb_mac_pairs*jobs) * sizeof(int), cudaMemcpyHostToDevice));
-  gpuErrchk(cudaMemcpy(lags_d, lbound2->lags, (nb_mac_pairs*jobs) * sizeof(int), cudaMemcpyHostToDevice));
-  gpuErrchk(cudaMemcpy(machine_pairs_1_d, lbound2->machine_pairs_1, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice));
-  gpuErrchk(cudaMemcpy(machine_pairs_2_d, lbound2->machine_pairs_2, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice));
-  gpuErrchk(cudaMemcpy(machine_pair_order_d, lbound2->machine_pair_order, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice));
-
+  cudaMalloc((void**)&johnson_schedule_d, (nb_mac_pairs*jobs) * sizeof(int));
+  cudaMalloc((void**)&lags_d, (nb_mac_pairs*jobs) * sizeof(int));
+  cudaMalloc((void**)&machine_pairs_1_d, nb_mac_pairs * sizeof(int));
+  cudaMalloc((void**)&machine_pairs_2_d, nb_mac_pairs * sizeof(int));
+  cudaMalloc((void**)&machine_pair_order_d, nb_mac_pairs * sizeof(int));
+  cudaMemcpy(johnson_schedule_d, lbound2->johnson_schedules, (nb_mac_pairs*jobs) * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(lags_d, lbound2->lags, (nb_mac_pairs*jobs) * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(machine_pairs_1_d, lbound2->machine_pairs_1, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(machine_pairs_2_d, lbound2->machine_pairs_2, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(machine_pair_order_d, lbound2->machine_pair_order, nb_mac_pairs * sizeof(int), cudaMemcpyHostToDevice);
+  
   // Deep copy of lbound2
   lbound2_d.johnson_schedules = johnson_schedule_d;
   lbound2_d.lags = lags_d;
@@ -390,12 +390,12 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   // Allocating parents vector on CPU and GPU
   Node* parents = (Node*)malloc(M * sizeof(Node));
   Node* parents_d;
-  gpuErrchk(cudaMalloc((void**)&parents_d, M * sizeof(Node)));
+  cudaMalloc((void**)&parents_d, M * sizeof(Node));
 
   // Allocating bounds vector on CPU and GPU
   int* bounds = (int*)malloc((jobs*M) * sizeof(int));
   int *bounds_d;
-  gpuErrchk(cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int)));
+  cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
 
   /*
     Step 1: We perform a partial breadth-first search on CPU in order to create
@@ -436,14 +436,12 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
       const int nbBlocks_lb1_d = ceil((double)nbBlocks / jobs); 
       
-      gpuErrchk(cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice));
+      cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
 
       // numBounds is the 'size' of the problem
       evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, best, lbound1_d, lbound2_d, parents_d, bounds_d);
-      gpuErrchk(cudaPeekAtLastError());
-      gpuErrchk(cudaDeviceSynchronize());
       
-      gpuErrchk(cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost));
+      cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
 
       /*
 	each task generates and inserts its children nodes to the pool.
@@ -478,17 +476,17 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   free_johnson_bd_data(lbound2);
 
   // Freeing memory for device
-  gpuErrchk(cudaFree(parents_d));
-  gpuErrchk(cudaFree(bounds_d));
-  gpuErrchk(cudaFree(p_times_d));
-  gpuErrchk(cudaFree(min_heads_d));
-  gpuErrchk(cudaFree(min_tails_d));
-  gpuErrchk(cudaFree(johnson_schedule_d));
-  gpuErrchk(cudaFree(lags_d));
-  gpuErrchk(cudaFree(machine_pairs_1_d));
-  gpuErrchk(cudaFree(machine_pairs_2_d));
-  gpuErrchk(cudaFree(machine_pair_order_d));
-
+  cudaFree(parents_d);
+  cudaFree(bounds_d);
+  cudaFree(p_times_d);
+  cudaFree(min_heads_d);
+  cudaFree(min_tails_d);
+  cudaFree(johnson_schedule_d);
+  cudaFree(lags_d);
+  cudaFree(machine_pairs_1_d);
+  cudaFree(machine_pairs_2_d);
+  cudaFree(machine_pair_order_d);
+  
   //Freeing memory for host
   free(parents);
   free(bounds);
