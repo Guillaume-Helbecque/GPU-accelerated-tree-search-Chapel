@@ -81,11 +81,11 @@ sum_unscheduled_gpu(const lb1_bound_data lb1_data, const int * const permutation
   const int nb_machines = lb1_data.nb_machines;
   const int * const p_times = lb1_data.p_times;
 
-  memset(remain, 0, nb_machines*sizeof(int));
+  //memset(remain, 0, nb_machines*sizeof(int));
   
-  // for (int j = 0; j < nb_machines; j++) {
-  //   remain[j] = 0;
-  // }
+  for (int j = 0; j < nb_machines; j++) {
+    remain[j] = 0;
+  }
   
   for (int k = limit1 + 1; k < limit2; k++) {
     const int job = permutation[k];
