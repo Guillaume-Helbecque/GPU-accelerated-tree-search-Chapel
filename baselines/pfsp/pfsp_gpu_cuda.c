@@ -333,7 +333,34 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   fill_lags(lbound1->p_times, lbound2);
   fill_johnson_schedules(lbound1->p_times, lbound2);
 
+  /*
+    Step 1: We perform a partial breadth-first search on CPU in order to create
+    a sufficiently large amount of work for GPU computation.
+  */
+    
+  while(pool.size < m) {
+    // CPU side
+    int hasWork = 0;
+    Node parent = popFront(&pool, &hasWork);
+    if (!hasWork) break;
+    
+    decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
+  }
+  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+  double t1 = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 
+  printf("\nInitial search on CPU completed\n");
+  printf("Size of the explored tree: %llu\n", *exploredTree);
+  printf("Number of explored solutions: %llu\n", *exploredSol);
+  printf("Elapsed time: %f [s]\n", t1);
+
+  /*
+    Step 2: We continue the search on GPU in a depth-first manner, until there
+    is not enough work.
+  */
+
+  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+  
   // TODO: add function 'copyBoundsDevice' to perform the deep copy of bounding data
   // Vectors for deep copy of lbound1 to device
   lb1_bound_data lbound1_d;
@@ -396,25 +423,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   int* bounds = (int*)malloc((jobs*M) * sizeof(int));
   int *bounds_d;
   cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
-
-  /*
-    Step 1: We perform a partial breadth-first search on CPU in order to create
-    a sufficiently large amount of work for GPU computation.
-  */
-    
-  while(pool.size < m) {
-    // CPU side
-    int hasWork = 0;
-    Node parent = popFront(&pool, &hasWork);
-    if (!hasWork) break;
-    
-    decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
-  }
-
-  /*
-    Step 2: We continue the search on GPU in a depth-first manner, until there
-    is not enough work.
-  */
   
   while (1) {
     int poolSize = pool.size;
@@ -452,11 +460,19 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       break;
     }
   }
+  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+  double t2 = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+  
+  printf("\nSearch on GPU completed\n");
+  printf("Size of the explored tree: %llu\n", *exploredTree);
+  printf("Number of explored solutions: %llu\n", *exploredSol);
+  printf("Elapsed time: %f [s]\n", t2);
 
   /*
     Step 3: We complete the depth-first search on CPU.
   */
-  
+
+  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
   while (1) {
     int hasWork = 0;
     Node parent = popBack(&pool, &hasWork);
@@ -465,16 +481,11 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
   }
   
-  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-  *elapsedTime = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-
-  printf("\nExploration terminated.\n");
-
   // Freeing memory for structs 
   deleteSinglePool(&pool);
   free_bound_data(lbound1);
   free_johnson_bd_data(lbound2);
-
+  
   // Freeing memory for device
   cudaFree(parents_d);
   cudaFree(bounds_d);
@@ -490,6 +501,16 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   //Freeing memory for host
   free(parents);
   free(bounds);
+  
+  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+  double t3 = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+  *elapsedTime = t1 + t2 + t3;
+  printf("\nSearch on CPU completed\n");
+  printf("Size of the explored tree: %llu\n", *exploredTree);
+  printf("Number of explored solutions: %llu\n", *exploredSol);
+  printf("Elapsed time: %f [s]\n", t3);
+
+  printf("\nExploration terminated.\n");
 }
 
 int main(int argc, char* argv[])
