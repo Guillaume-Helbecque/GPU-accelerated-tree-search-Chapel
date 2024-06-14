@@ -172,13 +172,13 @@ void lb1_children_bounds(const lb1_bound_data *const lb1_data, const int *const 
   // switch (direction)  {
   //   case -1: //begin
   //   {
-      memset(lb_begin, 0, N*sizeof(int));
-      // if (prio_begin) memset(prio_begin, 0, N*sizeof(int));
-
-      for (int i = limit1+1; i < limit2; i++) {
-        int job = permutation[i];
-        lb_begin[job] = add_front_and_bound(lb1_data, job, front, back, remain/*, prio_begin*/);
-      }
+  memset(lb_begin, 0, N*sizeof(int));
+  // if (prio_begin) memset(prio_begin, 0, N*sizeof(int));
+  
+  for (int i = limit1+1; i < limit2; i++) {
+    int job = permutation[i];
+    lb_begin[job] = add_front_and_bound(lb1_data, job, front, back, remain/*, prio_begin*/);
+  }
   //     break;
   //   }
   //   case 0: //begin-end
