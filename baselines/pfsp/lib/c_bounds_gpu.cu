@@ -82,9 +82,12 @@ sum_unscheduled_gpu(const lb1_bound_data lb1_data, const int * const permutation
   const int nb_machines = lb1_data.nb_machines;
   const int * const p_times = lb1_data.p_times;
 
-  for (int j = 0; j < nb_machines; j++) {
-    remain[j] = 0;
-  }
+  memset(remain, 0, nb_machines*sizeof(int));
+  
+  // for (int j = 0; j < nb_machines; j++) {
+  //   remain[j] = 0;
+  // }
+  
   for (int k = limit1 + 1; k < limit2; k++) {
     const int job = permutation[k];
     for (int j = 0; j < nb_machines; j++) {
@@ -291,14 +294,9 @@ __device__ int lb_makespan_gpu(int* lb1_p_times, const lb2_bound_data lb2_data, 
 __device__ void lb2_bound_gpu(const lb1_bound_data lb1_data, const lb2_bound_data lb2_data, const int* const permutation, const int limit1, const int limit2,const int best_cmax,int *bounds)
 {
   const int N = lb1_data.nb_jobs;
-  const int M = lb1_data.nb_machines;
 
   int front[MAX_MACHINES];
   int back[MAX_MACHINES];
-  int lb1_ptimes[MAX_MACHINES*MAX_JOBS];
-
-  for(int i = 0; i < N * M; i++)
-    lb1_ptimes[i] = lb1_data.p_times[i];
 
   schedule_front_gpu(lb1_data, permutation, limit1, front);
   schedule_back_gpu(lb1_data, permutation, limit2, back);
@@ -313,7 +311,7 @@ __device__ void lb2_bound_gpu(const lb1_bound_data lb1_data, const lb2_bound_dat
   for (int j = limit2; j < N; j++)
     flags[permutation[j]] = 1;
 
-  *bounds = lb_makespan_gpu(lb1_ptimes, lb2_data, flags, front, back, best_cmax);
+  *bounds = lb_makespan_gpu(lb1_data.p_times, lb2_data, flags, front, back, best_cmax);
   return;
 }
 
