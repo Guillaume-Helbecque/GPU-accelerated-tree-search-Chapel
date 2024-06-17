@@ -58,11 +58,15 @@ pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple
 
 # Build executable for HIP
 pfsp_gpu_hip.out: pfsp_gpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/c_bounds_gpu.o lib/evaluate.o lib/PFSP_node.o lib/Pool.o
-	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@ -lm -L/opt/rocm-4.5.0/hip/lib
+	hipify-perl $< > $<.hip
+ 	$(HIP_COMPILER) $(HIP_COMMON_OPTS) -o $@ -lm -L/opt/rocm-4.5.0/hip/lib
+
+#$(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@ -lm -L/opt/rocm-4.5.0/hip/lib
 
 # Build executable for HIP+OpenMP
 pfsp_multigpu_hip.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/c_bounds_gpu.o lib/evaluate.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
-	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@ -lm -L/opt/rocm-4.5.0/hip/lib
+	hipify-perl $< > $<.hip	
+	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $^ -o $@ -lm -L/opt/rocm-4.5.0/hip/lib
 
 # Pattern rule for HIP source files
 # pfsp_gpu_hip.o: pfsp_gpu_cuda.cu
@@ -74,9 +78,8 @@ pfsp_multigpu_hip.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple.
 # 	hipify-perl $< > $<.hip
 # 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $<.hip -o $@
 
-
 # Utilities
 .PHONY: clean
 
 clean:
-	rm -f $(C_OBJECTS) $(CUDA_OBJECTS) *.o *.out #$(HIP_OBJECTS) *.hip
+	rm -f $(C_OBJECTS) $(CUDA_OBJECTS) *.o *.out *.hip #$(HIP_OBJECTS) *.hip
