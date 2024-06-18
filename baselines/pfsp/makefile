@@ -63,7 +63,7 @@ pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o $(C_PFSP_OBJECTS) $(CUDA_PFSP_OBJEC
 # Build executable for HIP
 pfsp_gpu_hip.o: pfsp_gpu_cuda.c
 	hipify-perl $< > $<.hip.cpp
-	# $(HIP_COMPILER) $(HIP_COMMON_OPTS) $<.hip.cpp -o $@
+	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $<.hip.cpp -o $@
 
 pfsp_gpu_hip.out: pfsp_gpu_hip.o $(C_PFSP_OBJECTS) lib/Pool.o $(HIP_PFSP_OBJECTS)
 	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@ -lm -L/opt/rocm-4.5.0/hip/lib
