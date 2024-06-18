@@ -61,9 +61,9 @@ pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o $(C_PFSP_OBJECTS) $(CUDA_PFSP_OBJEC
 	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
 
 # Build executable for HIP
-#pfsp_gpu_hip.o: pfsp_gpu_cuda.c
-#	hipify-perl $< > $<.hip.cpp
-#	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $<.hip.cpp -o $@
+pfsp_gpu_hip.o: pfsp_gpu_cuda.c
+	hipify-perl $< > $<.hip.cpp
+	$(HIP_COMPILER) $(HIP_COMMON_OPTS) -c $<.hip.cpp -o $@
 
 pfsp_gpu_hip.out: pfsp_gpu_cuda.o $(C_PFSP_OBJECTS) lib/Pool.o $(HIP_PFSP_OBJECTS)	
 	hipify-perl $< > $<.hip.cpp
