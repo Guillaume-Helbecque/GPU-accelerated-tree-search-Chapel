@@ -65,7 +65,7 @@ pfsp_gpu_hip.o: pfsp_gpu_cuda.c
 	hipify-perl $< > $<.hip.cpp
 	$(HIP_COMPILER) $(HIP_COMMON_OPTS) -c $<.hip.cpp -o $@
 
-pfsp_gpu_hip.out: pfsp_gpu_cuda.o $(C_PFSP_OBJECTS) lib/Pool.o $(HIP_PFSP_OBJECTS)	
+pfsp_gpu_hip.out: pfsp_gpu_hip.o $(C_PFSP_OBJECTS) lib/Pool.o $(HIP_PFSP_OBJECTS)	
 	hipify-perl $< > $<.hip.cpp
 	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@ -lm -L/opt/rocm-4.5.0/hip/lib
 
