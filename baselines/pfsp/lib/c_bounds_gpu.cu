@@ -211,9 +211,12 @@ __device__ void lb1_children_bounds_gpu(const lb1_bound_data lb1_data, const int
   // switch (direction)  {
   //   case -1: //begin
   //   {
-  memset(lb_begin, 0, N*sizeof(int));
+  //memset(lb_begin, 0, N*sizeof(int));
   // if (prio_begin) memset(prio_begin, 0, N*sizeof(int));
+  for(int i = 0; i < N; i++)
+    lb_begin[i]=0;
 
+  
   for (int i = limit1+1; i < limit2; i++) {
     int job = permutation[i];
     lb_begin[job] = add_front_and_bound_gpu(lb1_data, job, front, back, remain/*, prio_begin*/);
