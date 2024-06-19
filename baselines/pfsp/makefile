@@ -24,7 +24,7 @@ C_OBJECTS  :=  $(C_SOURCES:.c=.o)
 C_PFSP_OBJECTS	:=  $(C_PFSP_LIBPATH:.c=.o)
 C_PFSP_POOL_OBJECTS  :=  $(C_PFSP_POOL_LIBPATH:.c=.o)
 CUDA_PFSP_OBJECTS := $(CUDA_PFSP_LIBPATH:.cu=.o)
-HIP_PFSP_OBJECTS  := $(HIP_PFSP_LIBPATH:.hip.cpp=.o)
+HIP_PFSP_OBJECTS  := $(HIP_PFSP_LIBPATH:.hip.cpp=.hip.o)
 
 # Executable names
 EXECUTABLES := pfsp_c.out pfsp_gpu_cuda.out pfsp_multigpu_cuda.out pfsp_gpu_hip.out #pfsp_multigpu_hip.out
@@ -40,14 +40,6 @@ all: $(EXECUTABLES)
 %.o: %.cu
 	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -c $< -o $@
 
-# Generate HIP source files from CUDA source files
-%.hip.cpp: %.cu
-	hipify-perl $< > $@
-
-# Pattern rule for HIP source files
-%.o: %.hip.cpp
-	$(HIP_COMPILER) $(HIP_COMMON_OPTS) -c $< -o $@
-
 # Build executable for CPU only
 pfsp_c.out: pfsp_c.o $(C_PFSP_OBJECTS) lib/Pool.o
 	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@
@@ -60,29 +52,26 @@ pfsp_gpu_cuda.out: pfsp_gpu_cuda.o $(C_PFSP_OBJECTS) $(CUDA_PFSP_OBJECTS) lib/Po
 pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o $(C_PFSP_OBJECTS) $(CUDA_PFSP_OBJECTS) lib/Pool_ext.o
 	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
 
-# Build executable for HIP
-pfsp_gpu_hip.o: pfsp_gpu_cuda.c
-	hipify-perl $< > $<.hip.cpp
-	$(HIP_COMPILER) $(HIP_COMMON_OPTS) -c $<.hip.cpp -o $@
+#HIP PART
+# Generate HIP source files from CUDA source files
+# Convert C and CUDA files to HIP files
+%.hip.cpp: %.c
+	hipify-perl $< > $@
 
-pfsp_gpu_hip.out: pfsp_gpu_hip.o $(C_PFSP_OBJECTS) lib/Pool.o $(HIP_PFSP_OBJECTS)	
-	hipify-perl $< > $<.hip.cpp
+%.hip.cpp: %.cu
+	hipify-perl $< > $@
+
+# Compile C source files with hipcc
+%.o: %.c
+	$(HIP_COMPILER) $(C_COMMON_OPTS) -c $< -o $@
+
+# Compile HIP-converted source files with hipcc
+%.hip.o: %.hip.cpp
+	$(HIP_COMPILER) $(HIP_COMMON_OPTS) -c $< -o $@
+
+pfsp_gpu_hip.out: pfsp_gpu_cuda.hip.o $(C_PFSP_OBJECTS) lib/Pool.o $(HIP_PFSP_OBJECTS)	
 	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@ -lm -L/opt/rocm-4.5.0/hip/lib
 
-# pfsp_gpu_hip.o: pfsp_gpu_cuda.c
-# 	hipify-perl $< > $<.hip
-# 	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $<.hip -o $@
-
-# pfsp_gpu_hip.out: pfsp_gpu_hip.o $(C_PFSP_OBJECTS) lib/Pool.o $(HIP_PFSP_OBJECTS)
-# 	hipify-perl $< > $<.hip
-#  	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $<.hip -o $@ #-lm #-L/opt/rocm-4.5.0/hip/lib
-
-# #$(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@ -lm -L/opt/rocm-4.5.0/hip/lib
-
-# # Build executable for HIP+OpenMP
-# pfsp_multigpu_hip.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/c_bounds_gpu.o lib/evaluate.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
-# 	hipify-perl $< > $<.hip	
-# 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $^ -o $@ -lm -L/opt/rocm-4.5.0/hip/lib
 
 # Pattern rule for HIP source files
 # pfsp_gpu_hip.o: pfsp_gpu_cuda.cu
@@ -98,4 +87,4 @@ pfsp_gpu_hip.out: pfsp_gpu_hip.o $(C_PFSP_OBJECTS) lib/Pool.o $(HIP_PFSP_OBJECTS
 .PHONY: clean
 
 clean:
-	rm -f $(C_OBJECTS) $(C_PFSP_OBJECTS) $(C_PFSP_POOL_OBJECTS) $(CUDA_PFSP_OBJECTS) $(HIP_PFSP_OBJECTS) *.o *.out *hip *.hip.cpp *.dat
+	rm -f $(C_OBJECTS) $(C_PFSP_OBJECTS) $(C_PFSP_POOL_OBJECTS) $(CUDA_PFSP_OBJECTS) $(HIP_PFSP_OBJECTS) *.o *.out *.hip *.hip.cpp *.hip.o *.dat
