@@ -4,7 +4,7 @@ gcc -O3 -Wall -g -c -fopenmp lib/c_bound_johnson.c -o lib/c_bound_johnson.o -I/s
 gcc -O3 -Wall -g -c -fopenmp lib/PFSP_node.c -o lib/PFSP_node.o -I/share/compilers/nvidia/cuda/12.0/include -I/usr/local/cuda-11.2/targets/x86_64-linux/include/
 gcc -O3 -Wall -g -c -fopenmp lib/Auxiliary.c -o lib/Auxiliary.o -I/share/compilers/nvidia/cuda/12.0/include -I/usr/local/cuda-11.2/targets/x86_64-linux/include/
 gcc -O3 -Wall -g -c -fopenmp lib/Pool.c -o lib/Pool.o -I/share/compilers/nvidia/cuda/12.0/include -I/usr/local/cuda-11.2/targets/x86_64-linux/include/
-hipify-perl lib/evalute.cu > lib/evaluate.cu.hip
+hipify-perl lib/evaluate.cu > lib/evaluate.cu.hip
 hipcc -O3 -offload-arch=gfx906 lib/evaluate.cu.hip -o evaluate_hip.o -lm -L/opt/rocm-4.5.0/hip/lib
 hipify-perl lib/c_bounds_gpu.cu > lib/c_bounds_gpu.cu.hip
 hipcc -O3 -offload-arch=gfx906 lib/c_bounds_gpu.cu.hip -o c_bounds_gpu_hip.o -lm -L/opt/rocm-4.5.0/hip/lib
