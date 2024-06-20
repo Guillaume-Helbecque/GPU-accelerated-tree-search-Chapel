@@ -14,14 +14,15 @@ HIP_PATCH_G5K    := DEVICE_LIB_PATH=/opt/rocm-4.5.0/amdgcn/bitcode/
 # Source files
 C_SOURCES    :=  lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c lib/PFSP_node.c lib/Pool.c lib/Pool_ext.c lib/Auxiliary.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c
 CUDA_SOURCES :=  lib/evaluate.cu lib/c_bounds_gpu.cu
+HIP_SOURCES  :=  pfsp_gpu_hip.cu pfsp_multigpu_hip.cu
 
 # Object files
 C_OBJECTS    := $(C_SOURCES:.c=.o)
 CUDA_OBJECTS := $(CUDA_SOURCES:.cu=.o)
-# HIP_OBJECTS  := $(CUDA_SOURCES:cuda.cu=hip.o)
+HIP_OBJECTS  := $(HIP_SOURCES:hip.cu=hip.o)
 
 # Executable names
-EXECUTABLES := pfsp_c.out pfsp_gpu_cuda.out pfsp_multigpu_cuda.out
+EXECUTABLES := pfsp_c.out pfsp_gpu_cuda.out pfsp_multigpu_cuda.out pfsp_gpu_hip.out pfsp_multigpu_hip.out
 
 # Library paths
 #C_PFSP_LIBPATH := lib/c_bound_simple.c lib/c_bound_johnson.c lib/c_taillard.c
@@ -51,18 +52,21 @@ pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple
 	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
 
 # Pattern rule for HIP source files
-# pfsp_gpu_hip.o: pfsp_gpu_cuda.cu
-# 	hipify-perl $< > $<.hip
-# 	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $<.hip -o $@
+	hipify-perl pfsp_gpu_hip.cu > pfsp_gpu_hip.cu.hip
+	$(HIP_COMPILER) $(HIP_COMMON_OPTS) -c pfsp_gpu_hip.cu.hip -o pfsp_gpu_hip.o
+
+pfsp_gpu_hip.out: pfsp_gpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool.o
+	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@ -L/opt/rocm-4.5.0/hip/lib
 
 # Pattern rule for hybrid OpenMP+HIP source files
-# pfsp_multigpu_hip.o: pfsp_multigpu_cuda.cu
-# 	hipify-perl $< > $<.hip
-# 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $<.hip -o $@
+	hipify-perl pfsp_multigpu_hip.cu > pfsp_multigpu_hip.cu.hip
+	$(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp -c pfsp_multigpu_hip.cu.hip -o pfsp_multigpu_hip.o
 
+pfsp_multigpu_hip.out: pfsp_multigpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
+	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $<.hip -o $@
 
 # Utilities
 .PHONY: clean
 
 clean:
-	rm -f $(C_OBJECTS) $(CUDA_OBJECTS) *.o *.out *.dat #$(HIP_OBJECTS) *.hip
+	rm -f $(C_OBJECTS) $(CUDA_OBJECTS) *.o *.out *.dat $(HIP_OBJECTS) *.hip
