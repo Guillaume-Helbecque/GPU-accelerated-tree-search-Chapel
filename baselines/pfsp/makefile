@@ -63,7 +63,7 @@ pfsp_gpu_hip.out: pfsp_gpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bou
 	$(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp -c pfsp_multigpu_hip.cu.hip -o pfsp_multigpu_hip.o
 
 pfsp_multigpu_hip.out: pfsp_multigpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
-	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $<.hip -o $@
+	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $<.hip -o $@ -L/opt/rocm-4.5.0/hip/lib
 
 # Utilities
 .PHONY: clean
