@@ -60,10 +60,10 @@ pfsp_gpu_hip.out: pfsp_gpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bou
 
 # Pattern rule for hybrid OpenMP+HIP source files
 	hipify-perl pfsp_multigpu_hip.cu > pfsp_multigpu_hip.cu.hip
-	$(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp -c pfsp_multigpu_hip.cu.hip -o pfsp_multigpu_hip.o
+	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp -c pfsp_multigpu_hip.cu.hip -o pfsp_multigpu_hip.o -I/share/compilers/nvidia/cuda/12.0/include -I/usr/local/cuda-11.2/targets/x86_64-linux/include/
 
 pfsp_multigpu_hip.out: pfsp_multigpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
-	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $<.hip -o $@ -L/opt/rocm-4.5.0/hip/lib
+	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $<.hip -o $@ -L/opt/rocm-4.5.0/hip/lib -I/share/compilers/nvidia/cuda/12.0/include -I/usr/local/cuda-11.2/targets/x86_64-linux/include/
 
 # Utilities
 .PHONY: clean
