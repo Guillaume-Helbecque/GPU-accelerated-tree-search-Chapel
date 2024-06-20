@@ -56,7 +56,7 @@ pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple
 	$(HIP_COMPILER) $(HIP_COMMON_OPTS) -c pfsp_gpu_hip.cu.hip -o pfsp_gpu_hip.o
 
 pfsp_gpu_hip.out: pfsp_gpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool.o
-	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@ #-L/opt/rocm-4.5.0/hip/lib
+	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@ -L/opt/rocm-4.5.0/hip/lib
 
 # Pattern rule for hybrid OpenMP+HIP source files
 	hipify-perl pfsp_multigpu_hip.cu > pfsp_multigpu_hip.cu.hip
