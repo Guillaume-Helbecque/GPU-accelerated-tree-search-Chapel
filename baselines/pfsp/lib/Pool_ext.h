@@ -1,6 +1,10 @@
 #ifndef POOL_EXT_H
 #define POOL_EXT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "PFSP_node.h"
 #include "c_bound_simple.h"
 #include <stdbool.h>
@@ -41,5 +45,9 @@ Node* popBackBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolS
 Node popFront(SinglePool_ext* pool, int* hasWork);
 
 void deleteSinglePool_ext(SinglePool_ext* pool);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // POOL_EXT_H

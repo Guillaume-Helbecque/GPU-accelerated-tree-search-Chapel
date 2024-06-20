@@ -1,6 +1,10 @@
 #ifndef POOL_H
 #define POOL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "PFSP_node.h"
 
 /*******************************************************************************
@@ -29,5 +33,9 @@ Node popBack(SinglePool* pool, int* hasWork);
 Node popFront(SinglePool* pool, int* hasWork);
 
 void deleteSinglePool(SinglePool* pool);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // POOL_H

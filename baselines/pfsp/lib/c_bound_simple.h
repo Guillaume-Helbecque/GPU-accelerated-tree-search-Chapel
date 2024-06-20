@@ -6,9 +6,9 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
-// #ifdef __cplusplus
-// extern "C" {
-// #endif
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 //regroup (constant) bound data
 struct lb1_bound_data
@@ -52,8 +52,8 @@ int lb1_bound(const lb1_bound_data* const lb1_data, const int * const permutatio
 
 void lb1_children_bounds(const lb1_bound_data* const lb1_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin/*, int* const lb_end, int* const prio_begin, int* const prio_end, const int direction*/);
 
-// #ifdef __cplusplus
-// }
-// #endif
+#ifdef __cplusplus
+}
+#endif
 
 #endif
