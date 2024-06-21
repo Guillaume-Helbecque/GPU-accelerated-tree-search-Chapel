@@ -10,7 +10,7 @@ CUDA_COMMON_OPTS := -O3 -arch=sm_86 #check how to adapt SM automatically
 HIP_COMMON_OPTS  := $(C_COMMON_OPTS) -offload-arch=gfx906
 
 HIP_PATCH_G5K    := DEVICE_LIB_PATH=/opt/rocm-4.5.0/amdgcn/bitcode/
-HIP_DEVICE_LIB_PATH := /rocm-openmp-extras/5.2.0_gcc-10.4.0
+#HIP_DEVICE_LIB_PATH := /rocm-openmp-extras/5.2.0_gcc-10.4.0
 
 # Source files
 C_SOURCES    :=  lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c lib/PFSP_node.c lib/Pool.c lib/Pool_ext.c lib/Auxiliary.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c
@@ -54,17 +54,17 @@ pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple
 
 # Pattern rule for HIP source files
 	hipify-perl pfsp_gpu_hip.cu > pfsp_gpu_hip.cu.hip
-	$(HIP_COMPILER) $(HIP_COMMON_OPTS) -c pfsp_gpu_hip.cu.hip -o pfsp_gpu_hip.o
+	$(HIP_COMPILER) $(HIP_COMMON_OPTS) -c pfsp_gpu_hip.cu.hip -o pfsp_gpu_hip.o -L/opt/rocm-4.5.0/hip/lib
 
 pfsp_gpu_hip.out: pfsp_gpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool.o
 	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@ -L/opt/rocm-4.5.0/hip/lib
 
 # Pattern rule for hybrid OpenMP+HIP source files
 	hipify-perl pfsp_multigpu_hip.cu > pfsp_multigpu_hip.cu.hip
-	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp -c pfsp_multigpu_hip.cu.hip -o pfsp_multigpu_hip.o -I/share/compilers/nvidia/cuda/12.0/include -I/usr/local/cuda-11.2/targets/x86_64-linux/include/ --rocm-device-lib-path=$(HIP_DEVICE_LIB_PATH)
+	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp -c pfsp_multigpu_hip.cu.hip -o pfsp_multigpu_hip.o -L/opt/rocm-4.5.0/hip/lib #-I/share/compilers/nvidia/cuda/12.0/include -I/usr/local/cuda-11.2/targets/x86_64-linux/include/ --rocm-device-lib-path=$(HIP_DEVICE_LIB_PATH)
 
 pfsp_multigpu_hip.out: pfsp_multigpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
-	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $^ -o $@ -L/opt/rocm-4.5.0/hip/lib -I/share/compilers/nvidia/cuda/12.0/include -I/usr/local/cuda-11.2/targets/x86_64-linux/include/ --rocm-device-lib-path=$(HIP_DEVICE_LIB_PATH)
+	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $^ -o $@ -L/opt/rocm-4.5.0/hip/lib #-I/share/compilers/nvidia/cuda/12.0/include -I/usr/local/cuda-11.2/targets/x86_64-linux/include/ --rocm-device-lib-path=$(HIP_DEVICE_LIB_PATH)
 
 # Utilities
 .PHONY: clean
