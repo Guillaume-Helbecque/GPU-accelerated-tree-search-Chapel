@@ -522,6 +522,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	  each task generates and inserts its children nodes to the pool.
 	*/
 	generate_children(parents, poolSize, jobs, bounds, &tree, &sol, &best_l, pool_loc);
+	cudaDeviceSynchronize();
 	printf("From thread[%d], I went past generate_children call with pool_loc.size = %d\n", omp_get_thread_num(),pool_loc->size);
       }
       else {
