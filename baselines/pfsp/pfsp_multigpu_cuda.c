@@ -383,10 +383,11 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   const int c = poolSize / D;
   const int l = poolSize - (D-1)*c;
   const int f = pool.front;
-   
+
+  printf("Pool front before = %d, Pool size before = %d\n", f, c);
   pool.front = 0;
   pool.size = 0;
-
+  printf("Pool front after = %d, Pool size after = %d\n", f, c);
   SinglePool_ext multiPool[D];
   for(int i = 0; i < D; i++)
     initSinglePool(&multiPool[i]);
@@ -483,6 +484,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     int *bounds_d;
     cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
 
+    printf("From thread [%d]: pool_loc.size = %d, pool_loc.front = %d, jobs = %d, c = %d, f = %d, \n", gpuId, pool_loc.size, pool_loc.front, jobs, c, f);
+
     while (1) {
       // Dynamic workload balance
       /*
@@ -509,8 +512,11 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
 
 	// numBounds is the 'size' of the problem
+	printf("From thread[%d], I am just before the kernel and I am fine (I have a CUDA synchronize after me :)\n", omp_get_thread_num());
+	cudaDeviceSynchronize();
  	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d); 
-      
+	printf("From thread[%d], I went past the kernel call\n", omp_get_thread_num());
+	
         cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
 
 	/*
