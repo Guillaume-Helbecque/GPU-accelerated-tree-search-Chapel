@@ -515,7 +515,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	printf("From thread[%d], I am just before the kernel and I am fine (I have a CUDA synchronize after me :)\n", omp_get_thread_num());
 	cudaDeviceSynchronize();
  	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d); 
-	printf("From thread[%d], I went past the kernel call with pool_loc.size = %d\n", omp_get_thread_num(),pool_loc->size);
 	
         cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
 
@@ -523,6 +522,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	  each task generates and inserts its children nodes to the pool.
 	*/
 	generate_children(parents, poolSize, jobs, bounds, &tree, &sol, &best_l, pool_loc);
+	printf("From thread[%d], I went past generate_children call with pool_loc.size = %d\n", omp_get_thread_num(),pool_loc->size);
       }
       else {
         // work stealing
