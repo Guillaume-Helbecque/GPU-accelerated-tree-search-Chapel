@@ -515,7 +515,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	printf("From thread[%d], I am just before the kernel and I am fine (I have a CUDA synchronize after me :)\n", omp_get_thread_num());
 	cudaDeviceSynchronize();
  	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d); 
-	printf("From thread[%d], I went past the kernel call\n", omp_get_thread_num());
+	printf("From thread[%d], I went past the kernel call with pool_loc.size = %d\n", omp_get_thread_num(),pool_loc->size);
 	
         cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
 
