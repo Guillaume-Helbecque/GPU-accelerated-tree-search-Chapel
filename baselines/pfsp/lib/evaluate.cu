@@ -37,7 +37,7 @@ extern "C" {
       if (k >= limit1+1) {
 	swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
 	lb1_bound_gpu(lbound1_d, parent.prmu, limit1+1, jobs, &bounds[threadId]);
-	swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
+	//swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
       }
     }
   }
@@ -85,7 +85,7 @@ extern "C" {
       if (k >= limit1+1) {
 	swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
 	lb2_bound_gpu(lbound1_d, lbound2_d, parent.prmu, limit1+1, jobs, best, &bounds[threadId]);
-	swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
+	//swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
       }
     }
   } 
