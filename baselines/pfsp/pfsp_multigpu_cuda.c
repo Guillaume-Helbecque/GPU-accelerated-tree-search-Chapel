@@ -484,7 +484,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     int *bounds_d;
     cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
 
-    printf("From thread [%d]: pool_loc.size = %d, pool_loc.front = %d, jobs = %d, c = %d, f = %d, \n", gpuId, pool_loc.size, pool_loc.front, jobs, c, f);
+    printf("From thread [%d]: pool_loc.size = %d, pool_loc.front = %d, jobs = %d, c = %d, f = %d, \n", gpuID, pool_loc->size, pool_loc->front, jobs, c, f);
 
     while (1) {
       // Dynamic workload balance
