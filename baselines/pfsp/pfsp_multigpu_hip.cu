@@ -565,7 +565,7 @@ void print_results_file(const int inst, const int machines, const int jobs, cons
 			const unsigned long long int exploredTree, const unsigned long long int exploredSol, const double timer)
 {
   FILE *file;
-  file = fopen("stats_pfsp_multigpu_cuda_dyn.dat","a");
+  file = fopen("stats_pfsp_multigpu_hip_dyn.dat","a");
   fprintf(file,"ta%d lb%d %dGPU %.4f %llu %llu %d\n",inst,lb,D,timer,exploredTree,exploredSol,optimum);
   fclose(file);
   return;

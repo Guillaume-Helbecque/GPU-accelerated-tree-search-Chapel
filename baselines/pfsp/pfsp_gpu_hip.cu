@@ -553,7 +553,7 @@ void print_results_file(const int inst, const int machines, const int jobs, cons
 			const unsigned long long int exploredTree, const unsigned long long int exploredSol, const double timer)
 {
   FILE *file;
-  file = fopen("stats_pfsp_gpu_cuda.dat","a");
+  file = fopen("stats_pfsp_gpu_hip.dat","a");
   fprintf(file,"ta%d lb%d S-GPU %.4f %llu %llu %d\n",inst,lb,timer,exploredTree,exploredSol,optimum);
   fclose(file);
   return;
