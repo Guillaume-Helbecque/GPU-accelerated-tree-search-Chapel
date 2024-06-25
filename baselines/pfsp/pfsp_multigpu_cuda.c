@@ -638,9 +638,11 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   printf("Size of the explored tree: %llu\n", *exploredTree);
   printf("Number of explored solutions: %llu\n", *exploredSol);
   printf("Elapsed time: %f [s]\n", t2);
+  printf("Workload per GPU: ");
   for(int gpuID = 0; gpuID < D; gpuID++)
-    printf("Workload for GPU[%d]: %f\n", gpuID,(double)100*eachExploredTree[gpuID]/((double)*exploredTree));
-    
+    printf("%.2f ", (double)100*eachExploredTree[gpuID]/((double)*exploredTree));
+  printf("\n");
+  
   /*
     Step 3: We complete the depth-first search on CPU.
   */
