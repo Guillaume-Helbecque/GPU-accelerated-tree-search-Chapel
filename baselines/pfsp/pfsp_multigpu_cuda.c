@@ -384,10 +384,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   const int l = poolSize - (D-1)*c;
   const int f = pool.front;
 
-  printf("Pool front before = %d, Pool size before = %d\n", f, c);
   pool.front = 0;
   pool.size = 0;
-  printf("Pool front after = %d, Pool size after = %d\n", f, c);
   SinglePool_ext multiPool[D];
   for(int i = 0; i < D; i++)
     initSinglePool(&multiPool[i]);
@@ -397,8 +395,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 #pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool, multiPool, lbound1, lbound2) //reduction(min:best_l)
   for (int gpuID = 0; gpuID < D; gpuID++) {
     cudaSetDevice(gpuID);
-
-    printf("Hello from thread %d \n", omp_get_thread_num());
     
     int nSteal = 0, nSSteal = 0;
     
@@ -484,8 +480,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     int *bounds_d;
     cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
 
-    printf("From thread [%d]: pool_loc.size = %d, pool_loc.front = %d, jobs = %d, c = %d, f = %d, \n", gpuID, pool_loc->size, pool_loc->front, jobs, c, f);
-
     while (1) {
       // Dynamic workload balance
       /*
@@ -512,8 +506,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
 
 	// numBounds is the 'size' of the problem
-	printf("From thread[%d], I am just before the kernel and I am fine (I have a CUDA synchronize after me :)\n", omp_get_thread_num());
-	cudaDeviceSynchronize();
  	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d); 
 	
         cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
@@ -522,8 +514,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	  each task generates and inserts its children nodes to the pool.
 	*/
 	generate_children(parents, poolSize, jobs, bounds, &tree, &sol, &best_l, pool_loc);
-	cudaDeviceSynchronize();
-	printf("From thread[%d], I went past generate_children call with pool_loc.size = %d\n", omp_get_thread_num(),pool_loc->size);
       }
       else {
         // work stealing
@@ -531,54 +521,52 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
         bool steal = false;
 	int victims[D];
 	permute(victims,D);
-
-	//int breakWS0 = 0;
 	
         while (tries < D && steal == false) { //WS0 loop
-          int victimID = victims[tries];
+          const int victimID = victims[tries];
 	  
           if (victimID != gpuID) { // if not me
             SinglePool_ext* victim;
 	    victim = &multiPool[victimID];
             nSteal ++;
             int nn = 0;
-	   
+	    int count = 0;
             while (nn < 10) { //WS1 loop
 	      expected = false;
+	      count++;
 	      if (atomic_compare_exchange_strong(&(victim->lock), &expected, true)){ // get the lock
 		int size = victim->size;
-				
+		int nodeSize = 0;
+		
 		if (size >= 2*m) {
-		  Node* p = popBackBulkFree(victim, m, M, &size); // NO atomic_store inside
+		  Node* p = popBackBulkFree(victim, m, M, &nodeSize); // NO atomic_store inside
 		  
-		  if (size == 0) { // there is no more work
+		  if (size == 0) { // safety check
 		    atomic_store(&(victim->lock), false); // reset lock
 		    printf("\nDEADCODE\n");
-		    //fprintf(stderr, "DEADCODE in work stealing\n");
-		    //exit(EXIT_FAILURE);
+		    exit(-1);
 		  }
 		  
 		  /* for i in 0..#(size/2) {
 		     pool_loc.pushBack(p[i]);
 		     } */
-		  
-		  pushBackBulk(pool_loc, p, size); // atomic_store inside
-		  
+
+		  pushBackBulk(pool_loc, p, nodeSize); // atomic_store inside
+	
 		  steal = true;
 		  nSSteal++;
 		  atomic_store(&(victim->lock), false); // reset lock
-		  //breakWS0 = 1;
 		  goto WS0; // Break out of WS0 loop
 		}
 
-		//if(breakWS0 == 1) break; //break of WS0 loop
-		
 		atomic_store(&(victim->lock), false);// reset lock
-		break; // Break out of WS1 loop
+		goto WS1;
+		//break; // Break out of WS1 loop
 	      }
 	      
 	      nn ++;
 	    }
+	  WS1:
 	  }
 	
 	  tries ++;
@@ -592,8 +580,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	    atomic_store(&eachTaskState[gpuID],true);
 	  }
 	  if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
-	    printf("Termination of the second step");
-	    // writeln("task ", gpuID, " exits normally");
 	    break;
 	  }
 	  continue;
@@ -603,9 +589,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       }
     }
 
-    printf("\nFor thread[%d] nb of stealing tries is %d and real nb of stealing is %d\n", omp_get_thread_num(), nSteal, nSSteal);
-    
-    // This comment has to go after the problem is solved
+    // This comment has to go after the problem is solved (lb1 unbalanced workload)
     //double time_partial = omp_get_wtime();
     //printf("\nTime for GPU[%d] = %f, nb of nodes = %lld, nb of sols = %lld\n", gpuID, time_partial - startTime, tree, sol);
     
@@ -640,7 +624,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     deleteSinglePool_ext(pool_loc);
 
   } // End of parallel region
-  
+
   for (int i = 0; i < D; i++) {
     *exploredTree += eachExploredTree[i];
     *exploredSol += eachExploredSol[i];

@@ -36,20 +36,20 @@ void pushBack(SinglePool_ext* pool, Node node) {
 }
 
 void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
-  int s = size;
   bool expected = false;
   while (true) {
     expected = false;
     if (atomic_compare_exchange_strong(&(pool->lock), &expected, true)) {
-      if (pool->front + pool->size >= pool->capacity) {
-	pool->capacity *= 2;
+      if (pool->front + pool->size + size >= pool->capacity) {
+	pool->capacity += (size+pool->front+1);
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
+	printf("\nRealloc: PushBackBulk\n");
       }
-      
       // Copy of elements from nodes to the end of elements array of pool
-      for(int i = 0; i < s; i++)
+      for(int i = 0; i < size; i++){
 	pool->elements[pool->front + pool->size+i] = nodes[i];
-      pool->size += s;
+      }
+      pool->size += size;
       atomic_store(&(pool->lock),false);
       return;
     } 
@@ -127,7 +127,6 @@ Node* popBackBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolS
     printf("\nDEADCODE\n");
     return NULL;
   }
-  
   Node* parents = NULL;
   *poolSize = 0;
   return parents;
