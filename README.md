@@ -18,13 +18,13 @@ This process is repeated until the pool is empty.
 The following Chapel implementations are available:
 - `[nqueens/pfsp]_chpl.chpl`: sequential version;
 - `[nqueens/pfsp]_gpu_chpl.chpl`: single-GPU version;
-- `[nqueens/pfsp]_multigpu_chpl.chpl`: multi-GPU version (unstable);
+- `[nqueens/pfsp]_multigpu_chpl.chpl`: multi-GPU version;
 - `pfsp_dist_multigpu_chpl.chpl`: distributed multi-GPU version (unstable).
 
 In addition, the [baselines](./baselines/) directory contains the CUDA-based counterparts:
 - `[nqueens/pfsp]_c.c`: sequential version (C);
-- `nqueens_gpu_cuda.cu`: single-GPU version (C+CUDA);
-- `nqueens_multigpu_cuda.cu`: multi-GPU version (C+OpenMP+CUDA).
+- `[nqueens/pfsp]_gpu_cuda.cu`: single-GPU version (C+CUDA);
+- `[nqueens/pfsp]_multigpu_cuda.cu`: multi-GPU version (C+OpenMP+CUDA) (unstable).
 
 In order to compile and execute the CUDA-based code on AMD GPU architectures, we use the `hipify-perl` tool which translates it into portable HIP C++ automatically.
 
@@ -37,7 +37,7 @@ In order to compile and execute the CUDA-based code on AMD GPU architectures, we
 The [chpl_config](./chpl_config/) directory contains several Chapel environment configuration scripts.
 The latter can serve as templates and can be (and should be) adapted to the target system.
 
-**Note:** The code is implemented using Chapel 2.0.1 and might not compile and run with older or newer versions.
+**Note:** The code is implemented using Chapel 2.1.0 and might not compile and run with older or newer versions.
 By default, the target architecture for CUDA code generation is set to `sm_70`, and to `gfx906` for AMD.
 
 ### Compilation & execution
