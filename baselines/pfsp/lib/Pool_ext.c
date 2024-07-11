@@ -1,6 +1,7 @@
 #include "Pool_ext.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 //#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
@@ -41,7 +42,7 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
     expected = false;
     if (atomic_compare_exchange_strong(&(pool->lock), &expected, true)) {
       if (pool->front + pool->size + size >= pool->capacity) {
-	pool->capacity += (size+pool->front+1);
+	pool->capacity *= ceil(log2((pool->front + pool->size + size) / pool->capacity)); //(size+pool->front+1);
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
 	printf("\nRealloc: PushBackBulk\n");
       }
