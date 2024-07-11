@@ -3,10 +3,10 @@
 # Configuration of Chapel for Nvidia (multi-)GPU-accelerated experiments on the
 # French national Grid5000 testbed (https://www.grid5000.fr/w/Grid5000:Home).
 
-# Load gcc, cuda and cmake
-module load gcc/10.4.0_gcc-10.4.0
+# Load modules
+module load gcc/12.2.0_gcc-10.4.0
 module load cmake/3.23.3_gcc-10.4.0
-module load cuda/11.7.1_gcc-10.4.0
+module load cuda/12.0.0_gcc-10.4.0
 
 export HERE=$(pwd)
 
@@ -38,5 +38,6 @@ export CHPL_GPU_MEM_STRATEGY="array_on_device"
 export GASNET_PHYSMEM_MAX='64 GB'
 
 cd $CHPL_HOME
+patch -N -p1 < $HERE/perf_patch.patch # see Chapel PR #24970 on Github (remove it when Chapel 2.1 is released)
 make -j $NUM_T_LOCALE
 cd $HERE/..
