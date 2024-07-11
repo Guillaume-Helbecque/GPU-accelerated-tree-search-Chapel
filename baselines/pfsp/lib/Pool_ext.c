@@ -44,7 +44,7 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
       if (pool->front + pool->size + size >= pool->capacity) {
 	pool->capacity *= pow(2,ceil(log2((pool->front + pool->size + size) / pool->capacity))); //(size+pool->front+1);
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
-	printf("\nRealloc: PushBackBulk\n");
+	printf("\nRealloc: PushBackBulk with k = %d \n",ceil(log2((pool->front + pool->size + size) / pool->capacity)));
       }
       // Copy of elements from nodes to the end of elements array of pool
       for(int i = 0; i < size; i++){
