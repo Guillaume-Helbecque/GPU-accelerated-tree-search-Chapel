@@ -42,9 +42,9 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
     expected = false;
     if (atomic_compare_exchange_strong(&(pool->lock), &expected, true)) {
       if (pool->front + pool->size + size >= pool->capacity) {
-	pool->capacity *= pow(2,ceil(log2((double)(pool->front + pool->size + size) / pool->capacity))); //(size+pool->front+1);
+	pool->capacity *= pow(2,ceil(log2((double)(pool->front + pool->size + size) / pool->capacity)));
 	pool->elements = realloc(pool->elements, pool->capacity * sizeof(Node));
-	printf("\nRealloc: PushBackBulk with k = %f \n",log2((double)(pool->front + pool->size + size) / pool->capacity));
+	printf("\nRealloc: PushBackBulk\n");
       }
       // Copy of elements from nodes to the end of elements array of pool
       for(int i = 0; i < size; i++){
