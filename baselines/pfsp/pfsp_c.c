@@ -81,7 +81,7 @@ void print_settings(const int inst, const int machines, const int jobs, const in
 {
   printf("\n=================================================\n");
   printf("Sequential C\n\n");
-  printf("Resolution of PFSP Taillard's instance: ta%d (m = %d, n = %d) using sequential C\n", inst, machines, jobs);
+  printf("Resolution of PFSP Taillard's instance: ta%d (m = %d, n = %d)\n", inst, machines, jobs);
   if (ub == 0) printf("Initial upper bound: inf\n");
   else /* if (ub == 1) */ printf("Initial upper bound: opt\n");
   if (lb == 0) printf("Lower bound function: lb1_d\n");
@@ -116,10 +116,10 @@ void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const No
 {
   for (int i = parent.limit1+1; i < jobs; i++) {
     Node child;
-    memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
-    swap(&child.prmu[parent.depth], &child.prmu[i]);
     child.depth = parent.depth + 1;
     child.limit1 = parent.limit1 + 1;
+    memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
+    swap(&child.prmu[parent.depth], &child.prmu[i]);
 
     int lowerbound = lb1_bound(lbound1, child.prmu, child.limit1, jobs);
    
@@ -158,10 +158,10 @@ void decompose_lb1_d(const int jobs, const lb1_bound_data* const lbound1, const 
     } else { // if not leaf
       if (lb < *best) { // if child feasible
         Node child;
-        memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
         child.depth = parent.depth + 1;
         child.limit1 = parent.limit1 + 1;
-        swap(&child.prmu[child.limit1], &child.prmu[i]);
+        memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
+        swap(&child.prmu[parent.depth], &child.prmu[i]);
 
         pushBack(pool, child);
         *tree_loc += 1;
@@ -178,10 +178,10 @@ void decompose_lb2(const int jobs, const lb1_bound_data* const lbound1, const lb
 {
   for (int i = parent.limit1+1; i < jobs; i++) {
     Node child;
-    memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
-    swap(&child.prmu[parent.depth], &child.prmu[i]);
     child.depth = parent.depth + 1;
     child.limit1 = parent.limit1 + 1;
+    memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
+    swap(&child.prmu[parent.depth], &child.prmu[i]);
 
     int lowerbound = lb2_bound(lbound1, lbound2, child.prmu, child.limit1, jobs, *best);
 

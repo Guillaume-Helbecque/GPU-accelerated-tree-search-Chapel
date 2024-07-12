@@ -3,9 +3,10 @@
 # Configuration of Chapel for AMD (multi-)GPU-accelerated experiments on the
 # French national Grid5000 testbed (https://www.grid5000.fr/w/Grid5000:Home).
 
-# Load gcc and cmake
-module load gcc/10.4.0_gcc-10.4.0
+# Load modules
+module load gcc/12.2.0_gcc-10.4.0
 module load cmake/3.23.3_gcc-10.4.0
+module load rocm-opencl/5.2.0_gcc-10.4.0
 
 export HERE=$(pwd)
 
@@ -23,12 +24,11 @@ CHPL_BIN_SUBDIR=`"$CHPL_HOME"/util/chplenv/chpl_bin_subdir.py`
 export PATH="$PATH":"$CHPL_HOME/bin/$CHPL_BIN_SUBDIR:$CHPL_HOME/util"
 
 export CHPL_HOST_PLATFORM=`$CHPL_HOME/util/chplenv/chpl_platform.py`
-# export CHPL_HOST_COMPILER=gnu
-export CHPL_LLVM=bundled
+export CHPL_LLVM=system # required for AMD arch
 
 NUM_T_LOCALE=$(cat /proc/cpuinfo | grep processor | wc -l)
-export CHPL_RT_NUM_THREADS_PER_LOCALE=2
-export CHPL_RT_NUM_GPUS_PER_LOCALE=2
+export CHPL_RT_NUM_THREADS_PER_LOCALE=8
+export CHPL_RT_NUM_GPUS_PER_LOCALE=8
 export CHPL_LOCALE_MODEL="gpu"
 export CHPL_GPU="amd"
 export CHPL_GPU_ARCH="gfx906"
@@ -37,5 +37,6 @@ export CHPL_GPU_MEM_STRATEGY="array_on_device"
 export GASNET_PHYSMEM_MAX='64 GB'
 
 cd $CHPL_HOME
+patch -N -p1 < $HERE/perf_patch.patch # see Chapel PR #24970 on Github (remove it when Chapel 2.1 is released)
 make -j $NUM_T_LOCALE
 cd $HERE/..
