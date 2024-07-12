@@ -91,11 +91,14 @@ extern "C" {
   } 
  
 
-  void evaluate_gpu(const int jobs, const int lb, const int size, const int nbBlocks, const int nbBlocks_lb1_d, int* best, const lb1_bound_data lbound1, const lb2_bound_data lbound2, Node* parents, int* bounds)
+  void evaluate_gpu(const int jobs, const int lb, const int size, const int nbBlocks,
+		    int* best, const lb1_bound_data lbound1, const lb2_bound_data lbound2, Node* parents, int* bounds)
   {
     // 1D grid of 1D nbBlocks(_lb1_d) blocks with block size BLOCK_SIZE
+    int nbBlocks_lb1_d;
     switch (lb) {
     case 0: // lb1_d
+      nbBlocks_lb1_d = ceil((double)nbBlocks/jobs);
       evaluate_gpu_lb1_d<<<nbBlocks_lb1_d, BLOCK_SIZE>>>(jobs, size, parents, lbound1, bounds);
       return;
       break;
