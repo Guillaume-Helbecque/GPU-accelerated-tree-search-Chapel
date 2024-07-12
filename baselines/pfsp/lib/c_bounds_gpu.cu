@@ -82,11 +82,11 @@ sum_unscheduled_gpu(const lb1_bound_data lb1_data, const int * const permutation
   const int * const p_times = lb1_data.p_times;
 
   memset(remain, 0, nb_machines*sizeof(int));
-
+  
   // for (int j = 0; j < nb_machines; j++) {
   //   remain[j] = 0;
   // }
-
+  
   for (int k = limit1 + 1; k < limit2; k++) {
     const int job = permutation[k];
     for (int j = 0; j < nb_machines; j++) {
@@ -182,7 +182,7 @@ lb1_bound_gpu(const lb1_bound_data lb1_data, const int * const permutation, cons
   int front[MAX_MACHINES];
   int back[MAX_MACHINES];
   int remain[MAX_MACHINES];
-
+  
   schedule_front_gpu(lb1_data, permutation, limit1, front);
   schedule_back_gpu(lb1_data, permutation, limit2, back);
 
@@ -277,11 +277,11 @@ __device__ int lb_makespan_gpu(int* lb1_p_times, const lb2_bound_data lb2_data, 
 	tmp1 += ptm1;
       }
     }
-
+    
     tmp1 = MAX(tmp1 + back[ma1], tmp0 + back[ma0]);
 
     lb = MAX(lb, tmp1);
-
+    
     if (lb > minCmax) {
       break;
     }
@@ -301,7 +301,7 @@ __device__ void lb2_bound_gpu(const lb1_bound_data lb1_data, const lb2_bound_dat
   schedule_back_gpu(lb1_data, permutation, limit2, back);
 
   int flags[MAX_JOBS];
-
+   
   // Set flags
   for (int i = 0; i < N; i++)
     flags[i] = 0;
@@ -331,13 +331,13 @@ __device__ void lb2_bound_gpu(const lb1_bound_data lb1_data, const lb2_bound_dat
 //   cudaMalloc((void**)&tmp, N * sizeof(int));
 
 //   int result;
-
+  
 //   // Check if memory allocation succeeded
 //   if(tmp == NULL) {
 //     // Handle memory allocation failure
 //     return -1; // Return an error code indicating failure
 //   }
-
+  
 //   for(int i = 0; i < N; i++) {
 //     tmp[i] = 0;
 //   }
@@ -357,7 +357,7 @@ __device__ void lb2_bound_gpu(const lb1_bound_data lb1_data, const lb2_bound_dat
 // __device__ inline int compute_cmax_johnson_gpu(const int* const lb1_p_times, const lb2_bound_data lb2_data, const int* const flag, int *tmp0, int *tmp1, int ma0, int ma1, int ind)
 // {
 //   int nb_jobs = lb2_data.nb_jobs;
-
+    
 //   for (int j = 0; j < nb_jobs; j++) {
 //     int job = lb2_data.johnson_schedules[ind*nb_jobs + j];
 //     // j-loop is on unscheduled jobs... (==0 if jobCour is unscheduled)
@@ -420,11 +420,11 @@ __device__ void lb2_bound_gpu(const lb1_bound_data lb1_data, const lb2_bound_dat
 // __device__ void lb2_children_bounds_gpu(const lb1_bound_data lb1_data, const lb2_bound_data lb2_data, const int* const permutation, const int limit1, const int limit2, int* const lb_begin, int* const lb_end, const int best_cmax, const int direction)
 // {
 //   const int N = lb1_data.nb_jobs;
-
+  
 //   //int *tmp_perm = (int*)malloc(N * sizeof(int)); // Dynamically allocate memory for tmp_perm
 
 //   int tmp_perm[MAX_JOBS];
-
+  
 //   // // Check if memory allocation succeeded
 //   // if(tmp_perm == NULL) {
 //   //   // Handle memory allocation failure
