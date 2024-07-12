@@ -255,8 +255,8 @@ void pfsp_search(const int inst, const int lb, int* best,
     if (!hasWork) break;
 
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
-
   }
+
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
   *elapsedTime = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 

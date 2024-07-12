@@ -61,7 +61,7 @@ void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/)
       unsigned c = 0;
       for (int i = 0; i < lb2_data->nb_machines-1; i++) {
         for (int j = i+1; j < lb2_data->nb_machines; j++) {
-	  lb2_data->machine_pairs_1[c] = i;
+          lb2_data->machine_pairs_1[c] = i;
           lb2_data->machine_pairs_2[c] = j;
           lb2_data->machine_pair_order[c] = c;
           c++;
@@ -72,7 +72,7 @@ void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/)
     case LB2_NABESHIMA:
     {
       for (int i = 0; i < lb2_data->nb_machines-1; i++) {
-       	lb2_data->machine_pairs_1[i] = i;
+        lb2_data->machine_pairs_1[i] = i;
         lb2_data->machine_pairs_2[i] = i+1;
         lb2_data->machine_pair_order[i] = i;
       }
@@ -81,7 +81,7 @@ void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/)
     case LB2_LAGEWEG:
     {
       for (int i = 0; i < lb2_data->nb_machines-1; i++) {
-       	lb2_data->machine_pairs_1[i] = i;
+        lb2_data->machine_pairs_1[i] = i;
         lb2_data->machine_pairs_2[i] = lb2_data->nb_machines-1;
         lb2_data->machine_pair_order[i] = i;
       }

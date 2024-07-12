@@ -15,10 +15,10 @@ extern "C" {
 
   void printDims(dim3 gridDim, dim3 blockDim) {
     printf("Grid Dimensions : [%d, %d, %d] blocks. \n",
-	   gridDim.x, gridDim.y, gridDim.z);
+      gridDim.x, gridDim.y, gridDim.z);
 
     printf("Block Dimensions : [%d, %d, %d] threads.\n",
-	   blockDim.x, blockDim.y, blockDim.z);
+      blockDim.x, blockDim.y, blockDim.z);
   }
 
   // Evaluate a bulk of parent nodes on GPU using lb1
@@ -35,9 +35,9 @@ extern "C" {
 
       // We evaluate all permutations by varying index k from limit1 forward
       if (k >= limit1+1) {
-	swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
-	lb1_bound_gpu(lbound1_d, parent.prmu, limit1+1, jobs, &bounds[threadId]);
-	swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
+        swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
+        lb1_bound_gpu(lbound1_d, parent.prmu, limit1+1, jobs, &bounds[threadId]);
+        swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
       }
     }
   }
@@ -61,10 +61,10 @@ extern "C" {
       lb1_children_bounds_gpu(lbound1_d, parent.prmu, parent.limit1, jobs, lb_begin);
 
       for(int k = 0; k < jobs; k++) {
-	if (k >= parent.limit1+1) {
-	  const int job = parent.prmu[k];
-	  bounds[parentId*jobs+k] = lb_begin[job];
-	}
+        if (k >= parent.limit1+1) {
+          const int job = parent.prmu[k];
+          bounds[parentId*jobs+k] = lb_begin[job];
+        }
       }
     }
   }
@@ -83,15 +83,15 @@ extern "C" {
 
       // We evaluate all permutations by varying index k from limit1 forward
       if (k >= limit1+1) {
-	swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
-	lb2_bound_gpu(lbound1_d, lbound2_d, parent.prmu, limit1+1, jobs, best, &bounds[threadId]);
-	swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
+        swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
+        lb2_bound_gpu(lbound1_d, lbound2_d, parent.prmu, limit1+1, jobs, best, &bounds[threadId]);
+        swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
       }
     }
   }
 
   void evaluate_gpu(const int jobs, const int lb, const int size, const int nbBlocks,
-		    int* best, const lb1_bound_data lbound1, const lb2_bound_data lbound2, Node* parents, int* bounds)
+    int* best, const lb1_bound_data lbound1, const lb2_bound_data lbound2, Node* parents, int* bounds)
   {
     // 1D grid of 1D nbBlocks(_lb1_d) blocks with block size BLOCK_SIZE
     int nbBlocks_lb1_d;

@@ -267,13 +267,13 @@ __device__ int lb_makespan_gpu(int* lb1_p_times, const lb2_bound_data lb2_data, 
       int job = lb2_data.johnson_schedules[i*nb_jobs + j];
       // j-loop is on unscheduled jobs... (==0 if jobCour is unscheduled)
       if (flag[job] == 0) {
-	int ptm0 = lb1_p_times[ma0*nb_jobs + job];
-	int ptm1 = lb1_p_times[ma1*nb_jobs + job];
-	int lag = lb2_data.lags[i*nb_jobs + job];
-	// add job on ma0 and ma1
-	tmp0 += ptm0;
-	tmp1 = MAX(tmp1,tmp0 + lag);
-	tmp1 += ptm1;
+        int ptm0 = lb1_p_times[ma0*nb_jobs + job];
+        int ptm1 = lb1_p_times[ma1*nb_jobs + job];
+        int lag = lb2_data.lags[i*nb_jobs + job];
+        // add job on ma0 and ma1
+        tmp0 += ptm0;
+        tmp1 = MAX(tmp1,tmp0 + lag);
+        tmp1 += ptm1;
       }
     }
 
