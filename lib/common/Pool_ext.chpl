@@ -49,7 +49,7 @@ module Pool_ext
       while true {
         if this.lock.compareAndSwap(false, true) {
           if (this.front + this.size >= this.capacity) {
-            this.capacity *= exp2(ceil(log2((this.front + this.size + s) / this.capacity)));
+            this.capacity *= exp2(ceil(log2( ((this.front + this.size + s) / this.capacity):real )));
             this.dom = 0..#this.capacity;
           }
 
