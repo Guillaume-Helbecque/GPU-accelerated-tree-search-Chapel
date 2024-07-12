@@ -1,5 +1,5 @@
 /*
-  Multi-GPU B&B to solve Taillard instances of the PFSP in C+CUDA.
+  Multi-GPU B&B to solve Taillard instances of the PFSP in C+OpenMP+CUDA.
 */
 
 #include <stdio.h>
@@ -110,7 +110,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
       break;
 
     case 'D':
-      if (value < 0 || value > 16) {
+      if (value < 0) {
 	fprintf(stderr, "Error: unsupported number of GPU's\n");
 	exit(EXIT_FAILURE);
       }
@@ -486,12 +486,11 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	*/
 	const int numBounds = jobs * poolSize;   
 	const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
-	const int nbBlocks_lb1_d = ceil((double)nbBlocks/jobs); 
 
         cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
 
 	// numBounds is the 'size' of the problem
-	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, best, lbound1_d, lbound2_d, parents_d, bounds_d);
+	evaluate_gpu(jobs, lb, numBounds, nbBlocks, best, lbound1_d, lbound2_d, parents_d, bounds_d);
       
         cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
 	
