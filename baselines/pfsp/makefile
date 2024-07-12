@@ -12,7 +12,7 @@ HIP_COMMON_OPTS  := $(C_COMMON_OPTS) -offload-arch=gfx906
 HIP_PATCH_G5K    := DEVICE_LIB_PATH=/opt/rocm-4.5.0/amdgcn/bitcode/
 
 # Source files
-C_SOURCES    :=  lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c lib/PFSP_node.c lib/Pool.c lib/Pool_multi.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c
+C_SOURCES    :=  lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c lib/PFSP_node.c lib/Pool.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c
 CUDA_SOURCES :=  lib/evaluate.cu lib/c_bounds_gpu.cu
 
 # Object files
