@@ -61,3 +61,26 @@ target_link_libraries(pfsp_gpu_cuda.out PRIVATE ${CUDAToolkit_LIBRARIES})
 
 # Add compile options for the second executable if needed
 target_compile_options(pfsp_gpu_cuda.out PRIVATE -Wall -O3 -g)
+
+# Find OpenMP
+find_package(OpenMP REQUIRED)
+
+# Add the third executable (C + CUDA + OpenMP)
+set(CUDA_C_OMP_SOURCES
+    pfsp_multigpu_cuda.c
+    ${CUDA_SOURCES}
+    lib/c_taillard.c
+    lib/c_bound_simple.c
+    lib/c_bound_johnson.c
+    lib/PFSP_node.c
+    lib/Pool.c
+)
+
+add_executable(pfsp_multigpu_cuda.out ${CUDA_C_OMP_SOURCES})
+
+# Link CUDA runtime library (if needed)
+target_link_libraries(pfsp_multigpu_cuda.out PRIVATE ${CUDAToolkit_LIBRARIES} OpenMP::OpenMP_C)
+
+# Add compile options for the third executable if needed
+target_compile_options(pfsp_multigpu_cuda.out PRIVATE -Wall -O3 -fopenmp -g)
+#target_compile_definitions(pfsp_multigpu_cuda.out PRIVATE -fopenmp)
