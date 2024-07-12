@@ -60,7 +60,6 @@ pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple
 # 	hipify-perl $< > $<.hip
 # 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $<.hip -o $@
 
-
 # Utilities
 .PHONY: clean
 

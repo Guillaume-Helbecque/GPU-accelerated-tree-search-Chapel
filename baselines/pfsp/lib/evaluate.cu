@@ -5,30 +5,30 @@ extern "C" {
 #include <stdlib.h>
 #include "evaluate.h"
 #include "c_bounds_gpu.cu"
-  
+
   __device__ void swap_cuda(int* a, int* b)
   {
     int tmp = *b;
     *b = *a;
     *a = tmp;
   }
-  
+
   void printDims(dim3 gridDim, dim3 blockDim) {
     printf("Grid Dimensions : [%d, %d, %d] blocks. \n",
 	   gridDim.x, gridDim.y, gridDim.z);
-    
+
     printf("Block Dimensions : [%d, %d, %d] threads.\n",
 	   blockDim.x, blockDim.y, blockDim.z);
   }
 
   // Evaluate a bulk of parent nodes on GPU using lb1
-  __global__ void evaluate_gpu_lb1 (const int jobs, const int size, Node* parents_d, const lb1_bound_data  lbound1_d, int* bounds)
+  __global__ void evaluate_gpu_lb1(const int jobs, const int size, Node* parents_d, const lb1_bound_data  lbound1_d, int* bounds)
   {
     int threadId = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (threadId < size) {
-      const int parentId = threadId / jobs; 
-      const int k = threadId % jobs; 
+      const int parentId = threadId / jobs;
+      const int k = threadId % jobs;
       Node parent =  parents_d[parentId];
       int depth = parent.depth;
       int limit1 = parent.limit1;
@@ -51,13 +51,13 @@ extern "C" {
   __global__ void evaluate_gpu_lb1_d(const int jobs, const int size, Node* parents_d, const lb1_bound_data lbound1_d, int* bounds)
   {
     int parentId = blockIdx.x * blockDim.x + threadIdx.x;
-    
-    if(parentId < size){ 
+
+    if(parentId < size){
       Node parent = parents_d[parentId];
-     
+
       // Vector of integers of size MAX_JOBS
       int lb_begin[MAX_JOBS];
-    
+
       lb1_children_bounds_gpu(lbound1_d, parent.prmu, parent.limit1, jobs, lb_begin);
 
       for(int k = 0; k < jobs; k++) {
@@ -75,8 +75,8 @@ extern "C" {
     int threadId = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (threadId < size) {
-      const int parentId = threadId / jobs; 
-      const int k = threadId % jobs; 
+      const int parentId = threadId / jobs;
+      const int k = threadId % jobs;
       Node parent =  parents_d[parentId];
       int depth = parent.depth;
       int limit1 = parent.limit1;
@@ -88,8 +88,7 @@ extern "C" {
 	swap_cuda(&parent.prmu[depth],&parent.prmu[k]);
       }
     }
-  } 
- 
+  }
 
   void evaluate_gpu(const int jobs, const int lb, const int size, const int nbBlocks,
 		    int* best, const lb1_bound_data lbound1, const lb2_bound_data lbound2, Node* parents, int* bounds)

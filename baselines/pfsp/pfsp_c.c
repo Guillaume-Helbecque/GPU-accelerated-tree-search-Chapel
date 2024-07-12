@@ -122,7 +122,7 @@ void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const No
     swap(&child.prmu[parent.depth], &child.prmu[i]);
 
     int lowerbound = lb1_bound(lbound1, child.prmu, child.limit1, jobs);
-   
+
     if (child.depth == jobs) { // if child leaf
       *num_sol += 1;
 
@@ -261,7 +261,7 @@ void pfsp_search(const int inst, const int lb, int* best,
   *elapsedTime = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 
   printf("\nExploration terminated.\n");
-  
+
   deleteSinglePool(&pool);
   free_bound_data(lbound1);
   free_johnson_bd_data(lbound2);
