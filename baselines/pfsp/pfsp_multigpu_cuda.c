@@ -392,9 +392,23 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
   //int best_l = *best;
 
+  double marker1 = omp_get_wtime();
+
 #pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool, multiPool, lbound1, lbound2) //reduction(min:best_l)
   for (int gpuID = 0; gpuID < D; gpuID++) {
     cudaSetDevice(gpuID);
+
+    FILE *file;
+    if(gpuID == 0)
+      file = fopen("WS_load_GPU_0.dat","a");
+    if(gpuID == 1)
+      file = fopen("WS_load_GPU_1.dat","a");
+    if(gpuID == 2)
+      file = fopen("WS_load_GPU_2.dat","a");
+    if(gpuID == 3)
+      file = fopen("WS_load_GPU_3.dat","a");
+
+    double marker2;
     
     int nSteal = 0, nSSteal = 0;
     
@@ -487,6 +501,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       */
 
       int poolSize = popBackBulk(pool_loc, m, M, parents);
+
+      marker2 = omp_get_wtime();
+      fprintf(file,"%.4f %d\n",marker2-marker1,poolSize);
       
       if (poolSize > 0) {
         if (taskState == true) {
@@ -622,6 +639,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     eachBest[gpuID] = best_l;
 
     deleteSinglePool_ext(pool_loc);
+    
+    fclose(file);
 
   } // End of parallel region
 
