@@ -148,5 +148,20 @@ module Pool_par
       var default: eltType;
       return default;
     }
+
+    proc ref popFrontBulkFree(const m: int, const M: int) {
+      if (this.size >= 2*m) {
+        const poolSize = this.size/2; //min(this.size, M);
+        this.size -= poolSize;
+        var parents: [0..#poolSize] eltType = this.elements[this.front..#poolSize];
+        this.front += poolSize;
+        return (poolSize, parents);
+      } else {
+        halt("DEADCODE");
+      }
+
+      var parents: [0..-1] eltType = noinit;
+      return (0, parents);
+    }
   }
 }

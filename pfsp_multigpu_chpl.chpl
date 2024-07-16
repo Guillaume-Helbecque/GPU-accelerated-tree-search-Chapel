@@ -472,7 +472,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
                 const size = victim.size;
 
                 if (size >= 2*m) {
-                  var (hasWork, p) = victim.popBackBulkFree(m, M);
+                  var (hasWork, p) = victim.popFrontBulkFree(m, M);
                   if (hasWork == 0) {
                     victim.lock.write(false); // reset lock
                     halt("DEADCODE in work stealing");
