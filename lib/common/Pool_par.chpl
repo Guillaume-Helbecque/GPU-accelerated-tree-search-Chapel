@@ -1,5 +1,7 @@
 module Pool_par
 {
+  use Math;
+
   /*******************************************************************************
   Implementation of a dynamic-sized single pool data structure.
   Its initial capacity is 1024, and we reallocate a new container with double
@@ -7,7 +9,7 @@ module Pool_par
   'pushBack' and 'popBack' operations.
   *******************************************************************************/
 
-  config param CAPACITY = 1024000;
+  config param CAPACITY = 1024;
 
   record SinglePool_par {
     type eltType;
@@ -48,13 +50,10 @@ module Pool_par
 
       while true {
         if this.lock.compareAndSwap(false, true) {
-          /*
-            TODO: Implement dynamic-size mechanism in that case.
-          */
-          /* if (this.front + this.size >= this.capacity) {
-            this.capacity *= 2;
+          if (this.front + this.size + s >= this.capacity) {
+            this.capacity *= 2**ceil(log2((this.front + this.size + s) / this.capacity:real)):int;
             this.dom = 0..#this.capacity;
-          } */
+          }
 
           this.elements[(this.front + this.size)..#s] = nodes;
           this.size += s;
