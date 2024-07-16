@@ -3,6 +3,7 @@
 */
 
 use Time;
+use Random;
 use PrivateDist;
 use GpuDiagnostics;
 
@@ -445,8 +446,9 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         /*
           Each task gets its parents nodes from the pool.
         */
-        var poolSize = pool_loc.size;
-        if (poolSize >= m) {
+        var poolSize = pool_loc.popBackBulk(m, M, parents);
+
+        if (poolSize > 0) {
           if (taskState == IDLE) {
             taskState = BUSY;
             eachTaskState[gpuID].write(BUSY);
@@ -456,12 +458,12 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
             eachLocaleState[here.id].write(BUSY);
           }
 
-          poolSize = min(poolSize, M);
+          /* poolSize = min(poolSize, M);
           for i in 0..#poolSize {
             var hasWork = 0;
             parents[i] = pool_loc.popBack(hasWork);
             if !hasWork then break;
-          }
+          } */
 
           /*
             TODO: Optimize 'numBounds' based on the fact that the maximum number of
@@ -482,20 +484,71 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
           generate_children(parents, poolSize, bounds, tree, sol, best_l, pool_loc);
         }
         else {
-          if (taskState == BUSY) {
-            taskState = IDLE;
-            eachTaskState[gpuID].write(IDLE);
-          }
-          if allIdle(eachTaskState, allTasksIdleFlag) {
-            if (locState == BUSY) {
-              locState = IDLE;
-              eachLocaleState[here.id].write(IDLE);
+          // work stealing
+          var tries = 0;
+          var steal = false;
+          const victims = permute(0..#D);
+
+          label WS0 while (tries < D && steal == false) {
+            const victimID = victims[tries];
+
+            if (victimID != gpuID) { // if not me
+              ref victim = multiPool[victimID];
+              /* nSteal += 1; */
+              var nn = 0;
+
+              label WS1 while (nn < 10) {
+                if victim.lock.compareAndSwap(false, true) { // get the lock
+                  const size = victim.size;
+
+                  if (size >= 2*m) {
+                    var (hasWork, p) = victim.popBackBulkFree(m, M);
+                    if (hasWork == 0) {
+                      victim.lock.write(false); // reset lock
+                      halt("DEADCODE in work stealing");
+                    }
+
+                    /* for i in 0..#(size/2) {
+                      pool_loc.pushBack(p[i]);
+                    } */
+                    pool_loc.pushBackBulk(p);
+
+                    steal = true;
+                    /* nSSteal += 1; */
+                    victim.lock.write(false); // reset lock
+                    break WS0;
+                  }
+
+                  victim.lock.write(false); // reset lock
+                  break WS1;
+                }
+
+                nn += 1;
+                currentTask.yieldExecution();
+              }
             }
-            if allIdle(eachLocaleState, allLocalesIdleFlag) {
-              break;
-            }
+            tries += 1;
           }
-          continue;
+
+          if (steal == false) {
+            // termination
+            if (taskState == BUSY) {
+              taskState = IDLE;
+              eachTaskState[gpuID].write(IDLE);
+            }
+            if allIdle(eachTaskState, allTasksIdleFlag) {
+              if (locState == BUSY) {
+                locState = IDLE;
+                eachLocaleState[here.id].write(IDLE);
+              }
+              if allIdle(eachLocaleState, allLocalesIdleFlag) {
+                break;
+              }
+            }
+            continue;
+          } else {
+            continue;
+          }
         }
       }
 
