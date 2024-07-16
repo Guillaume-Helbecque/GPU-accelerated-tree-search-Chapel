@@ -556,7 +556,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 		int nodeSize = 0;
 		
 		if (size >= 2*m) {
-		  Node* p = popBackBulkFree(victim, m, M, &nodeSize); // NO atomic_store inside
+		  // The only change is here
+		  Node* p = popFrontBulkFree(victim, m, M, &nodeSize); // NO atomic_store inside
 		  
 		  if (size == 0) { // safety check
 		    atomic_store(&(victim->lock), false); // reset lock

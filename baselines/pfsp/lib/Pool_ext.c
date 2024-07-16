@@ -146,6 +146,25 @@ Node popFront(SinglePool_ext* pool, int* hasWork) {
   return (Node){0};
 }
 
+Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize){
+  if(pool->size >= 2*m) {
+    *poolSize = pool->size/2;
+    pool->size -= *poolSize;
+    Node* parents = (Node*)malloc(*poolSize * sizeof(Node));
+    for(int i = 0; i < *poolSize; i++)
+      parents[i] = pool->elements[pool->front + i];
+    pool->front += poolSize;
+    return parents;
+  }else{
+    *poolSize = 0;
+    printf("\nDEADCODE\n");
+    return NULL;
+  }
+  Node* parents = NULL;
+  *poolSize = 0;
+  return parents;
+}
+
 void deleteSinglePool_ext(SinglePool_ext* pool) {
   free(pool->elements);
   pool->elements = NULL;
