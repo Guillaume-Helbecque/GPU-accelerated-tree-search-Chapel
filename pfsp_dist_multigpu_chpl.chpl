@@ -388,13 +388,15 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     pool_lloc.front = 0;
     pool_lloc.size = 0;
 
+    var multiPool: [0..#D] SinglePool_par(Node);
+
     coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol,
-      ref eachBest) {
+      ref eachBest, ref multiPool) {
 
       const device = here.gpus[gpuID];
 
       var tree, sol: uint;
-      var pool_loc = new SinglePool_par(Node);
+      ref pool_loc = multiPool[gpuID];
       var best_l = best;
 
       // each task gets its chunk
