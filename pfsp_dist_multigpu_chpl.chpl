@@ -295,6 +295,16 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref bo
   }
 }
 
+class WrapperClassArrayParents {
+  forwarding var arr: [0..#M] Node = noinit;
+}
+type WrapperArrayParents = owned WrapperClassArrayParents?;
+
+class WrapperClassArrayBounds {
+  forwarding var arr: [0..#(M*jobs)] int(32) = noinit;
+}
+type WrapperArrayBounds = owned WrapperClassArrayBounds?;
+
 // Distributed multi-GPU PFSP search.
 proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
@@ -395,8 +405,13 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         pool_loc.size += l_l-c_l;
       }
 
+      var parents: [0..#M] Node = noinit;
+      var bounds: [0..#(M*jobs)] int(32) = noinit;
+
       var lbound1_d: WrapperLB1;
       var lbound2_d: WrapperLB2;
+      var parents_d: WrapperArrayParents;
+      var bounds_d: WrapperArrayBounds;
 
       on device {
         lbound1_d = new WrapperLB1(jobs, machines);
@@ -409,6 +424,9 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         lbound2_d!.lb2_bound.lags               = lbound2.lags;
         lbound2_d!.lb2_bound.machine_pairs      = lbound2.machine_pairs;
         lbound2_d!.lb2_bound.machine_pair_order = lbound2.machine_pair_order;
+
+        parents_d = new WrapperArrayParents();
+        bounds_d = new WrapperArrayBounds();
       }
 
       while true {
@@ -418,7 +436,6 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         var poolSize = pool_loc.size;
         if (poolSize >= m) {
           poolSize = min(poolSize, M);
-          var parents: [0..#poolSize] Node = noinit;
           for i in 0..#poolSize {
             var hasWork = 0;
             parents[i] = pool_loc.popBack(hasWork);
@@ -431,13 +448,11 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
             something like that.
           */
           const numBounds = jobs * poolSize;
-          var bounds: [0..#numBounds] int(32) = noinit;
 
           on device {
-            const parents_d = parents; // host-to-device
-            var bounds_d: [0..#numBounds] int(32) = noinit;
-            evaluate_gpu(parents_d, numBounds, best_l, lbound1_d, lbound2_d, bounds_d);
-            bounds = bounds_d; // device-to-host
+            parents_d!.arr = parents; // host-to-device
+            evaluate_gpu(parents_d!.arr, numBounds, best_l, lbound1_d, lbound2_d, bounds_d!.arr);
+            bounds = bounds_d!.arr; // device-to-host
           }
 
           /*
