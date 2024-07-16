@@ -369,9 +369,11 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   pool.front = 0;
   pool.size = 0;
 
+  var distMultiPool: [PrivateSpace][0..#D] SinglePool_par(Node);
+
   coforall (locID, loc) in zip(0..#numLocales, Locales) with (ref pool,
     ref eachLocaleExploredTree, ref eachLocaleExploredSol, ref eachLocaleBest,
-    ref eachLocaleState) do on loc {
+    ref eachLocaleState, ref distMultiPool) do on loc {
 
     var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
     var eachBest: [0..#D] int = noinit;
@@ -395,7 +397,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     pool_lloc.front = 0;
     pool_lloc.size = 0;
 
-    var multiPool: [0..#D] SinglePool_par(Node);
+    ref multiPool: [0..#D] SinglePool_par(Node) = distMultiPool[locID];
 
     var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
     var allTasksIdleFlag: atomic bool = false;
@@ -455,7 +457,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
           }
           if (locState == IDLE) {
             locState = BUSY;
-            eachLocaleState[here.id].write(BUSY);
+            eachLocaleState[locID].write(BUSY);
           }
 
           /* poolSize = min(poolSize, M);
@@ -539,7 +541,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
             if allIdle(eachTaskState, allTasksIdleFlag) {
               if (locState == BUSY) {
                 locState = IDLE;
-                eachLocaleState[here.id].write(IDLE);
+                eachLocaleState[locID].write(IDLE);
               }
               if allIdle(eachLocaleState, allLocalesIdleFlag) {
                 break;
