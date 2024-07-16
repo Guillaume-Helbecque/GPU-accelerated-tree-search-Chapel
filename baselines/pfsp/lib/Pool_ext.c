@@ -153,7 +153,7 @@ Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* pool
     Node* parents = (Node*)malloc(*poolSize * sizeof(Node));
     for(int i = 0; i < *poolSize; i++)
       parents[i] = pool->elements[pool->front + i];
-    pool->front += poolSize;
+    pool->front += *poolSize;
     return parents;
   }else{
     *poolSize = 0;
