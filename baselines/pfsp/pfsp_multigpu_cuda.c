@@ -503,7 +503,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       int poolSize = popBackBulk(pool_loc, m, M, parents);
 
       marker2 = omp_get_wtime();
-      fprintf(file,"%.4f %d\n",marker2-marker1,poolSize);
+      fprintf(file,"%.4f %d %d\n",marker2-marker1,poolSize,pool_loc->size);
       
       if (poolSize > 0) {
         if (taskState == true) {
