@@ -3,10 +3,8 @@ module Pool_par
   use Math;
 
   /*******************************************************************************
-  Implementation of a dynamic-sized single pool data structure.
-  Its initial capacity is 1024, and we reallocate a new container with double
-  the capacity when it is full. Since we perform only DFS, it only supports
-  'pushBack' and 'popBack' operations.
+  Extension of the "Pool" data structure ensuring parallel-safety and supporting
+  bulk operations.
   *******************************************************************************/
 
   config param CAPACITY = 1024;
@@ -27,6 +25,7 @@ module Pool_par
       this.lock = false;
     }
 
+    // Parallel-safe insertion to the end of the deque.
     proc ref pushBack(node: eltType) {
       while true {
         if this.lock.compareAndSwap(false, true) {
@@ -45,6 +44,7 @@ module Pool_par
       }
     }
 
+    // Parallel-safe bulk insertion to the end of the deque.
     proc ref pushBackBulk(nodes: [] eltType) {
       const s = nodes.size;
 
@@ -65,6 +65,7 @@ module Pool_par
       }
     }
 
+    // Parallel-safe removal from the end of the deque.
     proc ref popBack(ref hasWork: int) {
       while true {
         if this.lock.compareAndSwap(false, true) {
@@ -88,6 +89,7 @@ module Pool_par
       return default;
     }
 
+    // Removal from the end of the deque. Parallel-safety is not guaranteed.
     proc ref popBackFree(ref hasWork: int) {
       if (this.size > 0) {
         hasWork = 1;
@@ -99,6 +101,7 @@ module Pool_par
       return default;
     }
 
+    // Parallel-safe bulk removal from the end of the deque.
     proc ref popBackBulk(const m: int, const M: int, ref parents) {
       while true {
         if this.lock.compareAndSwap(false, true) {
@@ -121,6 +124,7 @@ module Pool_par
       return 0;
     }
 
+    // Bulk removal from the end of the deque. Parallel-safety is not guaranteed.
     proc ref popBackBulkFree(const m: int, const M: int) {
       if (this.size >= 2*m) {
         const poolSize = this.size/2; //min(this.size, M);
@@ -135,7 +139,8 @@ module Pool_par
       return (0, parents);
     }
 
-    proc ref popFront(ref hasWork: int) {
+    // Removal from the front of the deque. Parallel-safety is not guaranteed.
+    proc ref popFrontFree(ref hasWork: int) {
       if (this.size > 0) {
         hasWork = 1;
         const elt = this.elements[this.front];
@@ -148,6 +153,7 @@ module Pool_par
       return default;
     }
 
+    // Bulk removal from the front of the deque. Parallel-safety is not guaranteed.
     proc ref popFrontBulkFree(const m: int, const M: int) {
       if (this.size >= 2*m) {
         const poolSize = this.size/2; //min(this.size, M);

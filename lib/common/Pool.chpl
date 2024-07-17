@@ -1,10 +1,10 @@
 module Pool
 {
   /*******************************************************************************
-  Implementation of a dynamic-sized single pool data structure.
-  Its initial capacity is 1024, and we reallocate a new container with double
-  the capacity when it is full. Since we perform only DFS, it only supports
-  'pushBack' and 'popBack' operations.
+  Dynamic-sized single-pool data structure. Its initial capacity is 1024, and we
+  reallocate a new container with double the capacity when it is full. The pool
+  supports operations from both ends, allowing breadth-first and depth-first search
+  strategies.
   *******************************************************************************/
 
   config param CAPACITY = 1024;
@@ -23,6 +23,7 @@ module Pool
       this.capacity = CAPACITY;
     }
 
+    // Insertion to the end of the deque.
     proc ref pushBack(node: eltType) {
       if (this.front + this.size >= this.capacity) {
         this.capacity *= 2;
@@ -33,6 +34,7 @@ module Pool
       this.size += 1;
     }
 
+    // Removal from the end of the deque.
     proc ref popBack(ref hasWork: int) {
       if (this.size > 0) {
         hasWork = 1;
@@ -44,6 +46,7 @@ module Pool
       return default;
     }
 
+    // Removal from the front of the deque.
     proc ref popFront(ref hasWork: int) {
       if (this.size > 0) {
         hasWork = 1;

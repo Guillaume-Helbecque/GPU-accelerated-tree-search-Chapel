@@ -339,7 +339,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
   while (pool.size < D*m) {
     var hasWork = 0;
-    var parent = pool.popFront(hasWork);
+    var parent = pool.popFrontFree(hasWork);
     if !hasWork then break;
 
     decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
@@ -553,7 +553,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   timer.start();
   while true {
     var hasWork = 0;
-    var parent = pool.popBack(hasWork);
+    var parent = pool.popBackFree(hasWork);
     if !hasWork then break;
 
     decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
