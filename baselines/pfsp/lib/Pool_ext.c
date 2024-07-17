@@ -146,9 +146,9 @@ Node popFront(SinglePool_ext* pool, int* hasWork) {
   return (Node){0};
 }
 
-Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize){
+Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize, int perc){
   if(pool->size >= 2*m) {
-    *poolSize = pool->size/2;
+    *poolSize = pool->size/perc;
     pool->size -= *poolSize;
     Node* parents = (Node*)malloc(*poolSize * sizeof(Node));
     for(int i = 0; i < *poolSize; i++)
@@ -164,6 +164,32 @@ Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* pool
   *poolSize = 0;
   return parents;
 }
+
+// TO DO : In order to implement this function I would have to introduce a new variable
+// inside struct Pool_ext (e.g. back) to keep track of the good indexes and pool size
+/*Node* popHalfFrontHalfBackBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize){
+  if(pool->size >= 2*m) {
+    *poolSize = pool->size/2;
+    int index = *poolSize/2;
+    pool->size -= (*poolSize-index);
+    Node* parents = (Node*)malloc(*poolSize * sizeof(Node));
+    // Steal a quarter of the work from the front
+    for(int i = 0; i < index; i++)
+      parents[i] = pool->elements[pool->front + i];
+    pool->front += index;
+    //Steal a quarter of the work from the back
+    for(int i = index; i < *poolSize; i++)
+      parents[i] = pool->elements[pool->front + pool->size+i];
+    return parents;
+  }else{
+    *poolSize = 0;
+    printf("\nDEADCODE\n");
+    return NULL;
+  }
+  Node* parents = NULL;
+  *poolSize = 0;
+  return parents;
+  }*/
 
 void deleteSinglePool_ext(SinglePool_ext* pool) {
   free(pool->elements);
