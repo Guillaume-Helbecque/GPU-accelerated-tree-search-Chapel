@@ -368,7 +368,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   printf("\nInitial search on CPU completed\n");
   printf("Size of the explored tree: %llu\n", *exploredTree);
   printf("Number of explored solutions: %llu\n", *exploredSol);
-  printf("Elapsed time: %f [s]\n", t1);
+  printf("Elapsed time: %f [s]\n\n", t1);
 
   /*
     Step 2: We continue the search on GPU in a depth-first manner, until there
@@ -556,8 +556,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 		int nodeSize = 0;
 		
 		if (size >= 2*m) {
-		  // The only change is here
-		  Node* p = popFrontBulkFree(victim, m, M, &nodeSize); // NO atomic_store inside
+		  //Node* p = popBackBulkFree(victim, m, M, &nodeSize);
+		  int perc = 2; Node* p = popFrontBulkFree(victim, m, M, &nodeSize, perc);
+		  //Node* p = popHalfFrontHalfBackBulkFree(victim, m, M, &nodeSize);
 		  
 		  if (size == 0) { // safety check
 		    atomic_store(&(victim->lock), false); // reset lock
@@ -607,10 +608,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       }
     }
 
-    // This comment has to go after the problem is solved (lb1 unbalanced workload)
-    //double time_partial = omp_get_wtime();
-    //printf("\nTime for GPU[%d] = %f, nb of nodes = %lld, nb of sols = %lld\n", gpuID, time_partial - startTime, tree, sol);
-    
     // OpenMP environment freeing variables
     cudaFree(parents_d);
     cudaFree(bounds_d);
@@ -625,8 +622,12 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     free(parents);
     free(bounds);
 
+    double time_partial = omp_get_wtime();
 #pragma omp critical
     {
+      // Checking statistics for lb1 workload balance
+      printf("GPU[%d] = %f, nb nodes = %lld, nb sols = %lld, nSteal = %d, nSSteal = %d\n", gpuID, time_partial-startTime, tree, sol, nSteal, nSSteal);
+      
       const int poolLocSize = pool_loc->size;
       for (int i = 0; i < poolLocSize; i++) {
 	int hasWork = 0;
