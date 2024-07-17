@@ -131,8 +131,6 @@ module Pool_par
         this.size -= poolSize;
         var parents: [0..#poolSize] eltType = this.elements[(this.front + this.size)..#poolSize];
         return (poolSize, parents);
-      } else {
-        halt("DEADCODE");
       }
 
       var parents: [0..-1] eltType = noinit;
@@ -161,8 +159,6 @@ module Pool_par
         var parents: [0..#poolSize] eltType = this.elements[this.front..#poolSize];
         this.front += poolSize;
         return (poolSize, parents);
-      } else {
-        halt("DEADCODE");
       }
 
       var parents: [0..-1] eltType = noinit;
