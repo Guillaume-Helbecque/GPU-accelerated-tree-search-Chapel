@@ -339,7 +339,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
   while (pool.size < D*m) {
     var hasWork = 0;
-    var parent = pool.popFront(hasWork);
+    var parent = pool.popFrontFree(hasWork);
     if !hasWork then break;
 
     decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
@@ -472,7 +472,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
                 const size = victim.size;
 
                 if (size >= 2*m) {
-                  var (hasWork, p) = victim.popBackBulkFree(m, M);
+                  var (hasWork, p) = victim.popFrontBulkFree(m, M);
                   if (hasWork == 0) {
                     victim.lock.write(false); // reset lock
                     halt("DEADCODE in work stealing");
@@ -553,7 +553,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   timer.start();
   while true {
     var hasWork = 0;
-    var parent = pool.popBack(hasWork);
+    var parent = pool.popBackFree(hasWork);
     if !hasWork then break;
 
     decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
