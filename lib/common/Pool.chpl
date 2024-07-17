@@ -7,7 +7,7 @@ module Pool
   strategies.
   *******************************************************************************/
 
-  config param CAPACITY = 1024;
+  config param INITIAL_CAPACITY = 1024;
 
   record SinglePool {
     type eltType;
@@ -19,15 +19,15 @@ module Pool
 
     proc init(type eltType) {
       this.eltType = eltType;
-      this.dom = 0..#CAPACITY;
-      this.capacity = CAPACITY;
+      this.dom = {0..#INITIAL_CAPACITY};
+      this.capacity = INITIAL_CAPACITY;
     }
 
     // Insertion to the end of the deque.
     proc ref pushBack(node: eltType) {
       if (this.front + this.size >= this.capacity) {
         this.capacity *= 2;
-        this.dom = 0..#this.capacity;
+        this.dom = {0..#this.capacity};
       }
 
       this.elements[this.front + this.size] = node;

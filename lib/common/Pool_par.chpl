@@ -7,7 +7,7 @@ module Pool_par
   bulk operations.
   *******************************************************************************/
 
-  config param CAPACITY = 1024;
+  config param INITIAL_CAPACITY = 1024;
 
   record SinglePool_par {
     type eltType;
@@ -20,8 +20,8 @@ module Pool_par
 
     proc init(type eltType) {
       this.eltType = eltType;
-      this.dom = {0..#CAPACITY};
-      this.capacity = CAPACITY;
+      this.dom = {0..#INITIAL_CAPACITY};
+      this.capacity = INITIAL_CAPACITY;
       this.lock = false;
     }
 
@@ -31,7 +31,7 @@ module Pool_par
         if this.lock.compareAndSwap(false, true) {
           if (this.front + this.size >= this.capacity) {
             this.capacity *= 2;
-            this.dom = 0..#this.capacity;
+            this.dom = {0..#this.capacity};
           }
 
           this.elements[this.front + this.size] = node;
@@ -52,7 +52,7 @@ module Pool_par
         if this.lock.compareAndSwap(false, true) {
           if (this.front + this.size + s >= this.capacity) {
             this.capacity *= 2**ceil(log2((this.front + this.size + s) / this.capacity:real)):int;
-            this.dom = 0..#this.capacity;
+            this.dom = {0..#this.capacity};
           }
 
           this.elements[(this.front + this.size)..#s] = nodes;
