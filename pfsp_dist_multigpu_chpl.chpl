@@ -486,13 +486,13 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
           generate_children(parents, poolSize, bounds, tree, sol, best_l, pool_loc);
         }
         else {
-          // local work stealing
-          var tries = 0;
-          var localSteal = false;
+          var localSteal, globalSteal = false;
+
+          // local work stealing attempts
           const victimTasks = permute(0..#D);
 
-          label WS0 while (tries < D && localSteal == false) {
-            const victimTaskID = victimTasks[tries];
+          label WS0 for i in 0..#D {
+            const victimTaskID = victimTasks[i];
 
             if (victimTaskID != gpuID) { // if not me
               ref victim = multiPool[victimTaskID];
@@ -529,31 +529,25 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
                 currentTask.yieldExecution();
               }
             }
-            tries += 1;
           }
 
-          var globalSteal = false;
-
           if (localSteal == false && numLocales != 1) {
-            // global work stealing
-            var tries = 0;
+            // global work stealing attempts
             const victimLocales = permute(0..#numLocales);
 
-            label WS0 while (tries < numLocales && globalSteal == false) {
-              const victimLocaleID = victimLocales[tries];
+            label WS0 for i in 0..#numLocales {
+              const victimLocaleID = victimLocales[i];
 
               if (victimLocaleID != locID) { // if not me
                 ref victimMultiPool = distMultiPool[victimLocaleID];
-                /* var tries2 = 0; */
                 const victimTasks = permute(0..#D);
 
-                for victimTaskID in 0..#D {
-                /* label WS1 while (tries2 < D && steal == false) { */
-                  /* const victimTaskID = victimTasks[tries2]; */
+                for j in 0..#D {
+                  const victimTaskID = victimTasks[j];
                   ref victim = victimMultiPool[victimTaskID];
                   var nn = 0;
 
-                  label WS2 while (nn < 10) {
+                  label WS1 while (nn < 10) {
                     if victim.lock.compareAndSwap(false, true) { // get the lock
                       const size = victim.size;
 
@@ -572,20 +566,17 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
                         globalSteal = true;
                         /* nSSteal += 1; */
                         victim.lock.write(false); // reset lock
-                        /* break WS1; */
                       }
 
                       victim.lock.write(false); // reset lock
-                      break WS2;
+                      break WS1;
                     }
 
                     nn += 1;
                     currentTask.yieldExecution();
                   }
-                  /* tries2 += 1; */
                 }
               }
-              tries += 1;
             }
           }
 
