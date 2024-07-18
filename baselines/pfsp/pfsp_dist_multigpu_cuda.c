@@ -365,7 +365,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       printf("\nInitial search on CPU completed\n");
       printf("Size of the explored tree: %llu\n", *exploredTree);
       printf("Number of explored solutions: %llu\n", *exploredSol);
-      printf("Elapsed time: %f [s]\n", t1);
+      printf("Elapsed time: %f [s]\n\n", t1);
     }
   
   /*
@@ -660,9 +660,13 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	pushBack(&pool_lloc, popBack(pool_loc, &hasWork));
 	if (!hasWork) break;
       }
-      printf("thread[%d] GPU [%d] pool_lloc.size = %d\n",locID,D,pool_lloc.size);
+      printf("thread[%d] GPU [%d] pool_loc.size = %d,  pool_lloc.size = %d\n",locID,gpuID,poolLocSize,pool_lloc.size);
+      for(int j = 0; j < pool_lloc.size; j++)
+	printf("pool_lloc.elements[%d].limit1 = %d, pool_lloc.elements[%d].prmu[15] = %d\n",j,pool_lloc.elements[j].limit1,j,pool_lloc.elements[j].prmu[15]);
     }
 
+  
+    
     eachExploredTree[gpuID] = tree;
     eachExploredSol[gpuID] = sol;
     eachBest[gpuID] = best_l;
@@ -685,6 +689,12 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   if (locID == 0) recvcounts = (int *)malloc(numLocales * sizeof(int));
   MPI_Gather(&pool_lloc.size, 1, MPI_INT, recvcounts, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+  if (locID == 0){
+    for(int i = 0; i < numLocales; i++)
+      printf("recvcounts[%d] = %d\n", i, recvcounts[i]);
+  }
+
+  // INSTEAD OF GATHERING ALL ELEMENTS AT ONCE TRY GATHERING EVERY VARIABLE INSIDE ELEMENTS SEPARATELY AND THEN DOING pushBack's ON THE BIG POOL
   // Gather all elements at the master process
   int *displs = NULL;
   Node *all_elems = NULL;
@@ -698,8 +708,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     all_elems = (Node *)malloc(total_size * sizeof(Node));
   }
 
-  MPI_Gatherv(pool_lloc.elements, pool_lloc.size, MPI_BYTE, 
-                all_elems, recvcounts, displs, MPI_BYTE, 0, MPI_COMM_WORLD);
+  MPI_Gatherv(pool_lloc.elements, pool_lloc.size, MPI_INTEGER, 
+                all_elems, recvcounts, displs, MPI_INTEGER, 0, MPI_COMM_WORLD);
 
   // Combine data into the master pool
   if (locID == 0) {
@@ -707,6 +717,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       pool.size += recvcounts[i];
     }
     pool.elements = all_elems;
+    for(int j = 0; j < pool.size; j++)
+      printf("pool.elements[%d].limit1 = %d, pool.elements[%d].prmu[15] = %d\n",j,all_elems[j].limit1,j,all_elems[j].prmu[15]);
     printf("pool size at master thread is %d\n", pool.size);
   }
   
@@ -735,33 +747,33 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     Step 3: We complete the depth-first search on CPU.
   */
   
-  //if (locID == 0){
-  //startTime = omp_get_wtime();
-  //while (1) {
-  //  int hasWork = 0;
-  //  Node parent = popBack(&pool, &hasWork);
-      // if (!hasWork) break;
-  // //printf("Am I here?\n");
-  //  decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
-  // }
-  //}
-    // freeing memory for structs common to all steps 
+  if (locID == 0){
+    startTime = omp_get_wtime();
+    while (1) {
+      int hasWork = 0;
+      Node parent = popBack(&pool, &hasWork);
+      if (!hasWork) break;
+      printf("Am I here?\n");
+      decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
+    }
+  }
+  // freeing memory for structs common to all steps 
   deleteSinglePool_ext(&pool);
   deleteSinglePool_ext(&pool_lloc);
   free_bound_data(lbound1);
   free_johnson_bd_data(lbound2);
   
-  //if(locID == 0){ 
-  //endTime = omp_get_wtime();
-  //double t3 = endTime - startTime;
-    //*elapsedTime = t1 + t2 + t3;
-    //printf("\nSearch on CPU completed\n");
-    //printf("Size of the explored tree: %llu\n", *exploredTree);
-    //printf("Number of explored solutions: %llu\n", *exploredSol);
-    //printf("Elapsed time: %f [s]\n", t3);
+  if(locID == 0){ 
+    endTime = omp_get_wtime();
+    double t3 = endTime - startTime;
+    *elapsedTime = t1 + t2 + t3;
+    printf("\nSearch on CPU completed\n");
+    printf("Size of the explored tree: %llu\n", *exploredTree);
+    printf("Number of explored solutions: %llu\n", *exploredSol);
+    printf("Elapsed time: %f [s]\n", t3);
     
-  // printf("\nExploration terminated.\n");
-  //}
+    printf("\nExploration terminated.\n");
+  }
 }
 
 int main(int argc, char* argv[])
