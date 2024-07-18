@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 # Compilers & common options
-C_COMPILER    := gcc
+C_COMPILER    := mpicc #gcc
 CUDA_COMPILER := nvcc
 HIP_COMPILER  := hipcc
 
@@ -13,7 +13,7 @@ HIP_PATCH_G5K    := DEVICE_LIB_PATH=/opt/rocm-4.5.0/amdgcn/bitcode/
 #HIP_DEVICE_LIB_PATH := /rocm-openmp-extras/5.2.0_gcc-10.4.0
 
 # Source files
-C_SOURCES    :=  lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c lib/PFSP_node.c lib/Pool.c lib/Pool_ext.c lib/Auxiliary.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c
+C_SOURCES    :=  lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c lib/PFSP_node.c lib/Pool.c lib/Pool_ext.c lib/Auxiliary.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c pfsp_dist_multigpu_cuda.c
 CUDA_SOURCES :=  lib/evaluate.cu lib/c_bounds_gpu.cu
 HIP_SOURCES  :=  pfsp_gpu_hip.cu pfsp_multigpu_hip.cu
 
@@ -23,7 +23,7 @@ CUDA_OBJECTS := $(CUDA_SOURCES:.cu=.o)
 HIP_OBJECTS  := $(HIP_SOURCES:hip.cu=hip.o)
 
 # Executable names
-EXECUTABLES := pfsp_c.out pfsp_gpu_cuda.out pfsp_multigpu_cuda.out pfsp_gpu_hip.out pfsp_multigpu_hip.out
+EXECUTABLES := pfsp_c.out pfsp_gpu_cuda.out pfsp_multigpu_cuda.out pfsp_dist_multigpu_cuda.out pfsp_gpu_hip.out pfsp_multigpu_hip.out
 
 # Library paths
 #C_PFSP_LIBPATH := lib/c_bound_simple.c lib/c_bound_johnson.c lib/c_taillard.c
@@ -52,19 +52,24 @@ pfsp_gpu_cuda.out: pfsp_gpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_b
 pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/c_bounds_gpu.o lib/evaluate.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
 	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
 
+#Build executable CUDA+OpenMP+MPI
+pfsp_dist_multigpu_cuda.out: pfsp_dist_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/c_bounds_gpu.o lib/evaluate.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
+	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
+
+
 # Pattern rule for HIP source files
 	hipify-perl pfsp_gpu_hip.cu > pfsp_gpu_hip.cu.hip
-	$(HIP_COMPILER) $(HIP_COMMON_OPTS) -c pfsp_gpu_hip.cu.hip -o pfsp_gpu_hip.o -L/opt/rocm-4.5.0/hip/lib
+	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -c pfsp_gpu_hip.cu.hip -o pfsp_gpu_hip.o -L/opt/rocm-4.5.0/hip/lib
 
 pfsp_gpu_hip.out: pfsp_gpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool.o
-	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@ -L/opt/rocm-4.5.0/hip/lib
+	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@ -L/opt/rocm-4.5.0/hip/lib
 
 # Pattern rule for hybrid OpenMP+HIP source files
 	hipify-perl pfsp_multigpu_hip.cu > pfsp_multigpu_hip.cu.hip
-	module load rocm-openmp-extras/5.2.0_gcc-10.4.0 && $(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp -c pfsp_multigpu_hip.cu.hip -o pfsp_multigpu_hip.o -L/opt/rocm-4.5.0/hip/lib #--rocm-device-lib-path=$(HIP_DEVICE_LIB_PATH)
+	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp -c pfsp_multigpu_hip.cu.hip -o pfsp_multigpu_hip.o -L/opt/rocm-4.5.0/hip/lib #--rocm-device-lib-path=$(HIP_DEVICE_LIB_PATH)
 
 pfsp_multigpu_hip.out: pfsp_multigpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
-	module load rocm-openmp-extras/5.2.0_gcc-10.4.0 && $(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $^ -o $@ -L/opt/rocm-4.5.0/hip/lib #--rocm-device-lib-path=$(HIP_DEVICE_LIB_PATH)
+	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $^ -o $@ -L/opt/rocm-4.5.0/hip/lib #--rocm-device-lib-path=$(HIP_DEVICE_LIB_PATH)
 
 # Utilities
 .PHONY: clean
