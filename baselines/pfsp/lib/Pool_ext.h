@@ -1,20 +1,19 @@
 #ifndef POOL_EXT_H
 #define POOL_EXT_H
 
+#define MIN(a,b) (((a)<(b))?(a):(b))
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include "PFSP_node.h"
-#include "c_bound_simple.h"
 #include <stdbool.h>
 #include <stdatomic.h>
 
 /*******************************************************************************
-Implementation of a dynamic-sized single pool data structure.
-Its initial capacity is 1024, and we reallocate a new container with double
-the capacity when it is full. Since we perform only DFS, it only supports
-'pushBack' and 'popBack' operations.
+Extension of the "Pool" data structure ensuring parallel-safety and supporting
+bulk operations.
 *******************************************************************************/
 
 #define CAPACITY 1024
@@ -44,7 +43,7 @@ Node* popBackBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolS
 
 Node popFront(SinglePool_ext* pool, int* hasWork);
 
-Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize, int perc);
+Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize, double perc);
 
 //Node* popHalfFrontHalfBackBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize);
 

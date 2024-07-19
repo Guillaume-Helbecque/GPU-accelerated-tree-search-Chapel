@@ -39,7 +39,7 @@ void gpuAssert(cudaError_t code, const char *file, int line, bool abort) {
 Implementation of the parallel Multi-GPU C+OpenMP+CUDA PFSP search.
 *******************************************************************************/
 
-void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* m, int *M, int *D)
+void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* m, int *M, int *D, double *perc)
 {
   *m = 25;
   *M = 50000;
@@ -47,6 +47,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
   *lb = 1;
   *ub = 1;
   *D = 1;
+  *perc = 0.5;
   /*
     NOTE: Only forward branching is considered because other strategies increase a
     lot the implementation complexity and do not add much contribution.
@@ -60,13 +61,14 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
     {"m", required_argument, NULL, 'm'},
     {"M", required_argument, NULL, 'M'},
     {"D", required_argument, NULL, 'D'},
+    {"perc", required_argument, NULL, 'p'},
     {NULL, 0, NULL, 0} // Terminate options array
   };
 
   int opt, value;
   int option_index = 0;
 
-  while ((opt = getopt_long(argc, argv, "i:l:u:m:M:D:", long_options, &option_index)) != -1) {
+  while ((opt = getopt_long(argc, argv, "i:l:u:m:M:D:p:", long_options, &option_index)) != -1) {
     value = atoi(optarg);
 
     switch (opt) {
@@ -116,6 +118,14 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
         exit(EXIT_FAILURE);
       }
       *D = value;
+      break;
+
+    case 'p':
+      if (value <= 0 || value > 100) {
+        fprintf(stderr, "Error: unsupported WS percentage for popFrontBulkFree\n");
+        exit(EXIT_FAILURE);
+      }
+      *perc = (double)value/100;
       break;
 
     default:
@@ -312,7 +322,7 @@ void generate_children(Node* parents, const int size, const int jobs, int* bound
 }
 
 // Multi-GPU PFSP search
-void pfsp_search(const int inst, const int lb, const int m, const int M, const int D, int* best,
+void pfsp_search(const int inst, const int lb, const int m, const int M, const int D, const double perc, int* best,
   unsigned long long int* exploredTree, unsigned long long int* exploredSol, double* elapsedTime)
 {
   // Initializing problem
@@ -527,17 +537,14 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             victim = &multiPool[victimID];
             nSteal ++;
             int nn = 0;
-            int count = 0;
             while (nn < 10) { // WS1 loop
               expected = false;
-              count++;
               if (atomic_compare_exchange_strong(&(victim->lock), &expected, true)) { // get the lock
                 int size = victim->size;
                 int nodeSize = 0;
 
                 if (size >= 2*m) {
                   //Node* p = popBackBulkFree(victim, m, M, &nodeSize);
-                  int perc = 2;
                   Node* p = popFrontBulkFree(victim, m, M, &nodeSize, perc);
 
                   if (size == 0) { // safety check
@@ -669,7 +676,8 @@ int main(int argc, char* argv[])
   srand(time(NULL));
 
   int inst, lb, ub, m, M, D;
-  parse_parameters(argc, argv, &inst, &lb, &ub, &m, &M, &D);
+  double perc;
+  parse_parameters(argc, argv, &inst, &lb, &ub, &m, &M, &D, &perc);
 
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
@@ -682,7 +690,7 @@ int main(int argc, char* argv[])
 
   double elapsedTime;
 
-  pfsp_search(inst, lb, m, M, D, &optimum, &exploredTree, &exploredSol, &elapsedTime);
+  pfsp_search(inst, lb, m, M, D, perc, &optimum, &exploredTree, &exploredSol, &elapsedTime);
 
   print_results(optimum, exploredTree, exploredSol, elapsedTime);
 

@@ -125,21 +125,20 @@ Node* popBackBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolS
   return parents;
 }
 
-Node popFront(SinglePool_ext* pool, int* hasWork) {
+Node popFront(SinglePool_ext* pool, int* hasWork)
+{
   if (pool->size > 0) {
     *hasWork = 1;
-    Node node;
-    node = pool->elements[pool->front];
-    pool->front += 1;
-    pool->size -= 1;
-    return node;
+    pool->size--;
+    return pool->elements[pool->front++];
   }
+
   return (Node){0};
 }
 
-Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize, int perc) {
+Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize, double perc) {
   if (pool->size >= 2*m) {
-    *poolSize = pool->size/perc;
+    *poolSize = pool->size*perc;
     pool->size -= *poolSize;
     Node* parents = (Node*)malloc(*poolSize * sizeof(Node));
     for (int i = 0; i < *poolSize; i++)
@@ -151,9 +150,8 @@ Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* pool
     printf("\nDEADCODE\n");
     return NULL;
   }
-  Node* parents = NULL;
   *poolSize = 0;
-  return parents;
+  return NULL;
 }
 
 // TODO : In order to implement this function I would have to introduce a new variable
@@ -184,9 +182,5 @@ Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* pool
 
 void deleteSinglePool_ext(SinglePool_ext* pool) {
   free(pool->elements);
-  pool->elements = NULL;
-  pool->capacity = 0;
-  pool->front = 0;
-  pool->size = 0;
-  atomic_store(&pool->lock, false);
 }
+
