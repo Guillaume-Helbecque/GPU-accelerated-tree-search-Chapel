@@ -101,6 +101,7 @@ int eval_solution(const lb1_bound_data* const lb1_data, const int* const permuta
   for (int i = 0; i < N; i++) {
     add_forward(permutation[i], lb1_data->p_times, N, M, tmp);
   }
+
   return tmp[M-1];
 }
 

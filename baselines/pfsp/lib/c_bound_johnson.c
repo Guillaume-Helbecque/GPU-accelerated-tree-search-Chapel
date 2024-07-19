@@ -61,7 +61,7 @@ void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/)
       unsigned c = 0;
       for (int i = 0; i < lb2_data->nb_machines-1; i++) {
         for (int j = i+1; j < lb2_data->nb_machines; j++) {
-	  lb2_data->machine_pairs_1[c] = i;
+          lb2_data->machine_pairs_1[c] = i;
           lb2_data->machine_pairs_2[c] = j;
           lb2_data->machine_pair_order[c] = c;
           c++;
@@ -72,7 +72,7 @@ void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/)
     case LB2_NABESHIMA:
     {
       for (int i = 0; i < lb2_data->nb_machines-1; i++) {
-       	lb2_data->machine_pairs_1[i] = i;
+        lb2_data->machine_pairs_1[i] = i;
         lb2_data->machine_pairs_2[i] = i+1;
         lb2_data->machine_pair_order[i] = i;
       }
@@ -81,7 +81,7 @@ void fill_machine_pairs(lb2_bound_data* lb2_data/*, enum lb2_variant lb2_type*/)
     case LB2_LAGEWEG:
     {
       for (int i = 0; i < lb2_data->nb_machines-1; i++) {
-       	lb2_data->machine_pairs_1[i] = i;
+        lb2_data->machine_pairs_1[i] = i;
         lb2_data->machine_pairs_2[i] = lb2_data->nb_machines-1;
         lb2_data->machine_pair_order[i] = i;
       }
@@ -99,7 +99,6 @@ void fill_lags(const int *const lb1_p_times, const lb2_bound_data *const lb2_dat
     const int m1 = lb2_data->machine_pairs_1[i];
     const int m2 = lb2_data->machine_pairs_2[i];
 
-    
     for (int j = 0; j < N; j++) {
       lb2_data->lags[i * N + j] = 0;
       for (int k = m1 + 1; k < m2; k++) {
@@ -137,6 +136,7 @@ int johnson_comp(const void * elem1, const void * elem2)
     if (j2.partition == 0) return 1;
     return j2.ptm2 - j1.ptm2;
   }
+
   return 0;
 }
 
@@ -155,7 +155,7 @@ void fill_johnson_schedules(const int *const lb1_p_times, const lb2_bound_data *
   for (int k = 0; k < lb2_data->nb_machine_pairs; k++) {
     int m1 = lb2_data->machine_pairs_1[k];
     int m2 = lb2_data->machine_pairs_2[k];
-    
+
     //partition N jobs into 2 sets {j|p_1j < p_2j} and {j|p_1j >= p_2j}
     for (int i = 0; i < N; i++) {
       tmp[i].job = i;
@@ -218,7 +218,7 @@ int lb_makespan(const int* const lb1_p_times, const lb2_bound_data* const lb2_da
 
     int ma0 = lb2_data->machine_pairs_1[i];
     int ma1 = lb2_data->machine_pairs_2[i];
-    
+
     int tmp0 = front[ma0];
     int tmp1 = front[ma1];
 
@@ -263,10 +263,10 @@ int lb_makespan_learn(const int* const lb1_p_times, const lb2_bound_data* const 
 
   for (int l = 0; l < nb_pairs; l++) {
     int i = lb2_data->machine_pair_order[l];
-   
+
     int ma0 = lb2_data->machine_pairs_1[i];
     int ma1 = lb2_data->machine_pairs_2[i];
-   
+
     int tmp0 = front[ma0];
     int tmp1 = front[ma1];
 

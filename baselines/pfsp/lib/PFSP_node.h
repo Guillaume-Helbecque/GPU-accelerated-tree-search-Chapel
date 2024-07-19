@@ -10,9 +10,9 @@ extern "C" {
 
 #define BLOCK_SIZE 512
 
-#define MAX_JOBS 40
+#define MAX_JOBS 20
 
-#define MAX_MACHINES 40
+#define MAX_MACHINES 20
 
 typedef struct
 {

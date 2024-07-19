@@ -6,11 +6,10 @@ CUDA_COMPILER := nvcc
 HIP_COMPILER  := hipcc
 
 C_COMMON_OPTS    := -O3 -Wall -g
-CUDA_COMMON_OPTS := -O3 -arch=sm_86 #check how to adapt SM automatically
+CUDA_COMMON_OPTS := -O3 -arch=sm_86 #TO DO: adapt SM automatically
 HIP_COMMON_OPTS  := $(C_COMMON_OPTS) -offload-arch=gfx906
 
 HIP_PATCH_G5K    := DEVICE_LIB_PATH=/opt/rocm-4.5.0/amdgcn/bitcode/
-#HIP_DEVICE_LIB_PATH := /rocm-openmp-extras/5.2.0_gcc-10.4.0
 
 # Source files
 C_SOURCES    :=  lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c lib/PFSP_node.c lib/Pool.c lib/Pool_ext.c lib/Auxiliary.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c

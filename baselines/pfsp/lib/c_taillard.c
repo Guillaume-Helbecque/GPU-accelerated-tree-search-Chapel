@@ -83,6 +83,7 @@ long unif(long * seed, long low, long high)
   if ((*seed) < 0)
     *(seed) = *(seed) + m;
   value_0_1 = (float)*seed / (float)m;
+
   return low + (long)(value_0_1 * (high - low + 1));
 }
 
