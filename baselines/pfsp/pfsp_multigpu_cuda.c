@@ -331,8 +331,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   // Boolean variables for dynamic workload balance
   _Atomic bool allTasksIdleFlag = false;
   _Atomic bool eachTaskState[D]; // one task per GPU
-  for(int i = 0; i < D; i++)//{
-    atomic_store(&eachTaskState[i],false);
+  for (int i = 0; i < D; i++)
+    atomic_store(&eachTaskState[i], false);
 
   // Timer
   double startTime, endTime;
@@ -483,9 +483,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     while (1) {
       // Dynamic workload balance
       /*
-	Each task gets its parenst nodes from the pool
+        Each task gets its parenst nodes from the pool
       */
-
       int poolSize = popBackBulk(pool_loc, m, M, parents);
 
       if (poolSize > 0) {
@@ -494,96 +493,96 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
           atomic_store(&eachTaskState[gpuID],false);
         }
 
-	/*
-	  TODO: Optimize 'numBounds' based on the fact that the maximum number of
-	  generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
-	  something like that.
-	*/
-	const int numBounds = jobs * poolSize;
-	const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
+        /*
+          TODO: Optimize 'numBounds' based on the fact that the maximum number of
+          generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
+          something like that.
+        */
+        const int numBounds = jobs * poolSize;
+        const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
 
-	cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
+        cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
 
-	// numBounds is the 'size' of the problem
- 	evaluate_gpu(jobs, lb, numBounds, nbBlocks, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d);
+        // numBounds is the 'size' of the problem
+        evaluate_gpu(jobs, lb, numBounds, nbBlocks, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d);
 
         cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
 
-	/*
-	  each task generates and inserts its children nodes to the pool.
-	*/
-	generate_children(parents, poolSize, jobs, bounds, &tree, &sol, &best_l, pool_loc);
+        /*
+          each task generates and inserts its children nodes to the pool.
+        */
+        generate_children(parents, poolSize, jobs, bounds, &tree, &sol, &best_l, pool_loc);
       }
       else {
         // work stealing
-	int tries = 0;
+        int tries = 0;
         bool steal = false;
-	int victims[D];
-	permute(victims,D);
+        int victims[D];
+        permute(victims,D);
 
         while (tries < D && steal == false) { //WS0 loop
           const int victimID = victims[tries];
 
           if (victimID != gpuID) { // if not me
             SinglePool_ext* victim;
-	    victim = &multiPool[victimID];
+            victim = &multiPool[victimID];
             nSteal ++;
             int nn = 0;
-	    int count = 0;
+            int count = 0;
             while (nn < 10) { //WS1 loop
-	      expected = false;
-	      count++;
-	      if (atomic_compare_exchange_strong(&(victim->lock), &expected, true)){ // get the lock
-		int size = victim->size;
-		int nodeSize = 0;
+              expected = false;
+              count++;
+              if (atomic_compare_exchange_strong(&(victim->lock), &expected, true)){ // get the lock
+                int size = victim->size;
+                int nodeSize = 0;
 
-		if (size >= 2*m) {
-		  //Node* p = popBackBulkFree(victim, m, M, &nodeSize);
-		  int perc = 2; Node* p = popFrontBulkFree(victim, m, M, &nodeSize, perc);
+                if (size >= 2*m) {
+                  //Node* p = popBackBulkFree(victim, m, M, &nodeSize);
+                  int perc = 2; Node* p = popFrontBulkFree(victim, m, M, &nodeSize, perc);
 
-		  if (size == 0) { // safety check
-		    atomic_store(&(victim->lock), false); // reset lock
-		    printf("\nDEADCODE\n");
-		    exit(-1);
-		  }
+                  if (size == 0) { // safety check
+                    atomic_store(&(victim->lock), false); // reset lock
+                    printf("\nDEADCODE\n");
+                    exit(-1);
+                  }
 
-		  /* for i in 0..#(size/2) {
-		     pool_loc.pushBack(p[i]);
-		     } */
+                  /* for i in 0..#(size/2) {
+                    pool_loc.pushBack(p[i]);
+                  } */
 
-		  pushBackBulk(pool_loc, p, nodeSize); // atomic_store inside
+                  pushBackBulk(pool_loc, p, nodeSize); // atomic_store inside
 
-		  steal = true;
-		  nSSteal++;
-		  atomic_store(&(victim->lock), false); // reset lock
-		  goto WS0; // Break out of WS0 loop
-		}
+                  steal = true;
+                  nSSteal++;
+                  atomic_store(&(victim->lock), false); // reset lock
+                  goto WS0; // Break out of WS0 loop
+                }
 
-		atomic_store(&(victim->lock), false);// reset lock
-		break; // Break out of WS1 loop
-	      }
+                atomic_store(&(victim->lock), false);// reset lock
+                break; // Break out of WS1 loop
+              }
 
-	      nn ++;
-	    }
-	  }
+              nn ++;
+            }
+          }
 
-	  tries ++;
-	}
+          tries ++;
+        }
       WS0:
 
-	if (steal == false) {
-	  // termination
-	  if (taskState == false) {
-	    taskState = true;
-	    atomic_store(&eachTaskState[gpuID],true);
-	  }
-	  if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
-	    break;
-	  }
-	  continue;
-	} else {
-	  continue;
-	}
+        if (steal == false) {
+          // termination
+          if (taskState == false) {
+            taskState = true;
+            atomic_store(&eachTaskState[gpuID],true);
+          }
+          if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
+            break;
+          }
+          continue;
+        } else {
+          continue;
+        }
       }
     }
 
@@ -605,9 +604,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     {
       const int poolLocSize = pool_loc->size;
       for (int i = 0; i < poolLocSize; i++) {
-	int hasWork = 0;
-	pushBack(&pool, popBack(pool_loc, &hasWork));
-	if (!hasWork) break;
+        int hasWork = 0;
+        pushBack(&pool, popBack(pool_loc, &hasWork));
+        if (!hasWork) break;
       }
     }
 
