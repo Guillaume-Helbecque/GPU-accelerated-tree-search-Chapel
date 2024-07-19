@@ -340,10 +340,10 @@ __device__ void swap_cuda(int* a, int* b)
 
 void printDims(dim3 gridDim, dim3 blockDim) {
   printf("Grid Dimensions : [%d, %d, %d] blocks. \n",
-	 gridDim.x, gridDim.y, gridDim.z);
+    gridDim.x, gridDim.y, gridDim.z);
 
   printf("Block Dimensions : [%d, %d, %d] threads.\n",
-	 blockDim.x, blockDim.y, blockDim.z);
+    blockDim.x, blockDim.y, blockDim.z);
 }
 
 // Evaluate a bulk of parent nodes on GPU using lb1
@@ -387,8 +387,8 @@ __global__ void evaluate_gpu_lb1_d(const int jobs, const int size, Node* parents
 
     for(int k = 0; k < jobs; k++) {
       if (k >= parent.limit1+1) {
-	const int job = parent.prmu[k];
-	bounds[parentId*jobs+k] = lb_begin[job];
+        const int job = parent.prmu[k];
+        bounds[parentId*jobs+k] = lb_begin[job];
       }
     }
   }
@@ -416,7 +416,7 @@ __global__ void evaluate_gpu_lb2(const int jobs, const int size, int best, Node*
 }
 
 void evaluate_gpu(const int jobs, const int lb, const int size, const int nbBlocks,
-		  int* best, const lb1_bound_data lbound1, const lb2_bound_data lbound2, Node* parents, int* bounds)
+  int* best, const lb1_bound_data lbound1, const lb2_bound_data lbound2, Node* parents, int* bounds)
 {
   // 1D grid of 1D nbBlocks(_lb1_d) blocks with block size BLOCK_SIZE
   int nbBlocks_lb1_d;

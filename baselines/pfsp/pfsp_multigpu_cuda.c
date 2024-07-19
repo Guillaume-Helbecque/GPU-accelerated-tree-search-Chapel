@@ -36,7 +36,7 @@ void gpuAssert(cudaError_t code, const char *file, int line, bool abort) {
 }
 
 /*******************************************************************************
-Implementation of the parallel Multi-GPU C+CUDA+OpenMP PFSP search.
+Implementation of the parallel Multi-GPU C+OpenMP+CUDA PFSP search.
 *******************************************************************************/
 
 void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* m, int *M, int *D)
@@ -128,7 +128,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
 void print_settings(const int inst, const int machines, const int jobs, const int ub, const int lb, const int D)
 {
   printf("\n=================================================\n");
-  printf("Multi-GPU C+CUDA+OpenMP %d GPU(s)\n\n", D);
+  printf("Multi-GPU C+OpenMP+CUDA (%d GPUs)\n\n", D);
   printf("Resolution of PFSP Taillard's instance: ta%d (m = %d, n = %d)\n", inst, machines, jobs);
   if (ub == 0) printf("Initial upper bound: inf\n");
   else /* if (ub == 1) */ printf("Initial upper bound: opt\n");
@@ -481,7 +481,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
 
     while (1) {
-      // Dynamic workload balance
       /*
         Each task gets its parenst nodes from the pool
       */
@@ -509,7 +508,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
         cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
 
         /*
-          each task generates and inserts its children nodes to the pool.
+          Each task generates and inserts its children nodes to the pool.
         */
         generate_children(parents, poolSize, jobs, bounds, &tree, &sol, &best_l, pool_loc);
       }
@@ -520,7 +519,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
         int victims[D];
         permute(victims,D);
 
-        while (tries < D && steal == false) { //WS0 loop
+        while (tries < D && steal == false) { // WS0 loop
           const int victimID = victims[tries];
 
           if (victimID != gpuID) { // if not me
@@ -529,16 +528,17 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             nSteal ++;
             int nn = 0;
             int count = 0;
-            while (nn < 10) { //WS1 loop
+            while (nn < 10) { // WS1 loop
               expected = false;
               count++;
-              if (atomic_compare_exchange_strong(&(victim->lock), &expected, true)){ // get the lock
+              if (atomic_compare_exchange_strong(&(victim->lock), &expected, true)) { // get the lock
                 int size = victim->size;
                 int nodeSize = 0;
 
                 if (size >= 2*m) {
                   //Node* p = popBackBulkFree(victim, m, M, &nodeSize);
-                  int perc = 2; Node* p = popFrontBulkFree(victim, m, M, &nodeSize, perc);
+                  int perc = 2;
+                  Node* p = popFrontBulkFree(victim, m, M, &nodeSize, perc);
 
                   if (size == 0) { // safety check
                     atomic_store(&(victim->lock), false); // reset lock
@@ -568,13 +568,13 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
           tries ++;
         }
-      WS0:
 
+      WS0:
         if (steal == false) {
           // termination
           if (taskState == false) {
             taskState = true;
-            atomic_store(&eachTaskState[gpuID],true);
+            atomic_store(&eachTaskState[gpuID], true);
           }
           if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
             break;
