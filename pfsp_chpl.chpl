@@ -6,40 +6,10 @@ use Time;
 
 use Pool;
 
+use PFSP_node;
 use Bound_johnson;
 use Bound_simple;
 use Taillard;
-
-/*******************************************************************************
-Implementation of PFSP Nodes.
-*******************************************************************************/
-
-config param MAX_JOBS = 20;
-
-record Node {
-  var depth: int;
-  var limit1: int; // left limit
-  var prmu: MAX_JOBS*int;
-
-  // default-initializer
-  proc init() {}
-
-  // root-initializer
-  proc init(jobs)
-  {
-    this.limit1 = -1;
-    init this;
-    for i in 0..#jobs do this.prmu[i] = i;
-  }
-
-  // copy-initializer
-  proc init(other: Node)
-  {
-    this.depth  = other.depth;
-    this.limit1 = other.limit1;
-    this.prmu   = other.prmu;
-  }
-}
 
 /*******************************************************************************
 Implementation of the sequential PFSP search.
@@ -60,7 +30,10 @@ var lbound1 = new lb1_bound_data(jobs, machines);
 taillard_get_processing_times(lbound1.p_times, inst);
 fill_min_heads_tails(lbound1);
 
-const lbound2 = new lb2_bound_data(lbound1);
+var lbound2 = new lb2_bound_data(jobs, machines);
+fill_machine_pairs(lbound2/*, LB2_FULL*/);
+fill_lags(lbound1.p_times, lbound2);
+fill_johnson_schedules(lbound1.p_times, lbound2);
 
 const initUB = if (ub == 1) then taillard_get_best_ub(inst) else max(int);
 
@@ -108,10 +81,11 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
   for i in parent.limit1+1..(jobs-1) {
-    var child = new Node(parent);
-    child.prmu[child.depth] <=> child.prmu[i];
-    child.depth  += 1;
-    child.limit1 += 1;
+    var child = new Node();
+    child.depth = parent.depth + 1;
+    child.limit1 = parent.limit1 + 1;
+    child.prmu = parent.prmu;
+    child.prmu[parent.depth] <=> child.prmu[i];
 
     var lowerbound = lb1_bound(lbound1, child.prmu, child.limit1, jobs);
 
@@ -133,7 +107,7 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
-  var lb_begin: MAX_JOBS*int;
+  var lb_begin: MAX_JOBS*int(32);
 
   lb1_children_bounds(lbound1, parent.prmu, parent.limit1, jobs, lb_begin);
 
@@ -149,10 +123,11 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
       }
     } else { // if not leaf
       if (lowerbound < best) { // if child feasible
-        var child = new Node(parent);
-        child.depth += 1;
-        child.limit1 += 1;
-        child.prmu[child.limit1] <=> child.prmu[i];
+        var child = new Node();
+        child.depth = parent.depth + 1;
+        child.limit1 = parent.limit1 + 1;
+        child.prmu = parent.prmu;
+        child.prmu[parent.depth] <=> child.prmu[i];
 
         pool.pushBack(child);
         tree_loc += 1;
@@ -165,10 +140,11 @@ proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
   for i in parent.limit1+1..(jobs-1) {
-    var child = new Node(parent);
-    child.prmu[child.depth] <=> child.prmu[i];
-    child.depth  += 1;
-    child.limit1 += 1;
+    var child = new Node();
+    child.depth = parent.depth + 1;
+    child.limit1 = parent.limit1 + 1;
+    child.prmu = parent.prmu;
+    child.prmu[parent.depth] <=> child.prmu[i];
 
     var lowerbound = lb2_bound(lbound1, lbound2, child.prmu, child.limit1, jobs, best);
 

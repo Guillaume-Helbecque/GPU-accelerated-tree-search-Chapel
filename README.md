@@ -10,21 +10,21 @@ The algorithm is based on a general multi-pool approach equipped with a static l
 Each CPU manages its own pool of work, and we assume that one GPU is assigned per CPU.
 The tree exploration starts on the CPU, and each node taken from the work pool is evaluated, potentially pruned, and branched.
 In order to exploit GPU-acceleration, we offload a chunk of nodes on the GPU when the pool size is sufficiently large.
-When the GPU retrieves the nodes, the latter are evaluated in parallel and the non promising nodes are labeled.
-Then, the array of labels is sent back to the CPU, which uses it to prune and branch.
+When the GPU retrieves the nodes, the latter are evaluated in parallel and the results are sent back to the CPU, which uses them to prune or branch the nodes.
 This process is repeated until the pool is empty.
 
 ## Implementation
 
-The following Chapel implementations are available from the main directory:
+The following Chapel implementations are available:
 - `[nqueens/pfsp]_chpl.chpl`: sequential version;
 - `[nqueens/pfsp]_gpu_chpl.chpl`: single-GPU version;
-- `[nqueens/pfsp]_multigpu_chpl.chpl`: multi-GPU version.
+- `[nqueens/pfsp]_multigpu_chpl.chpl`: multi-GPU version;
+- `pfsp_dist_multigpu_chpl.chpl`: distributed multi-GPU version (unstable).
 
 In addition, the [baselines](./baselines/) directory contains the CUDA-based counterparts:
 - `[nqueens/pfsp]_c.c`: sequential version (C);
-- `nqueens_gpu_cuda.cu`: single-GPU version (C+CUDA);
-- `nqueens_multigpu_cuda.cu`: multi-GPU version (C+OpenMP+CUDA).
+- `[nqueens/pfsp]_gpu_cuda.cu`: single-GPU version (C+CUDA);
+- `[nqueens/pfsp]_multigpu_cuda.cu`: multi-GPU version (C+OpenMP+CUDA) (unstable).
 
 In order to compile and execute the CUDA-based code on AMD GPU architectures, we use the `hipify-perl` tool which translates it into portable HIP C++ automatically.
 
@@ -37,7 +37,7 @@ In order to compile and execute the CUDA-based code on AMD GPU architectures, we
 The [chpl_config](./chpl_config/) directory contains several Chapel environment configuration scripts.
 The latter can serve as templates and can be (and should be) adapted to the target system.
 
-**Note:** The code is implemented using Chapel 1.33.0 and might not compile and run with older or newer versions.
+**Note:** The code is implemented using Chapel 2.1.0 and might not compile and run with older or newer versions.
 By default, the target architecture for CUDA code generation is set to `sm_70`, and to `gfx906` for AMD.
 
 ### Compilation & execution
@@ -69,3 +69,8 @@ Problem-specific command-line options:
 ```
 ./nqueens_multigpu_cuda.o -N 17 -D 4
 ```
+
+## Related publications
+
+1. G. Helbecque, E. Krishnasamy, N. Melab, P. Bouvry. GPU-Accelerated Tree-Search in Chapel versus CUDA and HIP. *14th IEEE Workshop Parallel / Distributed Combinatorics and Optimization (PDCO 2024)*, San Francisco, USA, May 2024.
+2. G. Helbecque, E. Krishnasamy, N. Melab, P. Bouvry. GPU Computing in Chapel: Application to Tree-Search Algorithms. *International Conference in Optimization and Learning (OLA 2024)*, Dubrovnik, Croatia, May 2024.

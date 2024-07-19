@@ -72,48 +72,48 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
     switch (opt) {
     case 'i':
       if (value < 1 || value > 120) {
-	fprintf(stderr, "Error: unsupported Taillard's instance\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Error: unsupported Taillard's instance\n");
+        exit(EXIT_FAILURE);
       }
       *inst = value;
       break;
 
     case 'l':
       if (value < 0 || value > 2) {
-	fprintf(stderr, "Error: unsupported lower bound function\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Error: unsupported lower bound function\n");
+        exit(EXIT_FAILURE);
       }
       *lb = value;
       break;
 
     case 'u':
       if (value != 0 && value != 1) {
-	fprintf(stderr, "Error: unsupported upper bound initialization\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Error: unsupported upper bound initialization\n");
+        exit(EXIT_FAILURE);
       }
       *ub = value;
       break;
 
     case 'm':
       if (value < 1) {
-	fprintf(stderr, "Error: unsupported minimal pool for GPU initialization\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Error: unsupported minimal pool for GPU initialization\n");
+        exit(EXIT_FAILURE);
       }
       *m = value;
       break;
 
     case 'M':
       if (value < *m) {
-	fprintf(stderr, "Error: unsupported maximal pool for GPU initialization\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Error: unsupported maximal pool for GPU initialization\n");
+        exit(EXIT_FAILURE);
       }
       *M = value;
       break;
 
     case 'D':
       if (value < 0) {
-	fprintf(stderr, "Error: unsupported number of GPU's\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Error: unsupported number of GPU's\n");
+        exit(EXIT_FAILURE);
       }
       *D = value;
       break;
@@ -140,7 +140,7 @@ void print_settings(const int inst, const int machines, const int jobs, const in
 }
 
 void print_results(const int optimum, const unsigned long long int exploredTree,
-		   const unsigned long long int exploredSol, const double timer)
+  const unsigned long long int exploredSol, const double timer)
 {
   printf("\n=================================================\n");
   printf("Size of the explored tree: %llu\n", exploredTree);
@@ -152,7 +152,7 @@ void print_results(const int optimum, const unsigned long long int exploredTree,
 }
 
 void print_results_file(const int inst, const int machines, const int jobs, const int lb, const int D, const int optimum,
-			const unsigned long long int exploredTree, const unsigned long long int exploredSol, const double timer)
+  const unsigned long long int exploredTree, const unsigned long long int exploredSol, const double timer)
 {
   FILE *file;
   file = fopen("stats_pfsp_multigpu_cuda_dyn.dat","a");
@@ -313,8 +313,7 @@ void generate_children(Node* parents, const int size, const int jobs, int* bound
 
 // Multi-GPU PFSP search
 void pfsp_search(const int inst, const int lb, const int m, const int M, const int D, int* best,
-		 unsigned long long int* exploredTree, unsigned long long int* exploredSol,
-		 double* elapsedTime)
+  unsigned long long int* exploredTree, unsigned long long int* exploredSol, double* elapsedTime)
 {
   // Initializing problem
   int jobs = taillard_get_nb_jobs(inst);
@@ -393,7 +392,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     initSinglePool(&multiPool[i]);
 
   //TODO: implement reduction using omp directives
-#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool, multiPool, lbound1, lbound2)
+  #pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool, multiPool, lbound1, lbound2)
   for (int gpuID = 0; gpuID < D; gpuID++) {
     cudaSetDevice(gpuID);
 
@@ -401,7 +400,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
     unsigned long long int tree = 0, sol = 0;
     SinglePool_ext* pool_loc;
-    pool_loc = &multiPool[gpuID]; 
+    pool_loc = &multiPool[gpuID];
     int best_l = *best;
     bool taskState = false;
     bool expected = false;
@@ -500,13 +499,13 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	  generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
 	  something like that.
 	*/
-	const int numBounds = jobs * poolSize;   
+	const int numBounds = jobs * poolSize;
 	const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
 
 	cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
 
 	// numBounds is the 'size' of the problem
- 	evaluate_gpu(jobs, lb, numBounds, nbBlocks, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d); 
+ 	evaluate_gpu(jobs, lb, numBounds, nbBlocks, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d);
 
         cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
 
@@ -588,7 +587,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       }
     }
 
-    // OpenMP environment freeing variables
+    // Freeing variables from OpenMP environment
     cudaFree(parents_d);
     cudaFree(bounds_d);
     cudaFree(p_times_d);
@@ -602,7 +601,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     free(parents);
     free(bounds);
 
-#pragma omp critical
+    #pragma omp critical
     {
       const int poolLocSize = pool_loc->size;
       for (int i = 0; i < poolLocSize; i++) {
@@ -650,7 +649,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
   }
 
-  // Freeing memory for structs common to all steps 
+  // Freeing memory for structs common to all steps
   deleteSinglePool_ext(&pool);
   free_bound_data(lbound1);
   free_johnson_bd_data(lbound2);
