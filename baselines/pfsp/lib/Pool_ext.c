@@ -183,4 +183,3 @@ Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* pool
 void deleteSinglePool_ext(SinglePool_ext* pool) {
   free(pool->elements);
 }
-

@@ -1,6 +1,10 @@
 /*
   Single-GPU B&B to solve Taillard instances of the PFSP in C+HIP.
 */
+/*
+  NOTE: This file has been introduced to facilitate HIP compilations for now. It
+  is supposed to be removed in the future.
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
