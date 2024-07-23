@@ -16,7 +16,7 @@ extern "C" {
 
 typedef struct
 {
-  uint8_t depth;
+  int depth;
   int limit1;
   int prmu[MAX_JOBS];
 } Node;
