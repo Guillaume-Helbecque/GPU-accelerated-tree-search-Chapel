@@ -14,6 +14,7 @@ void initSinglePool(SinglePool_ext* pool)
   atomic_store(&(pool->lock), false);
 }
 
+// Parallel-safe insertion to the end of the deque.
 void pushBack(SinglePool_ext* pool, Node node) {
   bool expected = false;
   while (true) {
@@ -33,6 +34,7 @@ void pushBack(SinglePool_ext* pool, Node node) {
   }
 }
 
+// Parallel-safe bulk insertion to the end of the deque.
 void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
   bool expected = false;
   while (true) {
@@ -54,17 +56,16 @@ void pushBackBulk(SinglePool_ext* pool, Node* nodes, int size) {
   }
 }
 
+// Parallel-safe removal from the end of the deque.
 Node popBack(SinglePool_ext* pool, int* hasWork) {
-  bool expected = false;
+  bool expected;
   while (true) {
     expected = false;
     if (atomic_compare_exchange_strong(&(pool->lock), &expected, false)) {
       if (pool->size > 0) {
         *hasWork = 1;
         pool->size -= 1;
-        // Copy last element to elt
-        Node elt;
-        elt = pool->elements[pool->front + pool->size];
+        Node elt = pool->elements[pool->front + pool->size];
         atomic_store(&pool->lock, false);
         return elt;
       } else {
@@ -73,20 +74,24 @@ Node popBack(SinglePool_ext* pool, int* hasWork) {
       }
     }
   }
+
   return (Node){0};
 }
 
+// Removal from the end of the deque. Parallel-safety is not guaranteed.
 Node popBackFree(SinglePool_ext* pool, int* hasWork) {
   if (pool->size > 0) {
     *hasWork = 1;
     pool->size -= 1;
     return pool->elements[pool->front + pool->size];
   }
+
   return (Node){0};
 }
 
+// Parallel-safe bulk removal from the end of the deque.
 int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents) {
-  bool expected = false;
+  bool expected;
   while (true) {
     expected = false;
     if (atomic_compare_exchange_strong(&(pool->lock), &expected, true)) {
@@ -94,37 +99,36 @@ int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents) {
         atomic_store(&(pool->lock), false);
         break;
       }
-      else{
+      else {
         int poolSize = MIN(pool->size, M);
         pool->size -= poolSize;
         for(int i = 0; i < poolSize; i++)
-        parents[i] = pool->elements[pool->front + pool->size+i];
+          parents[i] = pool->elements[pool->front + pool->size + i];
         atomic_store(&(pool->lock), false);
         return poolSize;
       }
     }
   }
+
   return 0;
 }
 
+// Bulk removal from the end of the deque. Parallel-safety is not guaranteed.
 Node* popBackBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize) {
   if (pool->size >= 2*m) {
     *poolSize = pool->size/2;
     pool->size -= *poolSize;
     Node* parents = (Node*)malloc(*poolSize * sizeof(Node));
     for(int i = 0; i < *poolSize; i++)
-      parents[i] = pool->elements[pool->front + pool->size+i];
+      parents[i] = pool->elements[pool->front + pool->size + i];
     return parents;
-  } else {
-    *poolSize = 0;
-    printf("\nDEADCODE\n");
-    return NULL;
   }
-  Node* parents = NULL;
+
   *poolSize = 0;
-  return parents;
+  return NULL;
 }
 
+// Removal from the front of the deque. Parallel-safety is not guaranteed.
 Node popFront(SinglePool_ext* pool, int* hasWork)
 {
   if (pool->size > 0) {
@@ -136,20 +140,18 @@ Node popFront(SinglePool_ext* pool, int* hasWork)
   return (Node){0};
 }
 
+// Bulk removal from the front of the deque. Parallel-safety is not guaranteed.
 Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize, double perc) {
   if (pool->size >= 2*m) {
-    *poolSize = pool->size*perc;
+    *poolSize = pool->size * perc;
     pool->size -= *poolSize;
     Node* parents = (Node*)malloc(*poolSize * sizeof(Node));
     for (int i = 0; i < *poolSize; i++)
       parents[i] = pool->elements[pool->front + i];
     pool->front += *poolSize;
     return parents;
-  } else {
-    *poolSize = 0;
-    printf("\nDEADCODE\n");
-    return NULL;
   }
+
   *poolSize = 0;
   return NULL;
 }
@@ -180,6 +182,7 @@ Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* pool
   return parents;
   }*/
 
+// Free the memory.
 void deleteSinglePool_ext(SinglePool_ext* pool) {
   free(pool->elements);
 }
