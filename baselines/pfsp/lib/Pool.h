@@ -8,10 +8,10 @@ extern "C" {
 #include "PFSP_node.h"
 
 /*******************************************************************************
-Implementation of a dynamic-sized single pool data structure.
-Its initial capacity is 1024, and we reallocate a new container with double
-the capacity when it is full. Since we perform only DFS, it only supports
-'pushBack' and 'popBack' operations.
+Dynamic-sized single-pool data structure. Its initial capacity is 1024, and we
+reallocate a new container with double the capacity when it is full. The pool
+supports operations from both ends, allowing breadth-first and depth-first search
+strategies.
 *******************************************************************************/
 
 #define CAPACITY 1024

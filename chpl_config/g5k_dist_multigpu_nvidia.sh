@@ -4,9 +4,9 @@
 # on the French national Grid5000 testbed (https://www.grid5000.fr/w/Grid5000:Home).
 
 # Load modules
-module load gcc/10.4.0_gcc-10.4.0
+module load gcc/12.2.0_gcc-10.4.0
 module load cmake/3.23.3_gcc-10.4.0
-module load cuda/11.7.1_gcc-10.4.0
+module load cuda/12.0.0_gcc-10.4.0
 module load libfabric/1.15.1_gcc-10.4.0
 
 export HERE=$(pwd)
@@ -44,11 +44,12 @@ export GASNET_PHYSMEM_MAX='64 GB'
 # GPU-related environment variables
 export CHPL_LOCALE_MODEL="gpu"
 export CHPL_GPU="nvidia"
-export CHPL_GPU_ARCH="sm_60"
+export CHPL_GPU_ARCH="sm_70"
 export CHPL_RT_NUM_GPUS_PER_LOCALE=2
 export CHPL_GPU_MEM_STRATEGY="array_on_device"
 
 # Install Chapel
 cd $CHPL_HOME
+patch -N -p1 < $HERE/perf_patch.patch # see Chapel PR #24970 on Github (remove it when Chapel 2.1 is released)
 make -j $NUM_T_LOCALE
 cd $HERE/..
