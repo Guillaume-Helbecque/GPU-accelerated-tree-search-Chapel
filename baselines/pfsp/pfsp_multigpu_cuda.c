@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdatomic.h>
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
@@ -15,6 +14,7 @@
 #include <math.h>
 #include <omp.h>
 #include <cuda_runtime.h>
+#include <stdatomic.h>
 
 #include "lib/c_bound_simple.h"
 #include "lib/c_bound_johnson.h"
@@ -547,7 +547,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
                   //Node* p = popBackBulkFree(victim, m, M, &nodeSize);
                   Node* p = popFrontBulkFree(victim, m, M, &nodeSize, perc);
 
-                  if (size == 0) { // safety check
+                  if (nodeSize == 0) { // safety check
                     atomic_store(&(victim->lock), false); // reset lock
                     printf("\nDEADCODE\n");
                     exit(-1);
