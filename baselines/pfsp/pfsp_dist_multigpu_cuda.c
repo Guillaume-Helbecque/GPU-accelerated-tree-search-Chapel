@@ -324,8 +324,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
 
-
-  // Just for locID == 0
   // Starting pool
   Node root;
   initRoot(&root, jobs);
@@ -357,18 +355,18 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   */
   
   // Apparently I can develop here the big pool for all mpi threads and it shoul be fine
-  if (locID == 0)
-    {
-      while(pool.size < numLocales*D*m) {
-	// CPU side
-	int hasWork = 0;
-	Node parent = popFront(&pool, &hasWork);
-	if (!hasWork) break;
-	
-	decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree,
-		  exploredSol, &pool);
-      }
-    }
+  //if (locID == 0)
+  // {
+  while(pool.size < numLocales*D*m) {
+    // CPU side
+    int hasWork = 0;
+    Node parent = popFront(&pool, &hasWork);
+    if (!hasWork) break;
+    
+    decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree,
+	      exploredSol, &pool);
+  }
+  // }
   endTime = omp_get_wtime();
   double t1 = endTime - startTime;
   
@@ -392,23 +390,17 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   startTime = omp_get_wtime();
 
   //If I make pool a variable only for locID == 0, then I have to transfer all the following info from thread master to ther others (use BCast)
-  int poolSize = 0, c = 0, l = 0, f = 0;
-  if(locID == 0)
-    {
-      poolSize = pool.size;
-      poolSize / numLocales;
-      poolSize - (numLocales-1)*c;
-      pool.front;
-    }
-  // Use BCast to transfer data to all other threads
-  B
+  const int poolSize = pool.size;
+  const int c = poolSize / numLocales;
+  const int l = poolSize - (numLocales-1)*c;
+  const int f = pool.front;
   
   pool.front = 0;
   pool.size = 0;
   
   // Every MPI thread need to have the variables declared here
   unsigned long long int eachLocaleExploredTree=0, eachLocaleExploredSol=0;
-  int eachLocaleBest;
+  int eachLocaleBest = *best;
 
   // All that is down here should be initialized by the each MPI thread
   unsigned long long int eachExploredTree[D], eachExploredSol[D];
@@ -429,6 +421,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     }
     pool_lloc.size += l-c;
   }
+
+  printf("thread[%d] pool_lloc.size = %d\n", locID, pool_lloc.size);
 
   // Variables for GPUs under control of each MPI thread
   const int poolSize_l = pool_lloc.size;
@@ -451,7 +445,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
   //int best_l = *best;
 
-#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool, multiPool, lbound1, lbound2) //reduction(min:best_l)
+#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool_lloc, multiPool, lbound1, lbound2) //reduction(min:best_l)
   for (int gpuID = 0; gpuID < D; gpuID++) {
     cudaSetDevice(gpuID);
     
@@ -560,12 +554,11 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	*/
 	const int numBounds = jobs * poolSize;   
 	const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
-	const int nbBlocks_lb1_d = ceil((double)nbBlocks/jobs); 
 
 	cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
 
 	// numBounds is the 'size' of the problem
- 	evaluate_gpu(jobs, lb, numBounds, nbBlocks, nbBlocks_lb1_d, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d);
+ 	evaluate_gpu(jobs, lb, numBounds, nbBlocks, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d);
 	//printf("Kernel call thread[%d] GPU[%d]\n",locID, gpuID);
 	
         cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
