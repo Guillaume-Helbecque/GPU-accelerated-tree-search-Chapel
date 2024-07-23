@@ -45,11 +45,11 @@ pfsp_c.out: pfsp_c.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o
 	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@
 
 # Build executable for CUDA
-pfsp_gpu_cuda.out: pfsp_gpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/c_bounds_gpu.o lib/evaluate.o lib/PFSP_node.o lib/Pool.o
+pfsp_gpu_cuda.out: pfsp_gpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/evaluate.o lib/PFSP_node.o lib/Pool.o
 	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@ -lm -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
 
 #Build executable for CUDA+OpenMP
-pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/c_bounds_gpu.o lib/evaluate.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
+pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/evaluate.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
 	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
 
 #Build executable CUDA+OpenMP+MPI
