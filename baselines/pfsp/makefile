@@ -12,7 +12,7 @@ HIP_COMMON_OPTS  := $(C_COMMON_OPTS) -offload-arch=gfx906
 HIP_PATCH_G5K    := DEVICE_LIB_PATH=/opt/rocm-4.5.0/amdgcn/bitcode/
 
 # Source files
-C_SOURCES    := lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c lib/PFSP_node.c lib/Pool.c lib/Pool_ext.c lib/Auxiliary.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c pfsp_dist_multigpu_cuda.c
+C_SOURCES    := lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c lib/PFSP_node.c lib/Pool.c lib/Pool_ext.c lib/Auxiliary.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c pfsp_dist_multigpu_cuda.c pfsp_dist_dyn_multigpu_cuda.c
 CUDA_SOURCES := lib/evaluate.cu lib/c_bounds_gpu.cu
 HIP_SOURCES  :=
 
@@ -22,7 +22,7 @@ CUDA_OBJECTS := $(CUDA_SOURCES:.cu=.o)
 HIP_OBJECTS  := $(HIP_SOURCES:hip.cu=hip.o)
 
 # Executable names
-EXECUTABLES := pfsp_c.out pfsp_gpu_cuda.out pfsp_multigpu_cuda.out pfsp_dist_multigpu_cuda.out pfsp_gpu_hip.out pfsp_multigpu_hip.out pfsp_dist_multigpu_hip.out
+EXECUTABLES := pfsp_c.out pfsp_gpu_cuda.out pfsp_multigpu_cuda.out pfsp_dist_multigpu_cuda.out pfsp_dist_dyn_multigpu_cuda.out pfsp_gpu_hip.out pfsp_multigpu_hip.out pfsp_dist_multigpu_hip.out
 
 # Library paths
 #C_PFSP_LIBPATH := lib/c_bound_simple.c lib/c_bound_johnson.c lib/c_taillard.c
@@ -53,6 +53,10 @@ pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple
 
 #Build executable CUDA+OpenMP+MPI
 pfsp_dist_multigpu_cuda.out: pfsp_dist_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/evaluate.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
+	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
+
+#Build executable CUDA+OpenMP+MPI (dynamic WS)
+pfsp_dist_dyn_multigpu_cuda.out: pfsp_dist_dyn_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/evaluate.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
 	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
 
 # Pattern rule for HIP source files
