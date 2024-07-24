@@ -41,7 +41,7 @@ int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents);
 
 Node* popBackBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize);
 
-Node popFront(SinglePool_ext* pool, int* hasWork);
+Node popFrontFree(SinglePool_ext* pool, int* hasWork);
 
 Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize, double perc);
 

@@ -368,7 +368,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   while(pool.size < D*m) {
     // CPU side
     int hasWork = 0;
-    Node parent = popFront(&pool, &hasWork);
+    Node parent = popFrontFree(&pool, &hasWork);
     if (!hasWork) break;
 
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
@@ -649,7 +649,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   startTime = omp_get_wtime();
   while (1) {
     int hasWork = 0;
-    Node parent = popBack(&pool, &hasWork);
+    Node parent = popBackFree(&pool, &hasWork);
     if (!hasWork) break;
 
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);

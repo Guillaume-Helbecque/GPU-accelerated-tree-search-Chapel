@@ -124,7 +124,7 @@ Node* popBackBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolS
 }
 
 // Removal from the front of the deque. Parallel-safety is not guaranteed.
-Node popFront(SinglePool_ext* pool, int* hasWork)
+Node popFrontFree(SinglePool_ext* pool, int* hasWork)
 {
   if (pool->size > 0) {
     *hasWork = 1;
