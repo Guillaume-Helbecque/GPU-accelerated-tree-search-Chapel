@@ -5,7 +5,7 @@ static bool _allIdle(_Atomic bool arr[], int size) {
   bool value;
   for (int i = 0; i < size; i++) {
     value = atomic_load(&arr[i]);
-    if (value == false) {
+    if (value == BUSY) {
       return false;
     }
   }
@@ -19,7 +19,7 @@ bool allIdle(_Atomic bool arr[], int size, _Atomic bool *flag) {
     return true; // fast exit
   } else {
     if (_allIdle(arr, size)) {
-      atomic_store(flag,true);
+      atomic_store(flag, true);
       return true;
     } else {
       return false;

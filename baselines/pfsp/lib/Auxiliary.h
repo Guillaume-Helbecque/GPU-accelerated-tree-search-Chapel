@@ -9,6 +9,9 @@ extern "C" {
 #include <stdatomic.h>
 #include <stdlib.h>
 
+#define BUSY false
+#define IDLE true
+
 /******************************************************************************
 Auxiliary functions
 ******************************************************************************/
