@@ -1,7 +1,7 @@
 #include "Auxiliary.h"
 
 // Function to check if all elements in an array of atomic bool are IDLE
-bool _allIdle(_Atomic bool arr[], int size) {
+static bool _allIdle(_Atomic bool arr[], int size) {
   bool value;
   for (int i = 0; i < size; i++) {
     value = atomic_load(&arr[i]);

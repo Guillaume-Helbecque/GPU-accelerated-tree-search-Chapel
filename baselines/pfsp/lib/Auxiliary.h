@@ -13,8 +13,6 @@ extern "C" {
 Auxiliary functions
 ******************************************************************************/
 
-bool _allIdle(_Atomic bool arr[], int size);
-
 bool allIdle(_Atomic bool arr[], int size, _Atomic bool *flag);
 
 void permute(int* arr, int n);
