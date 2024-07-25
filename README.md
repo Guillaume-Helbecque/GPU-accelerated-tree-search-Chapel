@@ -13,7 +13,7 @@ In order to exploit GPU-acceleration, we offload a chunk of nodes on the GPU whe
 When the GPU retrieves the nodes, the latter are evaluated in parallel and the results are sent back to the CPU, which uses them to prune or branch the nodes.
 This process is repeated until the pool is empty.
 
-## Implementation
+## Implementations
 
 The following Chapel implementations are available:
 - `[nqueens/pfsp]_chpl.chpl`: sequential version;
@@ -27,8 +27,6 @@ In addition, the [baselines](./baselines/) directory contains the CUDA-based cou
 - `[nqueens/pfsp]_multigpu_cuda.cu`: multi-GPU version (C+OpenMP+CUDA) (unstable).
 
 In order to compile and execute the CUDA-based code on AMD GPU architectures, we use the `hipify-perl` tool which translates it into portable HIP C++ automatically.
-
-**Note**: The PFSP instantiation for the CUDA-based counterparts is not yet supported.
 
 ## Getting started
 
@@ -57,6 +55,9 @@ Problem-specific command-line options:
     - `inst`: Taillard's instance index (1 to 120 - default: 14);
     - `lb`: lower bound function (0 (lb1_d), 1 (lb1), or 2 (lb2) - default: 1);
     - `ub`: upper bound initialization (0 (inf) or 1 (opt) - default: 1).
+
+Unstable command-line options:
+- `perc`: percentage of the total size of the victim's pool to steal in WS (only in CUDA-based multi-GPU implementation - default: 0.5).
 
 ### Examples
 

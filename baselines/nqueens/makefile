@@ -38,7 +38,7 @@ nqueens_multigpu_cuda.o: nqueens_multigpu_cuda.cu
 # Pattern rule for HIP source files
 nqueens_gpu_hip.o: nqueens_gpu_cuda.cu
 	hipify-perl $< > $<.hip
-	$(HIP_COMPILER) $(HIP_COMMON_OPTS) $<.hip -o $@
+	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) $<.hip -o $@
 
 # Pattern rule for hybrid OpenMP+HIP source files
 nqueens_multigpu_hip.o: nqueens_multigpu_cuda.cu
