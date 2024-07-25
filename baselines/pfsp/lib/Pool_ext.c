@@ -1,12 +1,11 @@
 #include "Pool_ext.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 
-void initSinglePool(SinglePool_ext* pool)
+void initSinglePool_ext(SinglePool_ext* pool)
 {
-  pool->elements = (Node*)malloc(CAPACITY * sizeof(Node));
-  pool->capacity = CAPACITY;
+  pool->elements = (Node*)malloc(INITIAL_CAPACITY * sizeof(Node));
+  pool->capacity = INITIAL_CAPACITY;
   pool->front = 0;
   pool->size = 0;
   atomic_store(&(pool->lock), false);
