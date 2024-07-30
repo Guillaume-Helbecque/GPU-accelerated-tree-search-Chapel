@@ -29,15 +29,15 @@ Create new MPI data type
 ******************************************************************************/
 
 void create_mpi_node_type(MPI_Datatype *mpi_node_type) {
-    int blocklengths[3] = {1, 1, MAX_JOBS};
-    MPI_Aint offsets[3];
-    offsets[0] = offsetof(Node, depth);
-    offsets[1] = offsetof(Node, limit1);
-    offsets[2] = offsetof(Node, prmu);
+  int blocklengths[3] = {1, 1, MAX_JOBS};
+  MPI_Aint offsets[3];
+  offsets[0] = offsetof(Node, depth);
+  offsets[1] = offsetof(Node, limit1);
+  offsets[2] = offsetof(Node, prmu);
     
-    MPI_Datatype types[3] = {MPI_UINT8_T, MPI_INT, MPI_INT};
-    MPI_Type_create_struct(3, blocklengths, offsets, types, mpi_node_type);
-    MPI_Type_commit(mpi_node_type);
+  MPI_Datatype types[3] = {MPI_UINT8_T, MPI_INT, MPI_INT};
+  MPI_Type_create_struct(3, blocklengths, offsets, types, mpi_node_type);
+  MPI_Type_commit(mpi_node_type);
 }
 
 /******************************************************************************
@@ -642,15 +642,112 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	  tries ++;
 	}
       WS0:
-	// GLOBAL STEALING WORK ATTEMPTS
-	if (localSteal == false && numLocales != 1) {
-	  // global work atealing attemps
+	
+	/* // UNDER DEVELOPMENT */
+	/* if (localSteal == false && numLocales != 1) { */
+	/*   // global work atealing attemps */
+	/*   int triesLocale = 0; */
+	/*   const int victimLocales[numLocales]; */
+	/*   permute(victimLocales,numLocales); */
+
+	/*   while (triesLocale < numLocales) { //WS0Loc loop */
+	/*     const int victimLocaleID = victimLocales[i]; */
+
+	/*     if (victimLocaleID != locID) { // if not me */
+	/*       // TO DO */
+	/*       // ref victimMultiPool = distMultiPool[victimLocaleID]; //non-feasible in C as it is */
+	/*       const int victimTasks[D]; */
+	/*       permute(victimTasks,D); */
+
+	/*       for(int j = 0; j < D; j++){ */
+	/* 	const int victimTaskID = victimTasks[j]; */
+	/* 	// TO DO */
+	/* 	// ref victim = victimMultiPool[victimTaskID]; // I need to check the lock on the victim pool of the given locID victim that came before (victimLocaleID) */
+	/* 	var nn = 0; //bricolage */
+
+	/* 	label WS1 while (nn < 10) { */
+	/* 	  // TO DO */
+	/* 	  // In this if I need to recover the lock and size of the victim above */
+	/* 	  if victim.lock.compareAndSwap(false, true) { // get the lock */
+        /*               const size = victim.size; */
+	/* 	      int nodeSize = 0; */
+
+        /*               if (size >= 2*m) { */
+	/* 		//TO DO: communications (?) */
+        /*                 Node *p = popBackBulkFree(victim (?),m, M, &nodeSize); */
+
+	/* 		if (nodeSize == 0) { */
+	/* 		  // TO DO: How to access this */
+        /*                   victim.lock.write(false); // reset lock */
+        /*                   printf("\nDEADCODE\n"); */
+	/* 		  exit(-1); */
+        /*                 } */
+
+        /*                 /\* for i in 0..#(size/2) { */
+	/* 		   pool_loc.pushBack(p[i]); */
+	/* 		   } *\/ */
+
+	/* 		// once p and nodeSize are properly recovered I do not need to worry with this line */
+	/* 		pushBackBulk(pool_loc, p, nodeSize); // atomic_store inside */
+
+        /*                 globalSteal = true; */
+        /*                 /\* nSSteal += 1; *\/ */
+	/* 		// TO DO : how to access victim's lock */
+        /*                 victim.lock.write(false); // reset lock */
+	/* 		goto WS0Loc; */
+        /*               } */
+	/* 	      // TO DO : how to access victim's lock */
+        /*               victim.lock.write(false); // reset lock */
+        /*               break; // Break out of WS1 loop */
+        /*             } */
+
+	/* 	  nn ++; */
+	/* 	} */
+	/*       } // End of for loop finding victim pool inside thread[victimLocaleID] */
+
+	/*       triesLocale ++; */
+	/*     } // End of if victimLocaleID */
+	/*   } // End of WS0Loc loop */
+	/* WS0Loc: */
+	/* } */
+	
+	if (localSteal == false && globalSteal == false) {
+	  // termination
 	  if (taskState == false) {
 	    taskState = true;
 	    atomic_store(&eachTaskState[gpuID],true);
 	  }
 	  if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
-	    break;
+              if (locState == false) {
+                locState = true;
+                atomic_store(&eachLocaleState,true);
+              }
+	      printf("thread[%d]: Am I here?\n",locID);
+	      bool *allLocaleStateTemp = (bool *)malloc(numLocales * sizeof(bool));
+	      bool eachLocaleStateTemp = atomic_load(&eachLocaleState);
+
+	      // Gather boolean states from all processes to all processes
+	      MPI_Allgather(&eachLocaleStateTemp, 1, MPI_C_BOOL, allLocaleStateTemp, 1, MPI_C_BOOL, MPI_COMM_WORLD);
+	      _Atomic bool *allLocaleState = (_Atomic bool *)malloc(numLocales * sizeof(_Atomic bool));
+	      for(int i = 0; i < numLocales; i++)
+		atomic_store(&allLocaleState[i],allLocaleStateTemp[i]);
+
+	      printf("thread[%d] allLocaleState: ",locID);
+	      for(int i = 0; i < numLocales; i++)
+		printf("t[%d] aLS[%d] = %d ", locID, i, atomic_load(&allLocaleState[i]));
+	      printf("\n");
+	      
+	      //printf("thread[%d]: Am I here?\n",locID);
+	      if (allIdle(allLocaleState, numLocales, &allLocalesIdleFlag)) {
+		free(allLocaleStateTemp);
+		free(allLocaleState);
+		printf("thread[%d] Break from step 2\n",locID);
+		//MPI_Barrier(MPI_COMM_WORLD);
+		break;
+		}
+	      
+	      free(allLocaleStateTemp);
+	      free(allLocaleState);
 	  }
 	  continue;
 	} else {
@@ -658,6 +755,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	}
       }
     }
+
+    MPI_Barrier(MPI_COMM_WORLD);
     
     // OpenMP environment freeing variables
     cudaFree(parents_d);
