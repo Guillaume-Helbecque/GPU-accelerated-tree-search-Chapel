@@ -10,6 +10,7 @@ CUDA_COMMON_OPTS := -O3 -arch=sm_86 # TODO: adapt SM automatically, if possible
 HIP_COMMON_OPTS  := $(C_COMMON_OPTS) -offload-arch=gfx906
 
 HIP_PATCH_G5K    := DEVICE_LIB_PATH=/opt/rocm-4.5.0/amdgcn/bitcode/
+MPI_PATCH_GRK    := 
 
 # Source files
 C_SOURCES    := lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c lib/PFSP_node.c lib/Pool.c lib/Pool_ext.c lib/Auxiliary.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c pfsp_dist_multigpu_cuda.c
@@ -73,9 +74,9 @@ pfsp_multigpu_hip.out: pfsp_multigpu_hip.o lib/c_taillard.o lib/c_bound_simple.o
 
 # Pattern rule for hybrid MPI+OpenMP+HIP source files
 	hipify-perl pfsp_dist_multigpu_cuda.c > pfsp_dist_multigpu_cuda.c.hip
-	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp -c pfsp_dist_multigpu_cuda.c.hip -o pfsp_dist_multigpu_hip.o
+	$(MPI_PATCH_G5K) $(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp -c pfsp_dist_multigpu_cuda.c.hip -o pfsp_dist_multigpu_hip.o
 	pfsp_dist_multigpu_hip.out: pfsp_dist_multigpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o lib/evaluate_hip.o
-	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $^ -o $@
+	$(MPI_PATCH_G5K) $(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $^ -o $@
 
 # Utilities
 .PHONY: clean

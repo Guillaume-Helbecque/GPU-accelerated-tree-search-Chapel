@@ -129,7 +129,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
       break;
 
     default:
-      fprintf(stderr, "Usage: %s --inst <value> --lb <value> --ub <value> --m <value> --M <value> --D <value>\n", argv[0]);
+      fprintf(stderr, "Usage: %s --inst <value> --lb <value> --ub <value> --m <value> --M <value> --D <value> --perc <value>\n", argv[0]);
       exit(EXIT_FAILURE);
     }
   }
