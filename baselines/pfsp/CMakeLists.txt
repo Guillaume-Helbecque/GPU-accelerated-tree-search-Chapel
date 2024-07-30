@@ -93,3 +93,26 @@ target_link_libraries(pfsp_multigpu_cuda.out PRIVATE ${CUDAToolkit_LIBRARIES} Op
 # Add compile options for the third executable if needed
 target_compile_options(pfsp_multigpu_cuda.out PRIVATE -Wall -O3 -fopenmp -g)
 #target_compile_definitions(pfsp_multigpu_cuda.out PRIVATE -fopenmp)
+
+# Find MPI
+find_package(MPI REQUIRED)
+
+# Add the MPI-enabled executable (C + CUDA + OpenMP + MPI)
+set(CUDA_C_OMP_MPI_SOURCES
+    pfsp_dist_multigpu_cuda.c
+    ${CUDA_SOURCES}
+    lib/c_taillard.c
+    lib/c_bound_simple.c
+    lib/c_bound_johnson.c
+    lib/PFSP_node.c
+    lib/Pool_ext.c
+    lib/Auxiliary.c
+)
+
+add_executable(pfsp_dist_multigpu_cuda.out ${CUDA_C_OMP_MPI_SOURCES})
+
+# Link CUDA runtime library, OpenMP, and MPI (if needed)
+target_link_libraries(pfsp_dist_multigpu_cuda.out PRIVATE ${CUDAToolkit_LIBRARIES} OpenMP::OpenMP_C MPI::MPI_C)
+
+# Add compile options for the MPI-enabled executable if needed
+target_compile_options(pfsp_dist_multigpu_cuda.out PRIVATE -Wall -O3 -fopenmp -g)
