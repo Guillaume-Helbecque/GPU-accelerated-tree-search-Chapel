@@ -69,7 +69,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
     NOTE: Only forward branching is considered because other strategies increase a
     lot the implementation complexity and do not add much contribution.
   */
-  
+
   // Define long options
   static struct option long_options[] = {
     {"inst", required_argument, NULL, 'i'},
@@ -152,7 +152,6 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
   }
 }
 
- 
 void print_settings(const int inst, const int machines, const int jobs, const int ub, const int lb, const int D, const int numLocales)
 {
   printf("\n=================================================\n");
@@ -327,7 +326,7 @@ void generate_children(Node* parents, const int size, const int jobs, int* bound
 	  swap(&child.prmu[depth], &child.prmu[j]);
 	  child.depth = depth + 1;
 	  child.limit1 = parent.limit1 + 1;
-	  
+
 	  pushBack(pool, child);
 	  *exploredTree += 1;
 	}
@@ -357,7 +356,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   initSinglePool(&pool);
 
   pushBack(&pool, root);
- 
+
   // Timer
   double startTime, endTime;
   startTime = omp_get_wtime();
@@ -379,7 +378,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     Step 1: We perform a partial breadth-first search on CPU in order to create
     a sufficiently large amount of work for GPU computation.
   */
-
   while(pool.size < numLocales*D*m) {
     // CPU side
     int hasWork = 0;
@@ -395,7 +393,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   MPI_Reduce(&t1Temp, &t1, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
   if (locID == 0)
-    {  
+    {
       printf("Initial search on CPU completed\n");
       printf("Size of the explored tree: %llu\n", *exploredTree);
       printf("Number of explored solutions: %llu\n", *exploredSol);
@@ -406,7 +404,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     Step 2: We continue the search on GPU in a depth-first manner, until there
     is not enough work.
   */
-
   startTime = omp_get_wtime();
 
   const int poolSize = pool.size;
@@ -471,7 +468,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
     unsigned long long int tree = 0, sol = 0;
     SinglePool_ext* pool_loc;
-    pool_loc = &multiPool[gpuID]; 
+    pool_loc = &multiPool[gpuID];
     int best_l = *best;
     bool taskState = false;
     bool expected = false;
@@ -570,7 +567,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	  generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
 	  something like that.
 	*/
-	const int numBounds = jobs * poolSize;   
+	const int numBounds = jobs * poolSize;
 	const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
 
 	cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
@@ -676,7 +673,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       const int poolLocSize = pool_loc->size;
       for (int i = 0; i < poolLocSize; i++) {
 	int hasWork = 0;
-	
+
 	pushBack(&pool_lloc, popBack(pool_loc, &hasWork));
 	if (!hasWork) break;
       }
@@ -785,7 +782,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     masterNodes = (Node *)malloc(totalSize * sizeof(Node));
   }
 
-  MPI_Gatherv(pool_lloc.elements, pool_lloc.size, myNode, 
+  MPI_Gatherv(pool_lloc.elements, pool_lloc.size, myNode,
 	      masterNodes, recvcounts, displs, myNode, 0, MPI_COMM_WORLD);
 
   if (locID == 0) {
@@ -796,7 +793,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   /*
     Step 3: We complete the depth-first search on CPU.
   */
-
   if (locID == 0){
     int count = 0;
     startTime = omp_get_wtime();
@@ -837,7 +833,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
 int main(int argc, char* argv[])
 {
-
   MPI_Init(&argc, &argv);
 
   int rank, size;
