@@ -1,5 +1,5 @@
 /*
-  Distributed multi-GPU B&B to solve Taillard instances of the PFSP in C+CUDA+OpenMP+MPI.
+  Distributed multi-GPU B&B to solve Taillard instances of the PFSP in C+MPI+OpenMP+CUDA.
 */
 
 #include <stdio.h>
@@ -53,7 +53,7 @@ void gpuAssert(cudaError_t code, const char *file, int line, bool abort) {
 }
 
 /***********************************************************************************
-Implementation of the parallel Distributed Multi-GPU C+CUDA+OpenMP+MPI PFSP search.
+Implementation of the parallel Distributed Multi-GPU C+MPI+OpenMP+CUDA PFSP search.
 ***********************************************************************************/
 
 void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* m, int *M, int *D, double *perc)
@@ -155,7 +155,7 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
 void print_settings(const int inst, const int machines, const int jobs, const int ub, const int lb, const int D, const int numLocales)
 {
   printf("\n=================================================\n");
-  printf("Distributed multi-GPU C+CUDA+OpenMP+MPI (%d threads %d GPUs)\n\n", numLocales, D);
+  printf("Distributed multi-GPU C+MPI+OpenMP+CUDA (%d threads %d GPUs)\n\n", numLocales, D);
   printf("Resolution of PFSP Taillard's instance: ta%d (m = %d, n = %d)\n", inst, machines, jobs);
   if (ub == 0) printf("Initial upper bound: inf\n");
   else /* if (ub == 1) */ printf("Initial upper bound: opt\n");
@@ -361,7 +361,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   double startTime, endTime;
   startTime = omp_get_wtime();
 
-  // Bounding data (unchanged data)
+  // Bounding data (constant data)
   lb1_bound_data* lbound1;
   lbound1 = new_bound_data(jobs, machines);
   taillard_get_processing_times(lbound1->p_times, inst);
@@ -373,13 +373,12 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   fill_lags(lbound1->p_times, lbound2);
   fill_johnson_schedules(lbound1->p_times, lbound2);
 
-  // TO DO: Do step 1 only at master thread ??
+  // TODO: Do step 1 only for master thread?
   /*
     Step 1: We perform a partial breadth-first search on CPU in order to create
     a sufficiently large amount of work for GPU computation.
   */
   while (pool.size < numLocales*D*m) {
-    // CPU side
     int hasWork = 0;
     Node parent = popFront(&pool, &hasWork);
     if (!hasWork) break;
@@ -423,8 +422,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   SinglePool_ext pool_lloc;
   initSinglePool(&pool_lloc);
 
-  // each locale gets its chunk
-  // locID is the same as rank
+  // each locale gets its chunk (locID is the same as rank)
   for (int i = 0; i < c; i++) {
     pool_lloc.elements[i] = pool.elements[locID+f+i*numLocales];
   }
@@ -449,14 +447,14 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   for (int i = 0; i < D; i++)
     initSinglePool(&multiPool[i]);
 
-  // Boolean variables for dynamic workload balance
+  // Boolean variables for termination detection
   _Atomic bool allTasksIdleFlag = false;
   _Atomic bool eachTaskState[D]; // one task per GPU
   for (int i = 0; i < D; i++)
     atomic_store(&eachTaskState[i], false);
 
-  //TO DO : Implement OpenMP reduction to variables best_l, eachExploredTree, eachExploredSol
-  //int best_l = *best;
+  // TODO: Implement OpenMP reduction to variables best_l, eachExploredTree, eachExploredSol
+  // int best_l = *best;
 
   #pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool_lloc, multiPool, lbound1, lbound2) //reduction(min:best_l)
   for (int gpuID = 0; gpuID < D; gpuID++) {
@@ -547,11 +545,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
 
     while (1) {
-      // Dynamic workload balance
       /*
         Each task gets its parenst nodes from the pool
       */
-
       int poolSize = popBackBulk(pool_loc, m, M, parents);
 
       if (poolSize > 0) {
@@ -576,7 +572,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
         cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
 
         /*
-          each task generates and inserts its children nodes to the pool.
+          Each task generates and inserts its children nodes to the pool.
         */
         generate_children(parents, poolSize, jobs, bounds, &tree, &sol, &best_l, pool_loc);
       }
@@ -587,7 +583,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
         int victims[D];
         permute(victims, D);
 
-        while (tries < D && steal == false) { //WS0 loop
+        while (tries < D && steal == false) { // WS0 loop
           const int victimID = victims[tries];
 
           if (victimID != gpuID) { // if not me
@@ -596,7 +592,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             nSteal ++;
             int nn = 0;
             int count = 0;
-            while (nn < 10) { //WS1 loop
+            while (nn < 10) { // WS1 loop
               expected = false;
               count++;
               if (atomic_compare_exchange_strong(&(victim->lock), &expected, true)) { // get the lock
@@ -604,9 +600,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
                 int nodeSize = 0;
 
                 if (size >= 2*m) {
-                  Node* p = popBackBulkFree(victim, m, M, &nodeSize); // NO atomic_store inside
+                  Node* p = popBackBulkFree(victim, m, M, &nodeSize);
 
-                  if (size == 0) { // safety check
+                  if (nodeSize == 0) { // safety check
                     atomic_store(&(victim->lock), false); // reset lock
                     printf("\nDEADCODE\n");
                     exit(-1);
@@ -616,7 +612,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
                     pool_loc.pushBack(p[i]);
                   } */
 
-                  pushBackBulk(pool_loc, p, nodeSize); // atomic_store inside
+                  pushBackBulk(pool_loc, p, nodeSize);
 
                   steal = true;
                   nSSteal++;
@@ -714,7 +710,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   // Gather data from all processes for printing GPU workload statistics
   unsigned long long int *allExploredTrees = NULL;
   unsigned long long int *allExploredSols = NULL;
-  unsigned long long int *allEachExploredTrees = NULL;  // For eachExploredTree array
+  unsigned long long int *allEachExploredTrees = NULL; // For eachExploredTree array
   if (locID == 0) {
     allExploredTrees = (unsigned long long int *)malloc(numLocales * sizeof(unsigned long long int));
     allExploredSols = (unsigned long long int *)malloc(numLocales * sizeof(unsigned long long int));
