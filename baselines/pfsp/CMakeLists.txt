@@ -1,3 +1,5 @@
+# NOTE: The compilation using CMake is unstable.
+
 cmake_minimum_required(VERSION 3.18)  # You can specify your required CMake version
 
 # Project name and version

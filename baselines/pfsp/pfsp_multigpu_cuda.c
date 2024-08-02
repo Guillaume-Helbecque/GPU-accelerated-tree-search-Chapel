@@ -334,15 +334,15 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   initRoot(&root, jobs);
 
   SinglePool_ext pool;
-  initSinglePool(&pool);
+  initSinglePool_ext(&pool);
 
   pushBack(&pool, root);
 
-  // Boolean variables for dynamic workload balance
+  // Boolean variables for termination detection
   _Atomic bool allTasksIdleFlag = false;
   _Atomic bool eachTaskState[D]; // one task per GPU
   for (int i = 0; i < D; i++)
-    atomic_store(&eachTaskState[i], false);
+    atomic_store(&eachTaskState[i], BUSY);
 
   // Timer
   double startTime, endTime;
@@ -365,10 +365,10 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     a sufficiently large amount of work for GPU computation.
   */
 
-  while(pool.size < D*m) {
+  while (pool.size < D*m) {
     // CPU side
     int hasWork = 0;
-    Node parent = popFront(&pool, &hasWork);
+    Node parent = popFrontFree(&pool, &hasWork);
     if (!hasWork) break;
 
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
@@ -398,10 +398,10 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   pool.front = 0;
   pool.size = 0;
   SinglePool_ext multiPool[D];
-  for(int i = 0; i < D; i++)
-    initSinglePool(&multiPool[i]);
+  for (int i = 0; i < D; i++)
+    initSinglePool_ext(&multiPool[i]);
 
-  //TODO: implement reduction using omp directives
+  // TODO: implement reduction using omp directives
   #pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool, multiPool, lbound1, lbound2)
   for (int gpuID = 0; gpuID < D; gpuID++) {
     cudaSetDevice(gpuID);
@@ -412,8 +412,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     SinglePool_ext* pool_loc;
     pool_loc = &multiPool[gpuID];
     int best_l = *best;
-    bool taskState = false;
-    bool expected = false;
+    bool taskState = BUSY;
 
     // each task gets its chunk
     for (int i = 0; i < c; i++) {
@@ -497,9 +496,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       int poolSize = popBackBulk(pool_loc, m, M, parents);
 
       if (poolSize > 0) {
-        if (taskState == true) {
-          taskState = false;
-          atomic_store(&eachTaskState[gpuID],false);
+        if (taskState == IDLE) {
+          taskState = BUSY;
+          atomic_store(&eachTaskState[gpuID], BUSY);
         }
 
         /*
@@ -528,6 +527,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
         bool steal = false;
         int victims[D];
         permute(victims,D);
+        bool expected;
 
         while (tries < D && steal == false) { // WS0 loop
           const int victimID = victims[tries];
@@ -579,9 +579,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       WS0:
         if (steal == false) {
           // termination
-          if (taskState == false) {
-            taskState = true;
-            atomic_store(&eachTaskState[gpuID], true);
+          if (taskState == BUSY) {
+            taskState = IDLE;
+            atomic_store(&eachTaskState[gpuID], IDLE);
           }
           if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
             break;
@@ -628,7 +628,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     *exploredTree += eachExploredTree[i];
     *exploredSol += eachExploredSol[i];
   }
-  *best = findMin(eachBest,D);
+  *best = findMin(eachBest, D);
 
   endTime = omp_get_wtime();
   double t2 = endTime - startTime;
@@ -638,7 +638,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   printf("Number of explored solutions: %llu\n", *exploredSol);
   printf("Elapsed time: %f [s]\n", t2);
   printf("Workload per GPU: ");
-  for(int gpuID = 0; gpuID < D; gpuID++)
+  for (int gpuID = 0; gpuID < D; gpuID++)
     printf("%.2f ", (double)100*eachExploredTree[gpuID]/((double)*exploredTree));
   printf("\n");
 
@@ -649,7 +649,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   startTime = omp_get_wtime();
   while (1) {
     int hasWork = 0;
-    Node parent = popBack(&pool, &hasWork);
+    Node parent = popBackFree(&pool, &hasWork);
     if (!hasWork) break;
 
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
