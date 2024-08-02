@@ -353,7 +353,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   initRoot(&root, jobs);
 
   SinglePool_ext pool;
-  initSinglePool(&pool);
+  initSinglePool_ext(&pool);
 
   pushBack(&pool, root);
 
@@ -380,7 +380,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   */
   while (pool.size < numLocales*D*m) {
     int hasWork = 0;
-    Node parent = popFront(&pool, &hasWork);
+    Node parent = popFrontFree(&pool, &hasWork);
     if (!hasWork) break;
 
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
@@ -420,7 +420,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   int eachBest[D];
 
   SinglePool_ext pool_lloc;
-  initSinglePool(&pool_lloc);
+  initSinglePool_ext(&pool_lloc);
 
   // each locale gets its chunk (locID is the same as rank)
   for (int i = 0; i < c; i++) {
@@ -445,7 +445,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
   SinglePool_ext multiPool[D];
   for (int i = 0; i < D; i++)
-    initSinglePool(&multiPool[i]);
+    initSinglePool_ext(&multiPool[i]);
 
   // Boolean variables for termination detection
   _Atomic bool allTasksIdleFlag = false;
