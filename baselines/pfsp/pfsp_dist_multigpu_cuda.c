@@ -451,7 +451,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   _Atomic bool allTasksIdleFlag = false;
   _Atomic bool eachTaskState[D]; // one task per GPU
   for (int i = 0; i < D; i++)
-    atomic_store(&eachTaskState[i], false);
+    atomic_store(&eachTaskState[i], BUSY);
 
   // TODO: Implement OpenMP reduction to variables best_l, eachExploredTree, eachExploredSol
   // int best_l = *best;
@@ -466,7 +466,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     SinglePool_ext* pool_loc;
     pool_loc = &multiPool[gpuID];
     int best_l = *best;
-    bool taskState = false;
+    bool taskState = BUSY;
     bool expected = false;
 
     // each task gets its chunk
@@ -551,9 +551,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       int poolSize = popBackBulk(pool_loc, m, M, parents);
 
       if (poolSize > 0) {
-        if (taskState == true) {
-          taskState = false;
-          atomic_store(&eachTaskState[gpuID], false);
+        if (taskState == IDLE) {
+          taskState = BUSY;
+          atomic_store(&eachTaskState[gpuID], BUSY);
         }
 
         /*
@@ -634,9 +634,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       WS0:
         if (steal == false) {
           // termination
-          if (taskState == false) {
-            taskState = true;
-            atomic_store(&eachTaskState[gpuID], true);
+          if (taskState == BUSY) {
+            taskState = IDLE;
+            atomic_store(&eachTaskState[gpuID], IDLE);
           }
           if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
             break;
