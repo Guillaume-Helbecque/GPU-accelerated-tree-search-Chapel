@@ -137,7 +137,7 @@ Node popFrontFree(SinglePool_ext* pool, int* hasWork)
 // Bulk removal from the front of the deque. Parallel-safety is not guaranteed.
 Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize, double perc) {
   if (pool->size >= 2*m) {
-    *poolSize = pool->size * perc;
+    *poolSize = pool->size*perc;
     pool->size -= *poolSize;
     Node* parents = (Node*)malloc(*poolSize * sizeof(Node));
     for (int i = 0; i < *poolSize; i++)
