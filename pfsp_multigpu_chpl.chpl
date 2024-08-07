@@ -363,7 +363,6 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   const c = poolSize / D;
   const l = poolSize - (D-1)*c;
   const f = pool.front;
-  var lock_p: atomic bool;
 
   pool.front = 0;
   pool.size = 0;
@@ -517,14 +516,11 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
       }
     }
 
-    if lock_p.compareAndSwap(false, true) {
-      const poolLocSize = pool_loc.size;
-      for p in 0..#poolLocSize {
-        var hasWork = 0;
-        pool.pushBack(pool_loc.popBack(hasWork));
-        if !hasWork then break;
-      }
-      lock_p.write(false);
+    const poolLocSize = pool_loc.size;
+    for p in 0..#poolLocSize {
+      var hasWork = 0;
+      pool.pushBack(pool_loc.popBack(hasWork));
+      if !hasWork then break;
     }
 
     eachExploredTree[gpuID] = tree;
