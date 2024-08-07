@@ -1,6 +1,10 @@
 #ifndef PFSP_NODE_H
 #define PFSP_NODE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdlib.h>
 #include <stdint.h>
 
@@ -17,5 +21,9 @@ typedef struct
 } Node;
 
 void initRoot (Node *root, const int jobs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // PFSP_NODE_H

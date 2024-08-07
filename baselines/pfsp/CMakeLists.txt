@@ -1,3 +1,5 @@
+# NOTE: The compilation using CMake is unstable.
+
 cmake_minimum_required(VERSION 3.18)  # You can specify your required CMake version
 
 # Project name and version
@@ -8,8 +10,16 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED True)
 
 # Add CUDA-specific flags (if needed)
-set(CUDA_ARCHITECTURE "86")  # Change this to your target architecture
+#set(CUDA_ARCHITECTURE "86")  # Change this to your target architecture
+#set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_${CUDA_ARCHITECTURE}")
+
+# Add a CMake option to specify the CUDA architecture
+# By typing cmake -DCUDA_ARCHITECTURE=86 ..
+option(CUDA_ARCHITECTURE "CUDA architecture (e.g., 86 for sm_86)" "86")
+
+# Set CUDA-specific flags
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_${CUDA_ARCHITECTURE}")
+message(STATUS "Using CUDA architecture: sm_${CUDA_ARCHITECTURE}")
 
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/lib)
@@ -73,7 +83,8 @@ set(CUDA_C_OMP_SOURCES
     lib/c_bound_simple.c
     lib/c_bound_johnson.c
     lib/PFSP_node.c
-    lib/Pool.c
+    lib/Pool_ext.c
+    lib/Auxiliary.c
 )
 
 add_executable(pfsp_multigpu_cuda.out ${CUDA_C_OMP_SOURCES})
@@ -84,3 +95,26 @@ target_link_libraries(pfsp_multigpu_cuda.out PRIVATE ${CUDAToolkit_LIBRARIES} Op
 # Add compile options for the third executable if needed
 target_compile_options(pfsp_multigpu_cuda.out PRIVATE -Wall -O3 -fopenmp -g)
 #target_compile_definitions(pfsp_multigpu_cuda.out PRIVATE -fopenmp)
+
+# Find MPI
+find_package(MPI REQUIRED)
+
+# Add the MPI-enabled executable (C + CUDA + OpenMP + MPI)
+set(CUDA_C_OMP_MPI_SOURCES
+    pfsp_dist_multigpu_cuda.c
+    ${CUDA_SOURCES}
+    lib/c_taillard.c
+    lib/c_bound_simple.c
+    lib/c_bound_johnson.c
+    lib/PFSP_node.c
+    lib/Pool_ext.c
+    lib/Auxiliary.c
+)
+
+add_executable(pfsp_dist_multigpu_cuda.out ${CUDA_C_OMP_MPI_SOURCES})
+
+# Link CUDA runtime library, OpenMP, and MPI (if needed)
+target_link_libraries(pfsp_dist_multigpu_cuda.out PRIVATE ${CUDAToolkit_LIBRARIES} OpenMP::OpenMP_C MPI::MPI_C)
+
+# Add compile options for the MPI-enabled executable if needed
+target_compile_options(pfsp_dist_multigpu_cuda.out PRIVATE -Wall -O3 -fopenmp -g)
