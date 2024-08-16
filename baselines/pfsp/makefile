@@ -25,7 +25,6 @@ C_LIB_SOURCES    := $(LIBPATH)/c_taillard.c $(LIBPATH)/c_bound_simple.c $(LIBPAT
 CUDA_LIB_SOURCES := $(LIBPATH)/evaluate.cu $(LIBPATH)/c_bounds_gpu.cu
 
 # Object files
-C_OBJECTS        := $(C_SOURCES:.c=.o)
 C_LIB_OBJECTS    := $(C_LIB_SOURCES:.c=.o)
 CUDA_LIB_OBJECTS := $(CUDA_LIB_SOURCES:.cu=.o)
 HIP_OBJECTS      := $(HIP_SOURCES:hip.cu=hip.o)
@@ -36,19 +35,6 @@ EXECUTABLES := pfsp_c.out pfsp_gpu_cuda.out pfsp_multigpu_cuda.out pfsp_dist_mul
 # Build codes
 all: $(EXECUTABLES)
 
-# Pattern rule for C source files
-pfsp_c.o: pfsp_c.c
-	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@
-
-pfsp_gpu_cuda.o: pfsp_gpu_cuda.c
-	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@ $(CUDA_INCLUDE_G5K)
-
-pfsp_multigpu_cuda.o: pfsp_multigpu_cuda.c
-	$(C_COMPILER) $(C_COMMON_OPTS) -c -fopenmp $< -o $@ $(CUDA_INCLUDE_G5K)
-
-pfsp_dist_multigpu_cuda.o: pfsp_dist_multigpu_cuda.c
-	$(MPI_COMPILER) $(C_COMMON_OPTS) -c -fopenmp $< -o $@ $(CUDA_INCLUDE_G5K)
-
 # Pattern rule for C library source files
 $(LIBPATH)/%.o: $(LIBPATH)/%.c
 	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@
@@ -58,20 +44,20 @@ $(LIBPATH)/%.o: $(LIBPATH)/%.cu
 	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -c $< -o $@
 
 # Build executable for CPU only
-pfsp_c.out: pfsp_c.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool.o
+pfsp_c.out: pfsp_c.c $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool.o
 	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@
 
 # Build executable for CUDA
-pfsp_gpu_cuda.out: pfsp_gpu_cuda.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/evaluate.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool.o
-	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@ -lm -lcudart $(CUDA_LIB_G5K)
+pfsp_gpu_cuda.out: pfsp_gpu_cuda.c $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/evaluate.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool.o
+	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@ -lm -lcudart $(CUDA_INCLUDE_G5K) $(CUDA_LIB_G5K)
 
 #Build executable for CUDA+OpenMP
-pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/evaluate.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool_ext.o $(LIBPATH)/Auxiliary.o
-	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart $(CUDA_LIB_G5K)
+pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.c $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/evaluate.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool_ext.o $(LIBPATH)/Auxiliary.o
+	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart $(CUDA_INCLUDE_G5K) $(CUDA_LIB_G5K)
 
 #Build executable CUDA+OpenMP+MPI
-pfsp_dist_multigpu_cuda.out: pfsp_dist_multigpu_cuda.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/evaluate.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool_ext.o $(LIBPATH)/Auxiliary.o
-	$(MPI_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart $(CUDA_LIB_G5K)
+pfsp_dist_multigpu_cuda.out: pfsp_dist_multigpu_cuda.c $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/evaluate.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool_ext.o $(LIBPATH)/Auxiliary.o
+	$(MPI_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart $(CUDA_INCLUDE_G5K) $(CUDA_LIB_G5K)
 
 #############################################################
 #############################################################
