@@ -17,9 +17,11 @@ MPI_LIB_G5K      := -L/usr/lib/x86_64-linux-gnu/openmpi/lib
 CUDA_INCLUDE_G5K := -I/share/compilers/nvidia/cuda/12.0/include -I/usr/local/cuda-11.2/targets/x86_64-linux/include
 CUDA_LIB_G5K     := -L/usr/local/cuda-11.2/targets/x86_64-linux/lib
 
+LIBPATH := lib
+
 # Source files
-C_SOURCES    := lib/c_taillard.c lib/c_bound_simple.c lib/c_bound_johnson.c lib/PFSP_node.c lib/Pool.c lib/Pool_ext.c lib/Auxiliary.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c pfsp_dist_multigpu_cuda.c
-CUDA_SOURCES := lib/evaluate.cu lib/c_bounds_gpu.cu
+C_SOURCES    := $(LIBPATH)/c_taillard.c $(LIBPATH)/c_bound_simple.c $(LIBPATH)/c_bound_johnson.c $(LIBPATH)/PFSP_node.c $(LIBPATH)/Pool.c $(LIBPATH)/Pool_ext.c $(LIBPATH)/Auxiliary.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c pfsp_dist_multigpu_cuda.c
+CUDA_SOURCES := $(LIBPATH)/evaluate.cu $(LIBPATH)/c_bounds_gpu.cu
 HIP_SOURCES  :=
 
 # Object files
@@ -49,19 +51,19 @@ pfsp_dist_multigpu_cuda.o: pfsp_dist_multigpu_cuda.c
 	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -c $< -o $@
 
 # Build executable for CPU only
-pfsp_c.out: pfsp_c.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool.o
+pfsp_c.out: pfsp_c.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool.o
 	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@
 
 # Build executable for CUDA
-pfsp_gpu_cuda.out: pfsp_gpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/evaluate.o lib/PFSP_node.o lib/Pool.o
+pfsp_gpu_cuda.out: pfsp_gpu_cuda.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/evaluate.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool.o
 	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@ -lm -lcudart $(CUDA_LIB_G5K)
 
 #Build executable for CUDA+OpenMP
-pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/evaluate.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
+pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/evaluate.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool_ext.o $(LIBPATH)/Auxiliary.o
 	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart $(CUDA_LIB_G5K)
 
 #Build executable CUDA+OpenMP+MPI
-pfsp_dist_multigpu_cuda.out: pfsp_dist_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/evaluate.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
+pfsp_dist_multigpu_cuda.out: pfsp_dist_multigpu_cuda.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/evaluate.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool_ext.o $(LIBPATH)/Auxiliary.o
 	$(MPI_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart $(CUDA_LIB_G5K)
 
 #############################################################
@@ -69,25 +71,25 @@ pfsp_dist_multigpu_cuda.out: pfsp_dist_multigpu_cuda.o lib/c_taillard.o lib/c_bo
 
 # Pattern rule for HIP source files
 	hipify-perl pfsp_gpu_cuda.c > pfsp_gpu_cuda.c.hip
-	hipify-perl lib/evaluate.cu > lib/evaluate.cu.hip
+	hipify-perl $(LIBPATH)/evaluate.cu > $(LIBPATH)/evaluate.cu.hip
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -c pfsp_gpu_cuda.c.hip -o pfsp_gpu_hip.o
-	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -c lib/evaluate.cu.hip -o lib/evaluate_hip.o
+	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -c $(LIBPATH)/evaluate.cu.hip -o $(LIBPATH)/evaluate_hip.o
 
-pfsp_gpu_hip.out: pfsp_gpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool.o lib/evaluate_hip.o
+pfsp_gpu_hip.out: pfsp_gpu_hip.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool.o $(LIBPATH)/evaluate_hip.o
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@
 
 # Pattern rule for hybrid OpenMP+HIP source files
 	hipify-perl pfsp_multigpu_cuda.c > pfsp_multigpu_cuda.c.hip
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp -c pfsp_multigpu_cuda.c.hip -o pfsp_multigpu_hip.o
 
-pfsp_multigpu_hip.out: pfsp_multigpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o lib/evaluate_hip.o
+pfsp_multigpu_hip.out: pfsp_multigpu_hip.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool_ext.o $(LIBPATH)/Auxiliary.o $(LIBPATH)/evaluate_hip.o
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $^ -o $@
 
 # Pattern rule for hybrid MPI+OpenMP+HIP source files
 	hipify-perl pfsp_dist_multigpu_cuda.c > pfsp_dist_multigpu_cuda.c.hip
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) $(MPI_INCLUDE_G5K) $(MPI_LIB_G5K) -fopenmp -c pfsp_dist_multigpu_cuda.c.hip -o pfsp_dist_multigpu_hip.o
 
-pfsp_dist_multigpu_hip.out: pfsp_dist_multigpu_hip.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o lib/evaluate_hip.o
+pfsp_dist_multigpu_hip.out: pfsp_dist_multigpu_hip.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool_ext.o $(LIBPATH)/Auxiliary.o $(LIBPATH)/evaluate_hip.o
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) $(MPI_INCLUDE_G5K) $(MPI_LIB_G5K) -lmpi_cxx -lmpi -lopen-pal -fopenmp $^ -o $@
 
 # Utilities
