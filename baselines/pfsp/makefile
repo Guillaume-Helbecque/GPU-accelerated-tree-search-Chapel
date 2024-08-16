@@ -37,7 +37,13 @@ EXECUTABLES := pfsp_c.out pfsp_gpu_cuda.out pfsp_multigpu_cuda.out pfsp_dist_mul
 all: $(EXECUTABLES)
 
 # Pattern rule for C source files
-%.o: %.c
+pfsp_c.o: pfsp_c.c
+	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@
+
+pfsp_gpu_cuda.o: pfsp_gpu_cuda.c
+	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@ $(CUDA_INCLUDE_G5K)
+
+pfsp_multigpu_cuda.o: pfsp_multigpu_cuda.c
 	$(C_COMPILER) $(C_COMMON_OPTS) -c -fopenmp $< -o $@ $(CUDA_INCLUDE_G5K)
 
 pfsp_dist_multigpu_cuda.o: pfsp_dist_multigpu_cuda.c
