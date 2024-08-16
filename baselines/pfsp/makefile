@@ -39,34 +39,33 @@ all: $(EXECUTABLES)
 $(LIBPATH)/%.o: $(LIBPATH)/%.c
 	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@
 
-# Pattern rule for CUDA source files
+# Pattern rule for CUDA library source files
 $(LIBPATH)/%.o: $(LIBPATH)/%.cu
 	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -c $< -o $@
 
-# Build executable for CPU only
+# Build executable for sequential in C
 pfsp_c.out: pfsp_c.c $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool.o
 	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@
 
-# Build executable for CUDA
+# Build executable for single-GPU in C+CUDA
 pfsp_gpu_cuda.out: pfsp_gpu_cuda.c $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/evaluate.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool.o
 	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@ -lm -lcudart $(CUDA_INCLUDE_G5K) $(CUDA_LIB_G5K)
 
-#Build executable for CUDA+OpenMP
+# Build executable for multi-GPU in C+OpenMP+CUDA
 pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.c $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/evaluate.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool_ext.o $(LIBPATH)/Auxiliary.o
 	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart $(CUDA_INCLUDE_G5K) $(CUDA_LIB_G5K)
 
-#Build executable CUDA+OpenMP+MPI
+# Build executable for distributed multi-GPU in C+MPI+OpenMP+CUDA
 pfsp_dist_multigpu_cuda.out: pfsp_dist_multigpu_cuda.c $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/evaluate.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool_ext.o $(LIBPATH)/Auxiliary.o
 	$(MPI_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart $(CUDA_INCLUDE_G5K) $(CUDA_LIB_G5K)
-
-#############################################################
-#############################################################
 
 $(LIBPATH)/evaluate_hip.o: $(LIBPATH)/evaluate.cu
 	hipify-perl $< > $<.hip
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -c $<.hip -o $@
 
-# Pattern rule for HIP source files
+# TODO: find an elegant way to avoid intermediate *_hip.o object files
+
+# Build executable for single-GPU in C+HIP
 pfsp_gpu_hip.o: pfsp_gpu_cuda.c
 	hipify-perl $< > $<.hip
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -c $<.hip -o $@
@@ -74,7 +73,7 @@ pfsp_gpu_hip.o: pfsp_gpu_cuda.c
 pfsp_gpu_hip.out: pfsp_gpu_hip.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool.o $(LIBPATH)/evaluate_hip.o
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@
 
-# Pattern rule for hybrid OpenMP+HIP source files
+# Build executable for multi-GPU in C+OpenMP+HIP
 pfsp_multigpu_hip.o: pfsp_multigpu_cuda.c
 	hipify-perl $< > $<.hip
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp -c $<.hip -o $@
@@ -82,7 +81,7 @@ pfsp_multigpu_hip.o: pfsp_multigpu_cuda.c
 pfsp_multigpu_hip.out: pfsp_multigpu_hip.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool_ext.o $(LIBPATH)/Auxiliary.o $(LIBPATH)/evaluate_hip.o
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $^ -o $@
 
-# Pattern rule for hybrid MPI+OpenMP+HIP source files
+# Build executable for distributed multi-GPU in C+MPI+OpenMP+HIP
 pfsp_dist_multigpu_hip.o: pfsp_dist_multigpu_cuda.c
 	hipify-perl $< > $<.hip
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) $(MPI_INCLUDE_G5K) $(MPI_LIB_G5K) -fopenmp -c $<.hip -o $@
