@@ -1,7 +1,8 @@
 SHELL := /bin/bash
 
 # Compilers & common options
-C_COMPILER    := mpicc #gcc
+C_COMPILER    := gcc
+MPI_COMPILER  := mpicc
 CUDA_COMPILER := nvcc
 HIP_COMPILER  := hipcc
 
