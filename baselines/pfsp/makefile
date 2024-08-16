@@ -10,7 +10,7 @@ HIP_COMPILER  := hipcc
 
 C_COMMON_OPTS    := -O3 -Wall -g
 CUDA_COMMON_OPTS := -O3 -arch=sm_86 # TODO: adapt SM automatically, if possible
-HIP_COMMON_OPTS  := $(C_COMMON_OPTS) -offload-arch=gfx906
+HIP_COMMON_OPTS  := $(C_COMMON_OPTS) --offload-arch=gfx906
 
 LIBPATH := lib
 
