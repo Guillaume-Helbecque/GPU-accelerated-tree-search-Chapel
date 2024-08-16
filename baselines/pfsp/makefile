@@ -62,16 +62,20 @@ pfsp_dist_multigpu_cuda.out: pfsp_dist_multigpu_cuda.c $(LIBPATH)/c_taillard.o $
 #############################################################
 #############################################################
 
-# Pattern rule for HIP source files
-	hipify-perl pfsp_gpu_cuda.c > pfsp_gpu_cuda.c.hip
+evaluate_hip.o: evaluate.cu
 	hipify-perl $(LIBPATH)/evaluate.cu > $(LIBPATH)/evaluate.cu.hip
-	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -c pfsp_gpu_cuda.c.hip -o pfsp_gpu_hip.o
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -c $(LIBPATH)/evaluate.cu.hip -o $(LIBPATH)/evaluate_hip.o
+
+# Pattern rule for HIP source files
+pfsp_gpu_hip.o: pfsp_gpu_cuda.c
+	hipify-perl pfsp_gpu_cuda.c > pfsp_gpu_cuda.c.hip
+	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -c pfsp_gpu_cuda.c.hip -o pfsp_gpu_hip.o
 
 pfsp_gpu_hip.out: pfsp_gpu_hip.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_bound_simple.o $(LIBPATH)/c_bound_johnson.o $(LIBPATH)/PFSP_node.o $(LIBPATH)/Pool.o $(LIBPATH)/evaluate_hip.o
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@
 
 # Pattern rule for hybrid OpenMP+HIP source files
+pfsp_multigpu_hip.o: pfsp_multigpu_cuda.c
 	hipify-perl pfsp_multigpu_cuda.c > pfsp_multigpu_cuda.c.hip
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp -c pfsp_multigpu_cuda.c.hip -o pfsp_multigpu_hip.o
 
@@ -79,6 +83,7 @@ pfsp_multigpu_hip.out: pfsp_multigpu_hip.o $(LIBPATH)/c_taillard.o $(LIBPATH)/c_
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $^ -o $@
 
 # Pattern rule for hybrid MPI+OpenMP+HIP source files
+pfsp_dist_multigpu_hip.o: pfsp_dist_multigpu_cuda.c
 	hipify-perl pfsp_dist_multigpu_cuda.c > pfsp_dist_multigpu_cuda.c.hip
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) $(MPI_INCLUDE_G5K) $(MPI_LIB_G5K) -fopenmp -c pfsp_dist_multigpu_cuda.c.hip -o pfsp_dist_multigpu_hip.o
 
