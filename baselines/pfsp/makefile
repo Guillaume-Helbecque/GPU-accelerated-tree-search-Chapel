@@ -20,21 +20,18 @@ CUDA_LIB_G5K     := -L/usr/local/cuda-11.2/targets/x86_64-linux/lib
 LIBPATH := lib
 
 # Source files
-C_SOURCES    := $(LIBPATH)/c_taillard.c $(LIBPATH)/c_bound_simple.c $(LIBPATH)/c_bound_johnson.c $(LIBPATH)/PFSP_node.c $(LIBPATH)/Pool.c $(LIBPATH)/Pool_ext.c $(LIBPATH)/Auxiliary.c pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c pfsp_dist_multigpu_cuda.c
-CUDA_SOURCES := $(LIBPATH)/evaluate.cu $(LIBPATH)/c_bounds_gpu.cu
-HIP_SOURCES  :=
+C_SOURCES        := pfsp_c.c pfsp_gpu_cuda.c pfsp_multigpu_cuda.c pfsp_dist_multigpu_cuda.c
+C_LIB_SOURCES    := $(LIBPATH)/c_taillard.c $(LIBPATH)/c_bound_simple.c $(LIBPATH)/c_bound_johnson.c $(LIBPATH)/PFSP_node.c $(LIBPATH)/Pool.c $(LIBPATH)/Pool_ext.c $(LIBPATH)/Auxiliary.c
+CUDA_LIB_SOURCES := $(LIBPATH)/evaluate.cu $(LIBPATH)/c_bounds_gpu.cu
 
 # Object files
-C_OBJECTS    := $(C_SOURCES:.c=.o)
-CUDA_OBJECTS := $(CUDA_SOURCES:.cu=.o)
-HIP_OBJECTS  := $(HIP_SOURCES:hip.cu=hip.o)
+C_OBJECTS        := $(C_SOURCES:.c=.o)
+C_LIB_OBJECTS    := $(C_LIB_SOURCES:.c=.o)
+CUDA_LIB_OBJECTS := $(CUDA_LIB_SOURCES:.cu=.o)
+HIP_OBJECTS      := $(HIP_SOURCES:hip.cu=hip.o)
 
 # Executable names
 EXECUTABLES := pfsp_c.out pfsp_gpu_cuda.out pfsp_multigpu_cuda.out pfsp_dist_multigpu_cuda.out pfsp_gpu_hip.out pfsp_multigpu_hip.out pfsp_dist_multigpu_hip.out
-
-# Library paths
-#C_PFSP_LIBPATH := lib/c_bound_simple.c lib/c_bound_johnson.c lib/c_taillard.c
-#CUDA_PFSP_LIBPATH := lib/c_bounds_gpu.cu
 
 # Build codes
 all: $(EXECUTABLES)
@@ -46,8 +43,12 @@ all: $(EXECUTABLES)
 pfsp_dist_multigpu_cuda.o: pfsp_dist_multigpu_cuda.c
 	$(MPI_COMPILER) $(C_COMMON_OPTS) -c -fopenmp $< -o $@ $(CUDA_INCLUDE_G5K)
 
+# Pattern rule for C library source files
+$(LIBPATH)/%.o: $(LIBPATH)/%.c
+	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@
+
 # Pattern rule for CUDA source files
-%.o: %.cu
+$(LIBPATH)/%.o: $(LIBPATH)/%.cu
 	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -c $< -o $@
 
 # Build executable for CPU only
