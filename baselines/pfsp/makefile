@@ -38,6 +38,9 @@ all: $(EXECUTABLES)
 %.o: %.c
 	$(C_COMPILER) $(C_COMMON_OPTS) -c -fopenmp $< -o $@ -I/share/compilers/nvidia/cuda/12.0/include -I/usr/local/cuda-11.2/targets/x86_64-linux/include/
 
+pfsp_dist_multigpu_cuda.o: pfsp_dist_multigpu_cuda.c
+	$(MPI_COMPILER) $(C_COMMON_OPTS) -c -fopenmp $< -o $@ -I/share/compilers/nvidia/cuda/12.0/include -I/usr/local/cuda-11.2/targets/x86_64-linux/include/
+
 # Pattern rule for CUDA source files
 %.o: %.cu
 	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -c $< -o $@
@@ -56,7 +59,10 @@ pfsp_multigpu_cuda.out: pfsp_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple
 
 #Build executable CUDA+OpenMP+MPI
 pfsp_dist_multigpu_cuda.out: pfsp_dist_multigpu_cuda.o lib/c_taillard.o lib/c_bound_simple.o lib/c_bound_johnson.o lib/evaluate.o lib/PFSP_node.o lib/Pool_ext.o lib/Auxiliary.o
-	$(C_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
+	$(MPI_COMPILER) $(C_COMMON_OPTS) -fopenmp $^ -o $@ -lm -lcudart -L/usr/local/cuda-11.2/targets/x86_64-linux/lib/
+
+#############################################################
+#############################################################
 
 # Pattern rule for HIP source files
 	hipify-perl pfsp_gpu_cuda.c > pfsp_gpu_cuda.c.hip
