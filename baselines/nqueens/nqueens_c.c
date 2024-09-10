@@ -81,16 +81,14 @@ void deleteSinglePool(SinglePool* pool)
 Implementation of the sequential N-Queens search.
 *******************************************************************************/
 
-void parse_parameters(int argc, char* argv[], int* N, int* G, int* m, int* M)
+void parse_parameters(int argc, char* argv[], int* N, int* G)
 {
   *N = 14;
   *G = 1;
-  *m = 25;
-  *M = 50000;
 
   int opt, value;
 
-  while ((opt = getopt(argc, argv, "N:g:m:M:")) != -1) {
+  while ((opt = getopt(argc, argv, "N:g:")) != -1) {
     value = atoi(optarg);
 
     if (value <= 0) {
@@ -105,14 +103,8 @@ void parse_parameters(int argc, char* argv[], int* N, int* G, int* m, int* M)
       case 'g':
         *G = value;
         break;
-      case 'm':
-        *m = value;
-        break;
-      case 'M':
-        *M = value;
-        break;
       default:
-        fprintf(stderr, "Usage: %s -N value -g value -m value -M value\n", argv[0]);
+        fprintf(stderr, "Usage: %s -N value -g value\n", argv[0]);
         exit(EXIT_FAILURE);
     }
   }
@@ -185,9 +177,8 @@ void decompose(const int N, const int G, const Node parent,
 }
 
 // Sequential N-Queens search.
-void nqueens_search(const int N, const int G, const int m, const int M,
-  unsigned long long int* exploredTree, unsigned long long int* exploredSol,
-  double* elapsedTime)
+void nqueens_search(const int N, const int G,  unsigned long long int* exploredTree,
+  unsigned long long int* exploredSol, double* elapsedTime)
 {
   Node root;
   initRoot(&root, N);
@@ -217,8 +208,8 @@ void nqueens_search(const int N, const int G, const int m, const int M,
 
 int main(int argc, char* argv[])
 {
-  int N, G, m, M;
-  parse_parameters(argc, argv, &N, &G, &m, &M);
+  int N, G;
+  parse_parameters(argc, argv, &N, &G);
   print_settings(N, G);
 
   unsigned long long int exploredTree = 0;
@@ -226,7 +217,7 @@ int main(int argc, char* argv[])
 
   double elapsedTime;
 
-  nqueens_search(N, G, m, M, &exploredTree, &exploredSol, &elapsedTime);
+  nqueens_search(N, G, &exploredTree, &exploredSol, &elapsedTime);
 
   print_results(exploredTree, exploredSol, elapsedTime);
 
