@@ -26,18 +26,23 @@ void parse_parameters(int argc, char* argv[], int* N, int* G)
   while ((opt = getopt(argc, argv, "N:g:")) != -1) {
     value = atoi(optarg);
 
-    if (value <= 0) {
-      printf("All parameters must be positive integers.\n");
-      exit(EXIT_FAILURE);
-    }
-
     switch (opt) {
       case 'N':
+        if (value < 1) {
+          fprintf(stderr, "Error: N must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *N = value;
         break;
+
       case 'g':
+        if (value < 1) {
+          fprintf(stderr, "Error: g must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *G = value;
         break;
+
       default:
         fprintf(stderr, "Usage: %s -N value -g value\n", argv[0]);
         exit(EXIT_FAILURE);
@@ -133,6 +138,7 @@ void nqueens_search(const int N, const int G,  unsigned long long int* exploredT
 
     decompose(N, G, parent, exploredTree, exploredSol, &pool);
   }
+
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
   *elapsedTime = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 

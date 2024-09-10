@@ -33,24 +33,39 @@ void parse_parameters(int argc, char* argv[], int* N, int* G, int* m, int* M)
   while ((opt = getopt(argc, argv, "N:g:m:M:")) != -1) {
     value = atoi(optarg);
 
-    if (value <= 0) {
-      printf("All parameters must be positive integers.\n");
-      exit(EXIT_FAILURE);
-    }
-
     switch (opt) {
       case 'N':
+        if (value < 1) {
+          fprintf(stderr, "Error: N must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *N = value;
         break;
+
       case 'g':
+        if (value < 1) {
+          fprintf(stderr, "Error: g must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *G = value;
         break;
+
       case 'm':
+        if (value < 1) {
+          fprintf(stderr, "Error: m must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *m = value;
         break;
+
       case 'M':
+        if (value < *m) {
+          fprintf(stderr, "Error: M must be a positive integer, greater or equal to m.\n");
+          exit(EXIT_FAILURE);
+        }
         *M = value;
         break;
+
       default:
         fprintf(stderr, "Usage: %s -N value -g value -m value -M value\n", argv[0]);
         exit(EXIT_FAILURE);
