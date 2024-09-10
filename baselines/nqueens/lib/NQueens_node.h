@@ -8,8 +8,6 @@ extern "C" {
 #include <stdlib.h>
 #include <stdint.h>
 
-#define BLOCK_SIZE 512
-
 #define MAX_QUEENS 20
 
 typedef struct

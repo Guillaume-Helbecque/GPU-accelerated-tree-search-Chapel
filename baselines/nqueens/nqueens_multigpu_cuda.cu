@@ -42,20 +42,45 @@ void parse_parameters(int argc, char* argv[], int* N, int* G, int* m, int* M, in
 
     switch (opt) {
       case 'N':
+        if (value < 1) {
+          fprintf(stderr, "Error: N must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *N = value;
         break;
+
       case 'g':
+        if (value < 1) {
+          fprintf(stderr, "Error: g must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *G = value;
         break;
+
       case 'm':
+        if (value < 1) {
+          fprintf(stderr, "Error: m must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *m = value;
         break;
+
       case 'M':
+        if (value < *m) {
+          fprintf(stderr, "Error: M must be a positive integer, greater or equal to m.\n");
+          exit(EXIT_FAILURE);
+        }
         *M = value;
         break;
+
       case 'D':
+        if (value < 1) {
+          fprintf(stderr, "Error: D must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *D = value;
         break;
+
       default:
         fprintf(stderr, "Usage: %s -N value -g value -m value -M value -D value\n", argv[0]);
         exit(EXIT_FAILURE);
