@@ -18,7 +18,7 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 /*******************************************************************************
-Implementation of the single-core single-GPU N-Queens search.
+Implementation of the single-GPU N-Queens search.
 *******************************************************************************/
 
 void parse_parameters(int argc, char* argv[], int* N, int* G, int* m, int* M)
@@ -207,7 +207,6 @@ void nqueens_search(const int N, const int G, const int m, const int M,
 
   pushBack(&pool, root);
 
-  // int count = 0;
   clock_t startTime = clock();
 
   Node* parents = (Node*)malloc(M * sizeof(Node));
@@ -242,7 +241,6 @@ void nqueens_search(const int N, const int G, const int m, const int M,
 
       const int nbBlocks = ceil((double)numLabels / BLOCK_SIZE);
 
-      // count += 1;
       evaluate_gpu<<<nbBlocks, BLOCK_SIZE>>>(N, G, parents_d, labels_d, numLabels);
 
       cudaMemcpy(labels, labels_d, numLabels * sizeof(uint8_t), cudaMemcpyDeviceToHost);
@@ -261,7 +259,6 @@ void nqueens_search(const int N, const int G, const int m, const int M,
   *elapsedTime = (double)(endTime - startTime) / CLOCKS_PER_SEC;
 
   printf("\nExploration terminated.\n");
-  // printf("Cuda kernel calls: %d\n", count);
 
   deleteSinglePool(&pool);
 }
