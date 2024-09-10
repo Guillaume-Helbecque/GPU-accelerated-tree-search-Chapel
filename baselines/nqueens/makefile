@@ -42,12 +42,12 @@ nqueens_c.out: nqueens_c.c $(LIBPATH)/NQueens_node.o $(LIBPATH)/Pool.o
 	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@
 
 # Build executable for single-GPU in C+CUDA
-nqueens_gpu_cuda.out: nqueens_gpu_cuda.cu
-	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) $< -o $@
+nqueens_gpu_cuda.out: nqueens_gpu_cuda.cu $(LIBPATH)/NQueens_node.o $(LIBPATH)/Pool.o
+	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) $^ -o $@
 
 # Build executable for multi-GPU in C+OpenMP+CUDA
-nqueens_multigpu_cuda.out: nqueens_multigpu_cuda.cu
-	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -Xcompiler -fopenmp $< -o $@
+nqueens_multigpu_cuda.out: nqueens_multigpu_cuda.cu $(LIBPATH)/NQueens_node.o $(LIBPATH)/Pool.o
+	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -Xcompiler -fopenmp $^ -o $@
 
 # TODO: find an elegant way to avoid intermediate *_hip.o object files
 
