@@ -31,22 +31,22 @@ endif
 # HIP_OBJECTS  := $(CUDA_SOURCES:cuda.cu=hip.o)
 
 # Executable names
-all: nqueens_c.o nqueens_gpu_cuda.o nqueens_multigpu_cuda.o nqueens_gpu_hip.out nqueens_multigpu_hip.out
+all: nqueens_c.out nqueens_gpu_cuda.out nqueens_multigpu_cuda.out nqueens_gpu_hip.out nqueens_multigpu_hip.out
 
 # Pattern rule for C library source files
 $(LIBPATH)/%.o: $(LIBPATH)/%.c
 	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@
 
 # Build executable for sequential in C
-nqueens_c.o: nqueens_c.c $(LIBPATH)/NQueens_node.o $(LIBPATH)/Pool.o
+nqueens_c.out: nqueens_c.c $(LIBPATH)/NQueens_node.o $(LIBPATH)/Pool.o
 	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@
 
 # Build executable for single-GPU in C+CUDA
-nqueens_gpu_cuda.o: nqueens_gpu_cuda.cu
+nqueens_gpu_cuda.out: nqueens_gpu_cuda.cu
 	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) $< -o $@
 
 # Build executable for multi-GPU in C+OpenMP+CUDA
-nqueens_multigpu_cuda.o: nqueens_multigpu_cuda.cu
+nqueens_multigpu_cuda.out: nqueens_multigpu_cuda.cu
 	$(CUDA_COMPILER) $(CUDA_COMMON_OPTS) -Xcompiler -fopenmp $< -o $@
 
 # TODO: find an elegant way to avoid intermediate *_hip.o object files
