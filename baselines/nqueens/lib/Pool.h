@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include "PFSP_node.h"
+#include "NQueens_node.h"
 
 /*******************************************************************************
 Implementation of a dynamic-sized single pool data structure.

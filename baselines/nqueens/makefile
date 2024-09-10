@@ -30,7 +30,7 @@ $(LIBPATH)/%.o: $(LIBPATH)/%.c
 	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@
 
 # Build executable for sequential in C
-nqueens_c.o: nqueens_c.c $(LIBPATH)/NQueens_node.o
+nqueens_c.o: nqueens_c.c $(LIBPATH)/NQueens_node.o $(LIBPATH)/Pool.o
 	$(C_COMPILER) $(C_COMMON_OPTS) $^ -o $@
 
 # Build executable for single-GPU in C+CUDA
@@ -46,7 +46,7 @@ nqueens_gpu_hip.o: nqueens_gpu_cuda.cu
 	hipify-perl $< > $<.hip
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -c $<.hip -o $@
 
-nqueens_gpu_hip.out: nqueens_gpu_hip.o $(LIBPATH)/NQueens_node.o
+nqueens_gpu_hip.out: nqueens_gpu_hip.o $(LIBPATH)/NQueens_node.o $(LIBPATH)/Pool.o
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) $^ -o $@
 
 # Build executable for multi-GPU in C+OpenMP+HIP
@@ -54,7 +54,7 @@ nqueens_multigpu_hip.o: nqueens_multigpu_cuda.cu
 	hipify-perl $< > $<.hip
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp -c $<.hip -o $@
 
-nqueens_multigpu_hip.out: nqueens_multigpu_hip.o $(LIBPATH)/NQueens_node.o
+nqueens_multigpu_hip.out: nqueens_multigpu_hip.o $(LIBPATH)/NQueens_node.o $(LIBPATH)/Pool.o
 	$(HIP_PATCH_G5K) $(HIP_COMPILER) $(HIP_COMMON_OPTS) -fopenmp $^ -o $@
 
 # Utilities
