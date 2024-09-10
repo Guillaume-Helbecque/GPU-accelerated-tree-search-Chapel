@@ -68,7 +68,7 @@ Unstable command-line options:
 
 - CUDA multi-GPU launch to solve the 17-Queens instance using 4 GPU devices:
 ```
-./nqueens_multigpu_cuda.o -N 17 -D 4
+./nqueens_multigpu_cuda.out -N 17 -D 4
 ```
 
 ## Related publications
