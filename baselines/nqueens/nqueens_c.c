@@ -9,25 +9,7 @@
 #include <unistd.h>
 #include <time.h>
 
-/*******************************************************************************
-Implementation of N-Queens Nodes.
-*******************************************************************************/
-
-#define MAX_QUEENS 20
-
-typedef struct
-{
-  uint8_t depth;
-  uint8_t board[MAX_QUEENS];
-} Node;
-
-void initRoot(Node* root, const int N)
-{
-  root->depth = 0;
-  for (uint8_t i = 0; i < N; i++) {
-    root->board[i] = i;
-  }
-}
+#include "lib/NQueens_node.h"
 
 /*******************************************************************************
 Implementation of a dynamic-sized single pool data structure.
