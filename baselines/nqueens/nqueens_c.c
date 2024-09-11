@@ -9,110 +9,42 @@
 #include <unistd.h>
 #include <time.h>
 
-/*******************************************************************************
-Implementation of N-Queens Nodes.
-*******************************************************************************/
-
-#define MAX_QUEENS 20
-
-typedef struct
-{
-  uint8_t depth;
-  uint8_t board[MAX_QUEENS];
-} Node;
-
-void initRoot(Node* root, const int N)
-{
-  root->depth = 0;
-  for (uint8_t i = 0; i < N; i++) {
-    root->board[i] = i;
-  }
-}
-
-/*******************************************************************************
-Implementation of a dynamic-sized single pool data structure.
-Its initial capacity is 1024, and we reallocate a new container with double
-the capacity when it is full. Since we perform only DFS, it only supports
-'pushBack' and 'popBack' operations.
-*******************************************************************************/
-
-#define CAPACITY 1024
-
-typedef struct
-{
-  Node* elements;
-  int capacity;
-  int size;
-} SinglePool;
-
-void initSinglePool(SinglePool* pool)
-{
-  pool->elements = (Node*)malloc(CAPACITY * sizeof(Node));
-  pool->capacity = CAPACITY;
-  pool->size = 0;
-}
-
-void pushBack(SinglePool* pool, Node node)
-{
-  if (pool->size >= pool->capacity) {
-    pool->capacity *= 2;
-    pool->elements = (Node*)realloc(pool->elements, pool->capacity * sizeof(Node));
-  }
-
-  pool->elements[pool->size++] = node;
-}
-
-Node popBack(SinglePool* pool, int* hasWork)
-{
-  if (pool->size > 0) {
-    *hasWork = 1;
-    return pool->elements[--pool->size];
-  }
-
-  return (Node){0};
-}
-
-void deleteSinglePool(SinglePool* pool)
-{
-  free(pool->elements);
-}
+#include "lib/NQueens_node.h"
+#include "lib/Pool.h"
 
 /*******************************************************************************
 Implementation of the sequential N-Queens search.
 *******************************************************************************/
 
-void parse_parameters(int argc, char* argv[], int* N, int* G, int* m, int* M)
+void parse_parameters(int argc, char* argv[], int* N, int* G)
 {
   *N = 14;
   *G = 1;
-  *m = 25;
-  *M = 50000;
 
   int opt, value;
 
-  while ((opt = getopt(argc, argv, "N:g:m:M:")) != -1) {
+  while ((opt = getopt(argc, argv, "N:g:")) != -1) {
     value = atoi(optarg);
-
-    if (value <= 0) {
-      printf("All parameters must be positive integers.\n");
-      exit(EXIT_FAILURE);
-    }
 
     switch (opt) {
       case 'N':
+        if (value < 1) {
+          fprintf(stderr, "Error: N must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *N = value;
         break;
+
       case 'g':
+        if (value < 1) {
+          fprintf(stderr, "Error: g must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *G = value;
         break;
-      case 'm':
-        *m = value;
-        break;
-      case 'M':
-        *M = value;
-        break;
+
       default:
-        fprintf(stderr, "Usage: %s -N value -g value -m value -M value\n", argv[0]);
+        fprintf(stderr, "Usage: %s -N value -g value\n", argv[0]);
         exit(EXIT_FAILURE);
     }
   }
@@ -185,9 +117,8 @@ void decompose(const int N, const int G, const Node parent,
 }
 
 // Sequential N-Queens search.
-void nqueens_search(const int N, const int G, const int m, const int M,
-  unsigned long long int* exploredTree, unsigned long long int* exploredSol,
-  double* elapsedTime)
+void nqueens_search(const int N, const int G,  unsigned long long int* exploredTree,
+  unsigned long long int* exploredSol, double* elapsedTime)
 {
   Node root;
   initRoot(&root, N);
@@ -207,6 +138,7 @@ void nqueens_search(const int N, const int G, const int m, const int M,
 
     decompose(N, G, parent, exploredTree, exploredSol, &pool);
   }
+
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
   *elapsedTime = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 
@@ -217,8 +149,8 @@ void nqueens_search(const int N, const int G, const int m, const int M,
 
 int main(int argc, char* argv[])
 {
-  int N, G, m, M;
-  parse_parameters(argc, argv, &N, &G, &m, &M);
+  int N, G;
+  parse_parameters(argc, argv, &N, &G);
   print_settings(N, G);
 
   unsigned long long int exploredTree = 0;
@@ -226,7 +158,7 @@ int main(int argc, char* argv[])
 
   double elapsedTime;
 
-  nqueens_search(N, G, m, M, &exploredTree, &exploredSol, &elapsedTime);
+  nqueens_search(N, G, &exploredTree, &exploredSol, &elapsedTime);
 
   print_results(exploredTree, exploredSol, elapsedTime);
 
