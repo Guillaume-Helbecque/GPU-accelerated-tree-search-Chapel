@@ -252,6 +252,8 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   exploredTree += (+ reduce eachExploredTree);
   exploredSol += (+ reduce eachExploredSol);
 
+  writeln("workload per GPU: ", 100.0*eachExploredTree/(exploredTree-res1[1]):real, "\n");
+
   const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
   writeln("Search on GPU completed");
   writeln("Size of the explored tree: ", res2[1]);
