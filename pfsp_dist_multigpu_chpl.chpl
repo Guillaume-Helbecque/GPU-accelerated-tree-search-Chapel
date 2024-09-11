@@ -15,7 +15,7 @@ use Bound_simple;
 use Taillard;
 
 /*******************************************************************************
-Implementation of the multi-GPU PFSP search.
+Implementation of the distributed multi-GPU PFSP search.
 *******************************************************************************/
 
 config const m = 25;
@@ -295,7 +295,7 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref bo
   }
 }
 
-// Multi-GPU PFSP search.
+// Distributed multi-GPU PFSP search.
 proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
   var best: int = initUB;
