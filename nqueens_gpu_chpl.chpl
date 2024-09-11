@@ -141,6 +141,8 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref la
 // Single-GPU N-Queens search.
 proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
+  const device = here.gpus[0];
+
   var root = new Node(N);
 
   var pool = new SinglePool(Node);
@@ -171,7 +173,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
       const numLabels = N * poolSize;
       var labels: [0..#numLabels] uint(8) = noinit;
 
-      on here.gpus[0] {
+      on device {
         const parents_d = parents; // host-to-device
         var labels_d: [0..#numLabels] uint(8) = noinit;
         evaluate_gpu(parents_d, numLabels, labels_d);

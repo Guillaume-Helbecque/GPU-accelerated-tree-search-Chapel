@@ -185,8 +185,9 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   pool.front = 0;
   pool.size = 0;
 
-  coforall (gpuID, gpu) in zip(0..#D, here.gpus) with (ref pool,
-    ref eachExploredTree, ref eachExploredSol) {
+  coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol) {
+
+    const device = here.gpus[gpuID];
 
     var tree, sol: uint;
     var pool_loc = new SinglePool(Node);
@@ -216,7 +217,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
         const numLabels = N * poolSize;
         var labels: [0..#numLabels] uint(8) = noinit;
 
-        on gpu {
+        on device {
           const parents_d = parents; // host-to-device
           var labels_d: [0..#numLabels] uint(8) = noinit;
           evaluate_gpu(parents_d, numLabels, labels_d);
