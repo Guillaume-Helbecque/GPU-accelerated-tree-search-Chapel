@@ -139,6 +139,16 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref la
   }
 }
 
+class WrapperClassArrayParents {
+  forwarding var arr: [0..#M] Node = noinit;
+}
+type WrapperArrayParents = owned WrapperClassArrayParents?;
+
+class WrapperClassArrayLabels {
+  forwarding var arr: [0..#(M*N)] uint(8) = noinit;
+}
+type WrapperArrayLabels = owned WrapperClassArrayLabels?;
+
 // Distributed multi-GPU N-Queens search.
 proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
@@ -223,6 +233,17 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
         pool_loc.size += l_l-c_l;
       }
 
+      var parents: [0..#M] Node = noinit;
+      var labels: [0..#(M*N)] uint(8) = noinit;
+
+      var parents_d: WrapperArrayParents;
+      var labels_d: WrapperArrayLabels;
+
+      on device {
+        parents_d = new WrapperArrayParents();
+        labels_d = new WrapperArrayLabels();
+      }
+
       while true {
         /*
           Each task gets its parents nodes from the pool.
@@ -230,7 +251,6 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
         var poolSize = pool_loc.size;
         if (poolSize >= m) {
           poolSize = min(poolSize, M);
-          var parents: [0..#poolSize] Node = noinit;
           for i in 0..#poolSize {
             var hasWork = 0;
             parents[i] = pool_loc.popBack(hasWork);
@@ -238,13 +258,11 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
           }
 
           const numLabels = N * poolSize;
-          var labels: [0..#numLabels] uint(8) = noinit;
 
           on device {
-            const parents_d = parents; // host-to-device
-            var labels_d: [0..#numLabels] uint(8) = noinit;
-            evaluate_gpu(parents_d, numLabels, labels_d);
-            labels = labels_d; // device-to-host
+            parents_d!.arr = parents; // host-to-device
+            evaluate_gpu(parents_d!.arr, numLabels, labels_d!.arr);
+            labels = labels_d!.arr; // device-to-host
           }
 
           /*
