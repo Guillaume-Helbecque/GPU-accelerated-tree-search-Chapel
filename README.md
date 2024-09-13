@@ -19,7 +19,7 @@ The following Chapel implementations are available:
 - `[nqueens/pfsp]_chpl.chpl`: sequential version;
 - `[nqueens/pfsp]_gpu_chpl.chpl`: single-GPU version;
 - `[nqueens/pfsp]_multigpu_chpl.chpl`: multi-GPU version;
-- `pfsp_dist_multigpu_chpl.chpl`: distributed multi-GPU version (unstable).
+- `[nqueens/pfsp]_dist_multigpu_chpl.chpl`: distributed multi-GPU version (unstable).
 
 In addition, the [baselines](./baselines/) directory contains the CUDA-based counterparts:
 - `[nqueens/pfsp]_c.c`: sequential version (C);
@@ -63,7 +63,7 @@ Unstable command-line options:
 
 - Chapel single-GPU launch to solve the 15-Queens instance:
 ```
-./nqueens_gpu_chpl.o --N 15
+./nqueens_gpu_chpl.out --N 15
 ```
 
 - CUDA multi-GPU launch to solve the 17-Queens instance using 4 GPU devices:
