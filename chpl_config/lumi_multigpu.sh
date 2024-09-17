@@ -6,10 +6,7 @@
 # Load modules
 module load LUMI/23.09
 module load partition/G
-module load PrgEnv-cray/8.4.0
-module load cce/16.0.1
-module load ncurses/6.4-cpeCray-23.09
-module load buildtools/23.09 # contains CMake
+module load rocm/5.4.6
 
 export HERE=$(pwd)
 
@@ -28,7 +25,7 @@ export PATH="$PATH":"$CHPL_HOME/bin/$CHPL_BIN_SUBDIR:$CHPL_HOME/util"
 
 export CHPL_HOST_PLATFORM=`$CHPL_HOME/util/chplenv/chpl_platform.py`
 export CHPL_TARGET_COMPILER="llvm"
-export CHPL_LLVM="system" # required for AMD arch
+export CHPL_LLVM="system" # required for AMD GPU architectures
 export CHPL_COMM="none"
 export CHPL_LAUNCHER="none"
 
@@ -37,8 +34,12 @@ export CHPL_LOCALE_MODEL="gpu"
 export CHPL_GPU="amd"
 export CHPL_GPU_ARCH="gfx90a"
 export CHPL_GPU_MEM_STRATEGY="array_on_device" # default
-export CHPL_RT_NUM_THREADS_PER_LOCALE=4
-export CHPL_RT_NUM_GPUS_PER_LOCALE=4
+export CHPL_RT_NUM_THREADS_PER_LOCALE=8
+export CHPL_RT_NUM_GPUS_PER_LOCALE=8
+
+# Setting ROCm/LLVM path manually as the Chapel compiler targets a more recent
+# ROCm version (6.0.3) that is not supported by Chapel 2.1.0 (see Chapel issue #25952 on GitHub)
+export CHPL_ROCM_PATH="/appl/lumi/SW/LUMI-23.09/G/EB/rocm/5.4.6"
 
 export GASNET_PHYSMEM_MAX='64 GB'
 
