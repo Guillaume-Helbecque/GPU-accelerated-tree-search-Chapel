@@ -41,9 +41,7 @@ export CHPL_RT_NUM_GPUS_PER_LOCALE=8
 # ROCm version (6.0.3) that is not supported by Chapel 2.1.0 (see Chapel issue #25952 on GitHub)
 export CHPL_ROCM_PATH="/appl/lumi/SW/LUMI-23.09/G/EB/rocm/5.4.6"
 
-export GASNET_PHYSMEM_MAX='64 GB'
-
 cd $CHPL_HOME
-patch -N -p1 < $HERE/perf_patch.patch # see Chapel PR #24970 on Github (remove it when Chapel 2.1 is released)
+patch -N -p1 < $HERE/perf_patch.patch # see Chapel PR #24970 on Github (remove it when Chapel 2.2 is released)
 make -j $NUM_T_LOCALE
 cd $HERE/..
