@@ -3,6 +3,7 @@
 */
 
 use Time;
+use PrivateDist;
 use GpuDiagnostics;
 
 config const BLOCK_SIZE = 512;
@@ -341,8 +342,8 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     is not enough work.
   */
   timer.start();
-  var eachLocaleExploredTree, eachLocaleExploredSol: [0..#numLocales] uint = noinit;
-  var eachLocaleBest: [0..#numLocales] int = noinit;
+  var eachLocaleExploredTree, eachLocaleExploredSol: [PrivateSpace] uint = noinit;
+  var eachLocaleBest: [PrivateSpace] int = noinit;
 
   const poolSize = pool.size;
   const c = poolSize / numLocales;

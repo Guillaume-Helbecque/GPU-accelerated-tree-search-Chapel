@@ -6,6 +6,7 @@ use Time;
 
 use Pool;
 use Pool_par;
+use PrivateDist;
 use GpuDiagnostics;
 
 use NQueens_node;
@@ -185,7 +186,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     is not enough work.
   */
   timer.start();
-  var eachLocaleExploredTree, eachLocaleExploredSol: [0..#numLocales] uint = noinit;
+  var eachLocaleExploredTree, eachLocaleExploredSol: [PrivateSpace] uint = noinit;
 
   const poolSize = pool.size;
   const c = poolSize / numLocales;
