@@ -11,92 +11,12 @@
 #include <omp.h>
 #include "cuda_runtime.h"
 
+#include "lib/NQueens_node.h"
+#include "lib/Pool.h"
+
 #define BLOCK_SIZE 512
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-
-/*******************************************************************************
-Implementation of N-Queens Nodes.
-*******************************************************************************/
-
-#define MAX_QUEENS 20
-
-typedef struct
-{
-  uint8_t depth;
-  uint8_t board[MAX_QUEENS];
-} Node;
-
-void initRoot(Node* root, const int N)
-{
-  root->depth = 0;
-  for (uint8_t i = 0; i < N; i++) {
-    root->board[i] = i;
-  }
-}
-
-/*******************************************************************************
-Implementation of a dynamic-sized single pool data structure.
-Its initial capacity is 1024, and we reallocate a new container with double
-the capacity when it is full. Since we perform only DFS, it only supports
-'pushBack' and 'popBack' operations.
-*******************************************************************************/
-
-#define CAPACITY 1024
-
-typedef struct
-{
-  Node* elements;
-  int capacity;
-  int front;
-  int size;
-} SinglePool;
-
-void initSinglePool(SinglePool* pool)
-{
-  pool->elements = (Node*)malloc(CAPACITY * sizeof(Node));
-  pool->capacity = CAPACITY;
-  pool->front = 0;
-  pool->size = 0;
-}
-
-void pushBack(SinglePool* pool, Node node)
-{
-  if (pool->front + pool->size >= pool->capacity) {
-    pool->capacity *= 2;
-    pool->elements = (Node*)realloc(pool->elements, pool->capacity * sizeof(Node));
-  }
-
-  pool->elements[pool->front + pool->size] = node;
-  pool->size += 1;
-}
-
-Node popBack(SinglePool* pool, int* hasWork)
-{
-  if (pool->size > 0) {
-    *hasWork = 1;
-    pool->size -= 1;
-    return pool->elements[pool->front + pool->size];
-  }
-
-  return (Node){0};
-}
-
-Node popFront(SinglePool* pool, int* hasWork)
-{
-  if (pool->size > 0) {
-    *hasWork = 1;
-    pool->size--;
-    return pool->elements[pool->front++];
-  }
-
-  return (Node){0};
-}
-
-void deleteSinglePool(SinglePool* pool)
-{
-  free(pool->elements);
-}
 
 /*******************************************************************************
 Implementation of the multi-GPU N-Queens search.
@@ -122,20 +42,45 @@ void parse_parameters(int argc, char* argv[], int* N, int* G, int* m, int* M, in
 
     switch (opt) {
       case 'N':
+        if (value < 1) {
+          fprintf(stderr, "Error: N must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *N = value;
         break;
+
       case 'g':
+        if (value < 1) {
+          fprintf(stderr, "Error: g must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *G = value;
         break;
+
       case 'm':
+        if (value < 1) {
+          fprintf(stderr, "Error: m must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *m = value;
         break;
+
       case 'M':
+        if (value < *m) {
+          fprintf(stderr, "Error: M must be a positive integer, greater or equal to m.\n");
+          exit(EXIT_FAILURE);
+        }
         *M = value;
         break;
+
       case 'D':
+        if (value < 1) {
+          fprintf(stderr, "Error: D must be a positive integer.\n");
+          exit(EXIT_FAILURE);
+        }
         *D = value;
         break;
+
       default:
         fprintf(stderr, "Usage: %s -N value -g value -m value -M value -D value\n", argv[0]);
         exit(EXIT_FAILURE);
@@ -277,7 +222,6 @@ void nqueens_search(const int N, const int G, const int m, const int M, const in
 
   pushBack(&pool, root);
 
-  // int count = 0;
   double startTime, endTime;
 
   /*
@@ -357,7 +301,6 @@ void nqueens_search(const int N, const int G, const int m, const int M, const in
         cudaMemcpy(parents_d, parents, poolSize * sizeof(Node), cudaMemcpyHostToDevice);
 
         const int nbBlocks = ceil((double)numLabels / BLOCK_SIZE);
-        // count += 1;
 
         // call the compute kernel on device (deviceID)
         evaluate_gpu<<<nbBlocks, BLOCK_SIZE>>>(N, G, parents_d, labels_d, numLabels);
@@ -424,7 +367,6 @@ void nqueens_search(const int N, const int G, const int m, const int M, const in
   printf("Elapsed time: %f [s]\n", t3);
 
   printf("\nExploration terminated.\n");
-  // printf("Cuda kernel calls: %d\n", count);
 
   deleteSinglePool(&pool);
 }

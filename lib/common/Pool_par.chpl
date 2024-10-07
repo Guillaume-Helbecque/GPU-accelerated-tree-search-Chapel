@@ -44,6 +44,17 @@ module Pool_par
       }
     }
 
+    // Insertion to the end of the deque. Parallel-safety is not guaranteed.
+    proc ref pushBackFree(node: eltType) {
+      if (this.front + this.size >= this.capacity) {
+        this.capacity *= 2;
+        this.dom = {0..#this.capacity};
+      }
+
+      this.elements[this.front + this.size] = node;
+      this.size += 1;
+    }
+
     // Parallel-safe bulk insertion to the end of the deque.
     proc ref pushBackBulk(nodes: [] eltType) {
       const s = nodes.size;
