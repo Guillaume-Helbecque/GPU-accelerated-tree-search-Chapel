@@ -7,37 +7,9 @@ use Time;
 use Pool;
 use GpuDiagnostics;
 
+use NQueens_node;
+
 config const BLOCK_SIZE = 512;
-
-/*******************************************************************************
-Implementation of N-Queens Nodes.
-*******************************************************************************/
-
-config param MAX_QUEENS = 20;
-
-record Node {
-  var depth: uint(8);
-  var board: MAX_QUEENS*uint(8);
-
-  // default initializer
-  proc init() {};
-
-  // root initializer
-  proc init(const N: int) {
-    init this;
-    for i in 0..#N do this.board[i] = i:uint(8);
-  }
-
-  /*
-    NOTE: This copy-initializer makes the Node type "non-trivial" for `noinit`.
-    Perform manual copy in the code instead.
-  */
-  // copy initializer
-  /* proc init(other: Node) {
-    this.depth = other.depth;
-    this.board = other.board;
-  } */
-}
 
 /*******************************************************************************
 Implementation of the single-GPU N-Queens search.
@@ -114,10 +86,8 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref po
 }
 
 // Evaluate a bulk of parent nodes on GPU.
-proc evaluate_gpu(const parents_d: [] Node, const size)
+proc evaluate_gpu(const parents_d: [] Node, const size, ref labels_d)
 {
-  var labels: [0..#size] uint(8) = noinit;
-
   @assertOnGpu
   foreach threadId in 0..#size {
     const parentId = threadId / N;
@@ -139,11 +109,9 @@ proc evaluate_gpu(const parents_d: [] Node, const size)
                      pbi != queen_num + (depth - i));
         }
       }
-      labels[threadId] = isSafe;
+      labels_d[threadId] = isSafe;
     }
   }
-
-  return labels;
 }
 
 // Generate children nodes (evaluated on GPU) on CPU.
@@ -173,6 +141,8 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref la
 // Single-GPU N-Queens search.
 proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
+  const device = here.gpus[0];
+
   var root = new Node(N);
 
   var pool = new SinglePool(Node);
@@ -203,9 +173,11 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
       const numLabels = N * poolSize;
       var labels: [0..#numLabels] uint(8) = noinit;
 
-      on here.gpus[0] {
+      on device {
         const parents_d = parents; // host-to-device
-        labels = evaluate_gpu(parents_d, numLabels);
+        var labels_d: [0..#numLabels] uint(8) = noinit;
+        evaluate_gpu(parents_d, numLabels, labels_d);
+        labels = labels_d; // device-to-host
       }
 
       /*
