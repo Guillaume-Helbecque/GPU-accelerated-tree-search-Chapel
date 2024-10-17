@@ -563,7 +563,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
                         globalSteal = true;
                         /* nSSteal += 1; */
-                        victim.lock.write(false); // reset lock
+                        /* victim.lock.write(false); // reset lock */
                       }
 
                       victim.lock.write(false); // reset lock
