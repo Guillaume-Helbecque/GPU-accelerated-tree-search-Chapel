@@ -101,7 +101,7 @@ proc decompose_lb1(const lb1_data, const parent: Node, ref tree_loc: uint, ref n
       }
     } else { // if not leaf
       if (lowerbound < best) { // if child feasible
-        pool.pushBack(child);
+        pool.pushBackFree(child);
         tree_loc += 1;
       }
     }
@@ -133,7 +133,7 @@ proc decompose_lb1_d(const lb1_data, const parent: Node, ref tree_loc: uint, ref
         child.prmu = parent.prmu;
         child.prmu[parent.depth] <=> child.prmu[i];
 
-        pool.pushBack(child);
+        pool.pushBackFree(child);
         tree_loc += 1;
       }
     }
@@ -160,7 +160,7 @@ proc decompose_lb2(const lb1_data, const lb2_data, const parent: Node, ref tree_
       }
     } else { // if not leaf
       if (lowerbound < best) { // if child feasible
-        pool.pushBack(child);
+        pool.pushBackFree(child);
         tree_loc += 1;
       }
     }
@@ -316,7 +316,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   var root = new Node(jobs);
 
   var pool = new SinglePool_par(Node);
-  pool.pushBack(root);
+  pool.pushBackFree(root);
 
   var timer: stopwatch;
 
