@@ -643,7 +643,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 	}
       WS0:
 	// GLOBAL STEALING WORK ATTEMPTS
-	// Continuing Distributed Termination Detection
 	if (localSteal == false && numLocales != 1) {
 	  // global work atealing attemps
 	  if (taskState == false) {
