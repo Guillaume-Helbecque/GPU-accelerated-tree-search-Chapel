@@ -39,7 +39,7 @@ endif
 # HIP_OBJECTS      := $(HIP_SOURCES:hip.cu=hip.o)
 
 # Executable names
-EXECUTABLES := pfsp_c.out pfsp_gpu_cuda.out pfsp_multigpu_cuda.out pfsp_dist_multigpu_cuda.out pfsp_dist_dyn_multigpu_cuda.out pfsp_gpu_hip.out pfsp_multigpu_hip.out pfsp_dist_multigpu_hip.out
+EXECUTABLES := pfsp_c.out pfsp_gpu_cuda.out pfsp_multigpu_cuda.out pfsp_dist_multigpu_cuda.out pfsp_gpu_hip.out pfsp_multigpu_hip.out pfsp_dist_multigpu_hip.out
 
 # Build codes
 all: $(EXECUTABLES)
@@ -102,4 +102,4 @@ pfsp_dist_multigpu_hip.out: pfsp_dist_multigpu_hip.o $(LIBPATH)/c_taillard.o $(L
 .PHONY: clean
 
 clean:
-	rm -f *.out *.o *.hip $(LIBPATH)/*.o $(LIBPATH)/*.hip
+	rm -f *.out *.o *.hip *.dat $(LIBPATH)/*.o $(LIBPATH)/*.hip
