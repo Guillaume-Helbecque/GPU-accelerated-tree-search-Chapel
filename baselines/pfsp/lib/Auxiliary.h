@@ -9,11 +9,12 @@ extern "C" {
 #include <stdatomic.h>
 #include <stdlib.h>
 
+#define BUSY false
+#define IDLE true
+
 /******************************************************************************
 Auxiliary functions
 ******************************************************************************/
-
-bool _allIdle(_Atomic bool arr[], int size);
 
 bool allIdle(_Atomic bool arr[], int size, _Atomic bool *flag);
 

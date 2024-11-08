@@ -1,5 +1,5 @@
 /*
-  Distributed multi-GPU B&B to solve Taillard instances of the PFSP in C+CUDA+OpenMP+MPI.
+  Distributed multi-GPU B&B to solve Taillard instances of the PFSP in C+MPI+OpenMP+CUDA.
 */
 
 #include <stdio.h>
@@ -29,15 +29,15 @@ Create new MPI data type
 ******************************************************************************/
 
 void create_mpi_node_type(MPI_Datatype *mpi_node_type) {
-    int blocklengths[3] = {1, 1, MAX_JOBS};
-    MPI_Aint offsets[3];
-    offsets[0] = offsetof(Node, depth);
-    offsets[1] = offsetof(Node, limit1);
-    offsets[2] = offsetof(Node, prmu);
-    
-    MPI_Datatype types[3] = {MPI_UINT8_T, MPI_INT, MPI_INT};
-    MPI_Type_create_struct(3, blocklengths, offsets, types, mpi_node_type);
-    MPI_Type_commit(mpi_node_type);
+  int blocklengths[3] = {1, 1, MAX_JOBS};
+  MPI_Aint offsets[3];
+  offsets[0] = offsetof(Node, depth);
+  offsets[1] = offsetof(Node, limit1);
+  offsets[2] = offsetof(Node, prmu);
+
+  MPI_Datatype types[3] = {MPI_UINT8_T, MPI_INT, MPI_INT};
+  MPI_Type_create_struct(3, blocklengths, offsets, types, mpi_node_type);
+  MPI_Type_commit(mpi_node_type);
 }
 
 /******************************************************************************
@@ -52,11 +52,11 @@ void gpuAssert(cudaError_t code, const char *file, int line, bool abort) {
   }
 }
 
-/*******************************************************************************
-Implementation of the parallel Multi-GPU C+CUDA+OpenMP PFSP search.
-*******************************************************************************/
+/***********************************************************************************
+Implementation of the parallel Distributed Multi-GPU C+MPI+OpenMP+CUDA PFSP search.
+***********************************************************************************/
 
-void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* m, int *M, int *D)
+void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* m, int *M, int *D, double *perc)
 {
   *m = 25;
   *M = 50000;
@@ -64,11 +64,12 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
   *lb = 1;
   *ub = 1;
   *D = 1;
+  *perc = 0.5;
   /*
     NOTE: Only forward branching is considered because other strategies increase a
     lot the implementation complexity and do not add much contribution.
   */
-  
+
   // Define long options
   static struct option long_options[] = {
     {"inst", required_argument, NULL, 'i'},
@@ -77,76 +78,84 @@ void parse_parameters(int argc, char* argv[], int* inst, int* lb, int* ub, int* 
     {"m", required_argument, NULL, 'm'},
     {"M", required_argument, NULL, 'M'},
     {"D", required_argument, NULL, 'D'},
+    {"perc", required_argument, NULL, 'p'},
     {NULL, 0, NULL, 0} // Terminate options array
   };
 
   int opt, value;
   int option_index = 0;
 
-  while ((opt = getopt_long(argc, argv, "i:l:u:m:M:D:", long_options, &option_index)) != -1) {
+  while ((opt = getopt_long(argc, argv, "i:l:u:m:M:D:p:", long_options, &option_index)) != -1) {
     value = atoi(optarg);
 
     switch (opt) {
     case 'i':
       if (value < 1 || value > 120) {
-	fprintf(stderr, "Error: unsupported Taillard's instance\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Error: unsupported Taillard's instance\n");
+        exit(EXIT_FAILURE);
       }
       *inst = value;
       break;
 
     case 'l':
       if (value < 0 || value > 2) {
-	fprintf(stderr, "Error: unsupported lower bound function\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Error: unsupported lower bound function\n");
+        exit(EXIT_FAILURE);
       }
       *lb = value;
       break;
 
     case 'u':
       if (value != 0 && value != 1) {
-	fprintf(stderr, "Error: unsupported upper bound initialization\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Error: unsupported upper bound initialization\n");
+        exit(EXIT_FAILURE);
       }
       *ub = value;
       break;
 
     case 'm':
       if (value < 1) {
-	fprintf(stderr, "Error: unsupported minimal pool for GPU initialization\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Error: unsupported minimal pool for GPU initialization\n");
+        exit(EXIT_FAILURE);
       }
       *m = value;
       break;
 
     case 'M':
       if (value < *m) {
-	fprintf(stderr, "Error: unsupported maximal pool for GPU initialization\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Error: unsupported maximal pool for GPU initialization\n");
+        exit(EXIT_FAILURE);
       }
       *M = value;
       break;
 
     case 'D':
       if (value < 0) {
-	fprintf(stderr, "Error: unsupported number of GPU's\n");
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "Error: unsupported number of GPU(s)\n");
+        exit(EXIT_FAILURE);
       }
       *D = value;
       break;
 
+    case 'p':
+      if (value <= 0 || value > 100) {
+        fprintf(stderr, "Error: unsupported WS percentage for popFrontBulkFree\n");
+        exit(EXIT_FAILURE);
+      }
+      *perc = (double)value/100;
+      break;
+
     default:
-      fprintf(stderr, "Usage: %s --inst <value> --lb <value> --ub <value> --m <value> --M <value> --D <value>\n", argv[0]);
+      fprintf(stderr, "Usage: %s --inst <value> --lb <value> --ub <value> --m <value> --M <value> --D <value> --perc <value>\n", argv[0]);
       exit(EXIT_FAILURE);
     }
   }
 }
 
- 
-void print_settings(const int inst, const int machines, const int jobs, const int ub, const int lb, const int D, const int numLocales)
+void print_settings(const int inst, const int machines, const int jobs, const int ub, const int lb, const int D, const int numProcs)
 {
   printf("\n=================================================\n");
-  printf("Distributed multi-GPU C+CUDA+OpenMP+MPI %d thread(s) %d GPU(s)\n\n", numLocales, D);
+  printf("Distributed multi-GPU C+MPI+OpenMP+CUDA (%d MPI processes x %d GPUs)\n\n", numProcs, D);
   printf("Resolution of PFSP Taillard's instance: ta%d (m = %d, n = %d)\n", inst, machines, jobs);
   if (ub == 0) printf("Initial upper bound: inf\n");
   else /* if (ub == 1) */ printf("Initial upper bound: opt\n");
@@ -158,7 +167,7 @@ void print_settings(const int inst, const int machines, const int jobs, const in
 }
 
 void print_results(const int optimum, const unsigned long long int exploredTree,
-		   const unsigned long long int exploredSol, const double timer)
+  const unsigned long long int exploredSol, const double timer)
 {
   printf("\n=================================================\n");
   printf("Size of the explored tree: %llu\n", exploredTree);
@@ -169,12 +178,12 @@ void print_results(const int optimum, const unsigned long long int exploredTree,
   printf("=================================================\n");
 }
 
-void print_results_file(const int inst, const int machines, const int jobs, const int lb, const int D, const int numLocales, const int optimum,
-			const unsigned long long int exploredTree, const unsigned long long int exploredSol, const double timer)
+void print_results_file(const int inst, const int machines, const int jobs, const int lb, const int D, const int commSize, const int optimum,
+  const unsigned long long int exploredTree, const unsigned long long int exploredSol, const double timer)
 {
   FILE *file;
   file = fopen("stats_pfsp_dist_multigpu_cuda.dat","a");
-  fprintf(file,"ta%d lb%d %dthreads %dGPU %.4f %llu %llu %d\n",inst,lb,numLocales,D,timer,exploredTree,exploredSol,optimum);
+  fprintf(file,"ta%d lb%d %dthreads %dGPU %.4f %llu %llu %d\n",inst,lb,commSize,D,timer,exploredTree,exploredSol,optimum);
   fclose(file);
   return;
 }
@@ -188,7 +197,7 @@ inline void swap(int* a, int* b)
 
 // Evaluate and generate children nodes on CPU.
 void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const Node parent,
-		   int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool_ext* pool)
+  int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool_ext* pool)
 {
   for (int i = parent.limit1+1; i < jobs; i++) {
     Node child;
@@ -215,7 +224,7 @@ void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const No
 }
 
 void decompose_lb1_d(const int jobs, const lb1_bound_data* const lbound1, const Node parent,
-		     int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool_ext* pool)
+  int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool_ext* pool)
 {
   int* lb_begin = (int*)malloc(jobs * sizeof(int));
 
@@ -249,8 +258,8 @@ void decompose_lb1_d(const int jobs, const lb1_bound_data* const lbound1, const 
 }
 
 void decompose_lb2(const int jobs, const lb1_bound_data* const lbound1, const lb2_bound_data* const lbound2,
-		   const Node parent, int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol,
-		   SinglePool_ext* pool)
+  const Node parent, int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol,
+  SinglePool_ext* pool)
 {
   for (int i = parent.limit1+1; i < jobs; i++) {
     Node child;
@@ -304,37 +313,37 @@ void generate_children(Node* parents, const int size, const int jobs, int* bound
       const int lowerbound = bounds[j + i * jobs];
 
       // If child leaf
-      if(depth + 1 == jobs){
-	*exploredSol += 1;
+      if (depth + 1 == jobs) {
+        *exploredSol += 1;
 
-	// If child feasible
-	if(lowerbound < *best) *best = lowerbound;
+        // If child feasible
+        if (lowerbound < *best) *best = lowerbound;
 
       } else { // If not leaf
-	if(lowerbound < *best) {
-	  Node child;
-	  memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
-	  swap(&child.prmu[depth], &child.prmu[j]);
-	  child.depth = depth + 1;
-	  child.limit1 = parent.limit1 + 1;
-	  
-	  pushBack(pool, child);
-	  *exploredTree += 1;
-	}
+        if (lowerbound < *best) {
+          Node child;
+          memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
+          swap(&child.prmu[depth], &child.prmu[j]);
+          child.depth = depth + 1;
+          child.limit1 = parent.limit1 + 1;
+
+          pushBack(pool, child);
+          *exploredTree += 1;
+        }
       }
     }
   }
 }
 
-// Single-GPU PFSP search
-void pfsp_search(const int inst, const int lb, const int m, const int M, const int D, int* best,
-		 unsigned long long int* exploredTree, unsigned long long int* exploredSol,
-		 double* elapsedTime, int locID, int numLocales)
+// Distributed Multi-GPU PFSP search
+void pfsp_search(const int inst, const int lb, const int m, const int M, const int D, double perc,
+  int* best, unsigned long long int* exploredTree, unsigned long long int* exploredSol,
+  double* elapsedTime, int MPIRank, int commSize)
 {
   // New MPI data type corresponding to Node
   MPI_Datatype myNode;
   create_mpi_node_type(&myNode);
-  
+
   // Initializing problem
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
@@ -344,96 +353,88 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   initRoot(&root, jobs);
 
   SinglePool_ext pool;
-  initSinglePool(&pool);
+  initSinglePool_ext(&pool);
 
   pushBack(&pool, root);
- 
+
   // Timer
   double startTime, endTime;
   startTime = omp_get_wtime();
-  
-  // Bounding data (unchanged data)
+
+  // Bounding data (constant data)
   lb1_bound_data* lbound1;
   lbound1 = new_bound_data(jobs, machines);
   taillard_get_processing_times(lbound1->p_times, inst);
   fill_min_heads_tails(lbound1);
-    
+
   lb2_bound_data* lbound2;
   lbound2 = new_johnson_bd_data(lbound1);
   fill_machine_pairs(lbound2/*, LB2_FULL*/);
   fill_lags(lbound1->p_times, lbound2);
   fill_johnson_schedules(lbound1->p_times, lbound2);
 
-  // TO DO: Do step 1 only at master thread ??
+  // TODO: Do step 1 only for master thread?
   /*
     Step 1: We perform a partial breadth-first search on CPU in order to create
     a sufficiently large amount of work for GPU computation.
   */
-  
-  while(pool.size < numLocales*D*m) {
-    // CPU side
+  while (pool.size < commSize*D*m) {
     int hasWork = 0;
-    Node parent = popFront(&pool, &hasWork);
+    Node parent = popFrontFree(&pool, &hasWork);
     if (!hasWork) break;
-    
-    decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree,
-	      exploredSol, &pool);
+
+    decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
   }
 
   endTime = omp_get_wtime();
   double t1, t1Temp = endTime - startTime;
   MPI_Reduce(&t1Temp, &t1, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-  
-  if (locID == 0)
-    {  
-      printf("Initial search on CPU completed\n");
-      printf("Size of the explored tree: %llu\n", *exploredTree);
-      printf("Number of explored solutions: %llu\n", *exploredSol);
-      printf("Elapsed time: %f [s]\n", t1);
-    }
 
-  // MPI_Barrier(MPI_COMM_WORLD); (comment because of reduce above)
+  if (MPIRank == 0) {
+    printf("\nInitial search on CPU completed\n");
+    printf("Size of the explored tree: %llu\n", *exploredTree);
+    printf("Number of explored solutions: %llu\n", *exploredSol);
+    printf("Elapsed time: %f [s]\n", t1);
+  }
 
   /*
     Step 2: We continue the search on GPU in a depth-first manner, until there
     is not enough work.
   */
- 
   startTime = omp_get_wtime();
 
   const int poolSize = pool.size;
-  const int c = poolSize / numLocales;
-  const int l = poolSize - (numLocales-1)*c;
+  const int c = poolSize / commSize;
+  const int l = poolSize - (commSize-1)*c;
   const int f = pool.front;
-  
+
   pool.front = 0;
   pool.size = 0;
-  
-  // For every MPI thread
+
+  // For every MPI process
   unsigned long long int eachLocaleExploredTree=0, eachLocaleExploredSol=0;
   int eachLocaleBest = *best;
 
-  // For GPUs under each MPI thread
+  // For GPUs under each MPI process
   unsigned long long int eachExploredTree[D], eachExploredSol[D];
   int eachBest[D];
 
   SinglePool_ext pool_lloc;
-  initSinglePool(&pool_lloc);
-  
-  // each locale gets its chunk
-  // locID is the same as rank
+  initSinglePool_ext(&pool_lloc);
+
+  // each MPI process gets its chunk
   for (int i = 0; i < c; i++) {
-    pool_lloc.elements[i] = pool.elements[locID+f+i*numLocales];
+    pool_lloc.elements[i] = pool.elements[MPIRank+f+i*commSize];
   }
   pool_lloc.size += c;
-  if (locID == numLocales-1) {
+  if (MPIRank == commSize-1) {
     for (int i = c; i < l; i++) {
-      pool_lloc.elements[i] = pool.elements[(numLocales*c)+f+i-c];
+      pool_lloc.elements[i] = pool.elements[(commSize*c)+f+i-c];
     }
     pool_lloc.size += l-c;
   }
 
-  // Variables for GPUs under control of each MPI thread
+  // Variables for GPUs under each MPI process
   const int poolSize_l = pool_lloc.size;
   const int c_l = poolSize_l / D;
   const int l_l = poolSize_l - (D-1)*c_l;
@@ -441,30 +442,31 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
   pool_lloc.front = 0;
   pool_lloc.size = 0;
-  
-  SinglePool_ext multiPool[D];
-  for(int i = 0; i < D; i++)
-    initSinglePool(&multiPool[i]);
 
-  // Boolean variables for dynamic workload balance
+  SinglePool_ext multiPool[D];
+  for (int i = 0; i < D; i++)
+    initSinglePool_ext(&multiPool[i]);
+
+  // Boolean variables for termination detection
   _Atomic bool allTasksIdleFlag = false;
   _Atomic bool eachTaskState[D]; // one task per GPU
-  for(int i = 0; i < D; i++)
-    atomic_store(&eachTaskState[i],false);
+  for (int i = 0; i < D; i++)
+    atomic_store(&eachTaskState[i], BUSY);
 
-  //int best_l = *best;
+  // TODO: Implement OpenMP reduction to variables best_l, eachExploredTree, eachExploredSol
+  // int best_l = *best;
 
-#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool_lloc, multiPool, lbound1, lbound2) //reduction(min:best_l)
+  #pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, pool_lloc, multiPool, lbound1, lbound2) //reduction(min:best_l)
   for (int gpuID = 0; gpuID < D; gpuID++) {
     cudaSetDevice(gpuID);
-    
+
     int nSteal = 0, nSSteal = 0;
-    
+
     unsigned long long int tree = 0, sol = 0;
     SinglePool_ext* pool_loc;
-    pool_loc = &multiPool[gpuID]; 
+    pool_loc = &multiPool[gpuID];
     int best_l = *best;
-    bool taskState = false;
+    bool taskState = BUSY;
     bool expected = false;
 
     // each task gets its chunk
@@ -478,7 +480,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       }
       pool_loc->size += l_l-c_l;
     }
-    
+
     // TODO: add function 'copyBoundsDevice' to perform the deep copy of bounding data
     // Vectors for deep copy of lbound1 to device
     lb1_bound_data lbound1_d;
@@ -531,123 +533,121 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     lbound2_d.nb_machine_pairs = lbound2->nb_machine_pairs;
     lbound2_d.nb_jobs = lbound2->nb_jobs;
     lbound2_d.nb_machines = lbound2->nb_machines;
-    
+
     // Allocating parents vector on CPU and GPU
     Node* parents = (Node*)malloc(M * sizeof(Node));
     Node* parents_d;
     cudaMalloc((void**)&parents_d, M * sizeof(Node));
-    
+
     // Allocating bounds vector on CPU and GPU
     int* bounds = (int*)malloc((jobs*M) * sizeof(int));
     int *bounds_d;
     cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
 
     while (1) {
-      // Dynamic workload balance
       /*
-	Each task gets its parenst nodes from the pool
+        Each task gets its parenst nodes from the pool
       */
-
       int poolSize = popBackBulk(pool_loc, m, M, parents);
-      
+
       if (poolSize > 0) {
-        if (taskState == true) {
-          taskState = false;
-          atomic_store(&eachTaskState[gpuID],false);
+        if (taskState == IDLE) {
+          taskState = BUSY;
+          atomic_store(&eachTaskState[gpuID], BUSY);
         }
-      
-	/*
-	  TODO: Optimize 'numBounds' based on the fact that the maximum number of
-	  generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
-	  something like that.
-	*/
-	const int numBounds = jobs * poolSize;   
-	const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
 
-	cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
+        /*
+          TODO: Optimize 'numBounds' based on the fact that the maximum number of
+          generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
+          something like that.
+        */
+        const int numBounds = jobs * poolSize;
+        const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
 
-	// numBounds is the 'size' of the problem
- 	evaluate_gpu(jobs, lb, numBounds, nbBlocks, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d);
+        cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
 
-	cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
+        // numBounds is the 'size' of the problem
+        evaluate_gpu(jobs, lb, numBounds, nbBlocks, &best_l, lbound1_d, lbound2_d, parents_d, bounds_d);
 
-	/*
-	  each task generates and inserts its children nodes to the pool.
-	*/
-	generate_children(parents, poolSize, jobs, bounds, &tree, &sol, &best_l, pool_loc);
+        cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
+
+        /*
+          Each task generates and inserts its children nodes to the pool.
+        */
+        generate_children(parents, poolSize, jobs, bounds, &tree, &sol, &best_l, pool_loc);
       }
       else {
         // local work stealing
-	int tries = 0;
+        int tries = 0;
         bool steal = false;
-	int victims[D];
-	permute(victims,D);
-	
-        while (tries < D && steal == false) { //WS0 loop
+        int victims[D];
+        permute(victims, D);
+
+        while (tries < D && steal == false) { // WS0 loop
           const int victimID = victims[tries];
-	  
+
           if (victimID != gpuID) { // if not me
             SinglePool_ext* victim;
-	    victim = &multiPool[victimID];
+            victim = &multiPool[victimID];
             nSteal ++;
             int nn = 0;
-	    int count = 0;
-            while (nn < 10) { //WS1 loop
-	      expected = false;
-	      count++;
-	      if (atomic_compare_exchange_strong(&(victim->lock), &expected, true)){ // get the lock
-		int size = victim->size;
-		int nodeSize = 0;
-		
-		if (size >= 2*m) {
-		  Node* p = popBackBulkFree(victim, m, M, &nodeSize); // NO atomic_store inside
-		  
-		  if (size == 0) { // safety check
-		    atomic_store(&(victim->lock), false); // reset lock
-		    printf("\nDEADCODE\n");
-		    exit(-1);
-		  }
-		  
-		  /* for i in 0..#(size/2) {
-		     pool_loc.pushBack(p[i]);
-		     } */
+            int count = 0;
+            while (nn < 10) { // WS1 loop
+              expected = false;
+              count++;
+              if (atomic_compare_exchange_strong(&(victim->lock), &expected, true)) { // get the lock
+                int size = victim->size;
+                int nodeSize = 0;
 
-		  pushBackBulk(pool_loc, p, nodeSize); // atomic_store inside
-	
-		  steal = true;
-		  nSSteal++;
-		  atomic_store(&(victim->lock), false); // reset lock
-		  goto WS0; // Break out of WS0 loop
-		}
+                if (size >= 2*m) {
+                  Node* p = popBackBulkFree(victim, m, M, &nodeSize);
 
-		atomic_store(&(victim->lock), false);// reset lock
-		break; // Break out of WS1 loop
-	      }
-	      
-	      nn ++;
-	    }
-	  }
-	  
-	  tries ++;
-	}
+                  if (nodeSize == 0) { // safety check
+                    atomic_store(&(victim->lock), false); // reset lock
+                    printf("\nDEADCODE\n");
+                    exit(-1);
+                  }
+
+                  /* for i in 0..#(size/2) {
+                    pool_loc.pushBack(p[i]);
+                  } */
+
+                  pushBackBulk(pool_loc, p, nodeSize);
+
+                  steal = true;
+                  nSSteal++;
+                  atomic_store(&(victim->lock), false); // reset lock
+                  goto WS0; // Break out of WS0 loop
+                }
+
+                atomic_store(&(victim->lock), false);// reset lock
+                break; // Break out of WS1 loop
+              }
+
+              nn ++;
+            }
+          }
+
+          tries ++;
+        }
+
       WS0:
-
-	if (steal == false) {
-	  // termination
-	  if (taskState == false) {
-	    taskState = true;
-	    atomic_store(&eachTaskState[gpuID],true);
-	  }
-	  if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
-	    break;
-	  }
-	  continue;
-	} else {
-	  continue;
-	}
+        if (steal == false) {
+          // termination
+          if (taskState == BUSY) {
+            taskState = IDLE;
+            atomic_store(&eachTaskState[gpuID], IDLE);
+          }
+          if (allIdle(eachTaskState, D, &allTasksIdleFlag)) {
+            break;
+          }
+          continue;
+        } else {
+          continue;
+        }
       }
     }
-    
+
     // OpenMP environment freeing variables
     cudaFree(parents_d);
     cudaFree(bounds_d);
@@ -662,14 +662,14 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     free(parents);
     free(bounds);
 
-#pragma omp critical
+    #pragma omp critical
     {
       const int poolLocSize = pool_loc->size;
       for (int i = 0; i < poolLocSize; i++) {
-	int hasWork = 0;
-	
-	pushBack(&pool_lloc, popBack(pool_loc, &hasWork));
-	if (!hasWork) break;
+        int hasWork = 0;
+
+        pushBack(&pool_lloc, popBack(pool_loc, &hasWork));
+        if (!hasWork) break;
       }
     }
 
@@ -694,15 +694,15 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     eachLocaleExploredTree += eachExploredTree[i];
     eachLocaleExploredSol += eachExploredSol[i];
   }
-  eachLocaleBest = findMin(eachBest,D);
-  
+  eachLocaleBest = findMin(eachBest, D);
+
   // MPI
   unsigned long long int midExploredTree = 0, midExploredSol = 0;
   MPI_Reduce(&eachLocaleExploredTree, &midExploredTree, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&eachLocaleExploredSol, &midExploredSol, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&eachLocaleBest, best, 1, MPI_INT, MPI_MIN, 0, MPI_COMM_WORLD);
 
-  if (locID == 0){
+  if (MPIRank == 0) {
     *exploredTree += midExploredTree;
     *exploredSol += midExploredSol;
   }
@@ -710,88 +710,83 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   // Gather data from all processes for printing GPU workload statistics
   unsigned long long int *allExploredTrees = NULL;
   unsigned long long int *allExploredSols = NULL;
-  unsigned long long int *allEachExploredTrees = NULL;  // For eachExploredTree array
-  if (locID == 0) {
-    allExploredTrees = (unsigned long long int *)malloc(numLocales * sizeof(unsigned long long int));
-    allExploredSols = (unsigned long long int *)malloc(numLocales * sizeof(unsigned long long int));
-    allEachExploredTrees = (unsigned long long int *)malloc(numLocales * D * sizeof(unsigned long long int));
+  unsigned long long int *allEachExploredTrees = NULL; // For eachExploredTree array
+  if (MPIRank == 0) {
+    allExploredTrees = (unsigned long long int *)malloc(commSize * sizeof(unsigned long long int));
+    allExploredSols = (unsigned long long int *)malloc(commSize * sizeof(unsigned long long int));
+    allEachExploredTrees = (unsigned long long int *)malloc(commSize * D * sizeof(unsigned long long int));
   }
-  
+
   MPI_Gather(&eachLocaleExploredTree, 1, MPI_UNSIGNED_LONG_LONG, allExploredTrees, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
   MPI_Gather(&eachLocaleExploredSol, 1, MPI_UNSIGNED_LONG_LONG, allExploredSols, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
-  
+
   // Gather eachExploredTree array from all processes
   MPI_Gather(eachExploredTree, D, MPI_UNSIGNED_LONG_LONG, allEachExploredTrees, D, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
-  
+
   // Update GPU
-  if (locID == 0)
-    {
-      printf("\nSearch on GPU completed\n");
-      printf("Size of the explored tree: %llu\n", *exploredTree);
-      printf("Per thread: ");
-      for(int i = 0; i < numLocales; i++)
-	printf("t[%d] = %llu  ", i, allExploredTrees[i]);
+  if (MPIRank == 0) {
+    printf("\nSearch on GPU completed\n");
+    printf("Size of the explored tree: %llu\n", *exploredTree);
+    printf("  Per MPI process: ");
+    for(int i = 0; i < commSize; i++)
+      printf("%d = %llu ", i, allExploredTrees[i]);
+    printf("\n");
+    printf("Number of explored solutions: %llu\n", *exploredSol);
+    printf("  Per MPI process: ");
+    for(int i = 0; i < commSize; i++)
+      printf("%d = %llu ", i, allExploredSols[i]);
+    printf("\n");
+    printf("Best solution found: %d\n", *best);
+    printf("Elapsed time: %f [s]\n\n", t2);
+    printf("Workload per GPU per MPI process: \n");
+    for(int i = 0; i < commSize; i++){
+      printf("  Process %d: ", i);
+      for(int gpuID = 0; gpuID < D; gpuID++)
+        printf("%.2f ", (double) 100 * allEachExploredTrees[i*D + gpuID]/((double) *exploredTree));
       printf("\n");
-      printf("Number of explored solutions: %llu\n", *exploredSol);
-      printf("Per thread: ");
-      for(int i = 0; i < numLocales; i++)
-	printf("t[%d] = %llu  ", i, allExploredSols[i]);
-      printf("\n");
-      printf("Best solution found: %d\n", *best);
-      printf("Elapsed time: %f [s]\n\n", t2);
-      printf("Workload per GPU per thread: \n");
-      for(int i = 0; i < numLocales; i++){
-	printf("thread[%d]: ", i);
-	for(int gpuID = 0; gpuID < D; gpuID++)
-	  printf("%.2f ", (double) 100 * allEachExploredTrees[i*D + gpuID]/((double) *exploredTree));
-	printf("\n");
-      }
     }
+  }
 
   // Gathering remaining nodes
   int *recvcounts = NULL;
   int *displs = NULL;
   int totalSize = 0;
 
-  if (locID == 0) {
-    recvcounts = (int *)malloc(numLocales * sizeof(int));
-    displs = (int *)malloc(numLocales * sizeof(int));
+  if (MPIRank == 0) {
+    recvcounts = (int *)malloc(commSize * sizeof(int));
+    displs = (int *)malloc(commSize * sizeof(int));
   }
 
   MPI_Gather(&pool_lloc.size, 1, MPI_INT, recvcounts, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-  if (locID == 0) {
+  if (MPIRank == 0) {
     displs[0] = 0;
-    for (int i = 0; i < numLocales; i++) {
+    for (int i = 0; i < commSize; i++) {
       totalSize += recvcounts[i];
       if (i > 0) {
-	displs[i] = displs[i - 1] + recvcounts[i - 1];
+        displs[i] = displs[i - 1] + recvcounts[i - 1];
       }
     }
   }
 
   // Master process receiving data from Gather operation
   Node *masterNodes = NULL;
-  if(locID == 0) {
+  if (MPIRank == 0) {
     masterNodes = (Node *)malloc(totalSize * sizeof(Node));
   }
 
-  MPI_Gatherv(pool_lloc.elements, pool_lloc.size, myNode, 
-	      masterNodes, recvcounts, displs, myNode, 0, MPI_COMM_WORLD);
+  MPI_Gatherv(pool_lloc.elements, pool_lloc.size, myNode,
+    masterNodes, recvcounts, displs, myNode, 0, MPI_COMM_WORLD);
 
-  if (locID == 0) {
+  if (MPIRank == 0) {
     for(int i = 0; i < totalSize; i++)
-      pushBack(&pool,masterNodes[i]);
+      pushBack(&pool, masterNodes[i]);
   }
-  
-  //Checking info after pushBack on each thread
-  //printf("thread[%d] After pushBack pool.size= %d\n",locID, pool.size);
-  
+
   /*
     Step 3: We complete the depth-first search on CPU.
   */
-  
-  if (locID == 0){
+  if (MPIRank == 0) {
     int count = 0;
     startTime = omp_get_wtime();
     while (1) {
@@ -801,22 +796,19 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
       decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
       count++;
     }
-    //printf("After decompose Size of the explored tree: %llu\n", *exploredTree);
-    //printf("After decompose Number of explored solutions: %llu\n", *exploredSol);
-    //printf("thread[%d] Step 3 after break while count = %d\n",locID, count);
   }
-  
-  // freeing memory for structs common to all MPI threads
+
+  // freeing memory for structs common to all MPI processes
   deleteSinglePool_ext(&pool);
   deleteSinglePool_ext(&pool_lloc);
   free_bound_data(lbound1);
   free_johnson_bd_data(lbound2);
-  
-  if(locID == 0){
+
+  if (MPIRank == 0) {
     free(recvcounts);
     free(displs);
     free(masterNodes);
-    
+
     endTime = omp_get_wtime();
     double t3 = endTime - startTime;
     *elapsedTime = t1 + t2 + t3;
@@ -824,7 +816,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     printf("Size of the explored tree: %llu\n", *exploredTree);
     printf("Number of explored solutions: %llu\n", *exploredSol);
     printf("Elapsed time: %f [s]\n", t3);
-    
+
     printf("\nExploration terminated.\n");
   }
 
@@ -834,40 +826,38 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
 int main(int argc, char* argv[])
 {
-
   MPI_Init(&argc, &argv);
 
-  int rank, size;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
-  
+  int MPIRank, commSize;
+  MPI_Comm_rank(MPI_COMM_WORLD, &MPIRank);
+  MPI_Comm_size(MPI_COMM_WORLD, &commSize);
+
   srand(time(NULL));
-  
+
   int inst, lb, ub, m, M, D;
-  parse_parameters(argc, argv, &inst, &lb, &ub, &m, &M, &D);
-    
+  double perc;
+  parse_parameters(argc, argv, &inst, &lb, &ub, &m, &M, &D, &perc);
+
   int jobs = taillard_get_nb_jobs(inst);
   int machines = taillard_get_nb_machines(inst);
 
-  if (rank == 0)
-    print_settings(inst, machines, jobs, ub, lb, D, size);
+  if (MPIRank == 0)
+    print_settings(inst, machines, jobs, ub, lb, D, commSize);
 
   int optimum = (ub == 1) ? taillard_get_best_ub(inst) : INT_MAX;
   unsigned long long int exploredTree = 0;
   unsigned long long int exploredSol = 0;
 
   double elapsedTime;
-  
-  pfsp_search(inst, lb, m, M, D, &optimum, &exploredTree, &exploredSol, &elapsedTime, rank, size);
 
-  if (rank == 0)
-    {
-      print_results(optimum, exploredTree, exploredSol, elapsedTime);
-      
-      print_results_file(inst, machines, jobs, lb, D, size, optimum, exploredTree, exploredSol, elapsedTime);
-    }
-  
+  pfsp_search(inst, lb, m, M, D, perc, &optimum, &exploredTree, &exploredSol, &elapsedTime, MPIRank, commSize);
+
+  if (MPIRank == 0) {
+    print_results(optimum, exploredTree, exploredSol, elapsedTime);
+    print_results_file(inst, machines, jobs, lb, D, commSize, optimum, exploredTree, exploredSol, elapsedTime);
+  }
+
   MPI_Finalize();
-  
+
   return 0;
 }

@@ -6,35 +6,7 @@ use Time;
 
 use Pool;
 
-/*******************************************************************************
-Implementation of N-Queens Nodes.
-*******************************************************************************/
-
-config param MAX_QUEENS = 20;
-
-record Node {
-  var depth: uint(8);
-  var board: MAX_QUEENS*uint(8);
-
-  // default initializer
-  proc init() {};
-
-  // root initializer
-  proc init(const N: int) {
-    init this;
-    for i in 0..#N do this.board[i] = i:uint(8);
-  }
-
-  /*
-    NOTE: This copy-initializer makes the Node type "non-trivial" for `noinit`.
-    Perform manual copy in the code instead.
-  */
-  // copy initializer
-  /* proc init(other: Node) {
-    this.depth = other.depth;
-    this.board = other.board;
-  } */
-}
+use NQueens_node;
 
 /*******************************************************************************
 Implementation of the sequential N-Queens search.
@@ -42,12 +14,10 @@ Implementation of the sequential N-Queens search.
 
 config const N = 14;
 config const g = 1;
-config const m = 25;
-config const M = 50000;
 
 proc check_parameters()
 {
-  if ((N <= 0) || (g <= 0) || (m <= 0) || (M <= 0)) {
+  if ((N <= 0) || (g <= 0)) {
     halt("All parameters must be positive integers.\n");
   }
 }

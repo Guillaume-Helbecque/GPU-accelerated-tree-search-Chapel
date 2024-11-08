@@ -16,7 +16,7 @@ Extension of the "Pool" data structure ensuring parallel-safety and supporting
 bulk operations.
 *******************************************************************************/
 
-#define CAPACITY 1024
+#define INITIAL_CAPACITY 1024
 
 typedef struct
 {
@@ -27,7 +27,7 @@ typedef struct
   _Atomic bool lock;
 } SinglePool_ext;
 
-void initSinglePool(SinglePool_ext* pool);
+void initSinglePool_ext(SinglePool_ext* pool);
 
 void pushBack(SinglePool_ext* pool, Node node);
 
@@ -41,7 +41,7 @@ int popBackBulk(SinglePool_ext* pool, const int m, const int M, Node* parents);
 
 Node* popBackBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize);
 
-Node popFront(SinglePool_ext* pool, int* hasWork);
+Node popFrontFree(SinglePool_ext* pool, int* hasWork);
 
 Node* popFrontBulkFree(SinglePool_ext* pool, const int m, const int M, int* poolSize, double perc);
 
