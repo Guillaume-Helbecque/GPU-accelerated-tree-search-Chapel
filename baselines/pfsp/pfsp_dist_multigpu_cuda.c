@@ -514,9 +514,10 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     // TODO: Implement OpenMP reduction to variables best_l, eachExploredTree, eachExploredSol
     // int best_l = *best;
 
-#pragma omp parallel for num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, globalTerminationFlag, pool_lloc, multiPool, lbound1, lbound2) // reduction(min:best_l)
-  for (int gpuID = 0; gpuID < D; gpuID++)
+#pragma omp parallel num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, globalTerminationFlag, pool_lloc, multiPool, lbound1, lbound2) // reduction(min:best_l)
+  //for (int gpuID = 0; gpuID < D; gpuID++)
   {
+    int gpuID = omp_get_thread_num();
     cudaSetDevice(gpuID);
 
     int nSteal = 0, nSSteal = 0;
@@ -802,8 +803,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
               atomic_store(&eachLocaleState, IDLE);
             }
             // break;
-            if (gpuID == 0)
-            // #pragma omp single
+            //if (gpuID == 0)
+            #pragma omp single
             {
               bool *allLocaleStateTemp = (bool *)malloc(commSize * sizeof(bool));
               bool eachLocaleStateTemp = atomic_load(&eachLocaleState);
