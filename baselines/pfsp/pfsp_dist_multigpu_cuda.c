@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
@@ -39,6 +40,23 @@ void create_mpi_node_type(MPI_Datatype *mpi_node_type)
   MPI_Datatype types[3] = {MPI_UINT8_T, MPI_INT, MPI_INT};
   MPI_Type_create_struct(3, blocklengths, offsets, types, mpi_node_type);
   MPI_Type_commit(mpi_node_type);
+}
+
+void create_mpi_singlepool_type(MPI_Datatype mpi_node_type, MPI_Datatype *mpi_singlepool_type)
+{
+  int blocklengths[4] = {1, 1, 1, 1}; // Block lengths for each field
+  MPI_Aint offsets[4];                // Offsets of each field in SinglePool_ext
+  MPI_Datatype types[4] = {MPI_INT, MPI_INT, MPI_INT, MPI_C_BOOL};
+
+  // Compute offsets for each struct member
+  offsets[0] = offsetof(SinglePool_ext, capacity);
+  offsets[1] = offsetof(SinglePool_ext, front);
+  offsets[2] = offsetof(SinglePool_ext, size);
+  offsets[3] = offsetof(SinglePool_ext, lock);
+
+  // Create the MPI datatype for SinglePool_ext
+  MPI_Type_create_struct(4, blocklengths, offsets, types, mpi_singlepool_type);
+  MPI_Type_commit(mpi_singlepool_type);
 }
 
 /******************************************************************************
@@ -387,8 +405,9 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
                  double *elapsedTime, int MPIRank, int commSize)
 {
   // New MPI data type corresponding to Node
-  MPI_Datatype myNode;
+  MPI_Datatype myNode, mySinglePoolExt;
   create_mpi_node_type(&myNode);
+  create_mpi_singlepool_type(myNode, &mySinglePoolExt);
 
   // Initializing problem
   int jobs = taillard_get_nb_jobs(inst);
@@ -508,19 +527,29 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
   _Atomic bool globalTerminationFlag = false;
   _Atomic bool allTasksIdleFlag = false;
   _Atomic bool eachTaskState[D]; // one task per GPU
+  int lock_flag[D];
   for (int i = 0; i < D; i++)
+  {
     atomic_store(&eachTaskState[i], BUSY);
+    lock_flag[i] = 0;
+  }
 
-    // TODO: Implement OpenMP reduction to variables best_l, eachExploredTree, eachExploredSol
-    // int best_l = *best;
+  // Windows for exclusive access of the multiPool variable and lock flags
+  MPI_Win win;
+  MPI_Win_create(multiPool, D * sizeof(SinglePool_ext), sizeof(SinglePool_ext), MPI_INFO_NULL, MPI_COMM_WORLD, &win);
 
-#pragma omp parallel num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, globalTerminationFlag, pool_lloc, multiPool, lbound1, lbound2) // reduction(min:best_l)
-  //for (int gpuID = 0; gpuID < D; gpuID++)
+  MPI_Win lock_win;
+  MPI_Win_create(lock_flag, D * sizeof(int), sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, &lock_win);
+
+  // TODO: Implement OpenMP reduction to variables best_l, eachExploredTree, eachExploredSol
+
+#pragma omp parallel num_threads(D) shared(eachExploredTree, eachExploredSol, eachBest, eachTaskState, lock_flag, globalTerminationFlag, pool_lloc, multiPool, lbound1, lbound2) // reduction(min:best_l)
+  // for (int gpuID = 0; gpuID < D; gpuID++)
   {
     int gpuID = omp_get_thread_num();
     cudaSetDevice(gpuID);
 
-    int nSteal = 0, nSSteal = 0;
+    int nSteal = 0, nSSteal = 0, nGSSteal = 0;
 
     unsigned long long int tree = 0, sol = 0;
     SinglePool_ext *pool_loc;
@@ -663,7 +692,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
         { // WS0 loop
           const int victimID = victims[tries];
 
-          if (victimID != gpuID)
+          if (victimID != gpuID && lock_flag[victimID] == 0)
           { // if not me
             SinglePool_ext *victim;
             victim = &multiPool[victimID];
@@ -676,6 +705,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
               count++;
               if (atomic_compare_exchange_strong(&(victim->lock), &expected, true))
               { // get the lock
+                lock_flag[victimID] = 1;
                 int size = victim->size;
                 int nodeSize = 0;
 
@@ -698,10 +728,12 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
                   localSteal = true;
                   nSSteal++;
+                  lock_flag[victimID] = 0;
                   atomic_store(&(victim->lock), false); // reset lock
                   goto WS0;                             // Break out of WS0 loop
                 }
 
+                lock_flag[victimID] = 0;
                 atomic_store(&(victim->lock), false); // reset lock
                 break;                                // Break out of WS1 loop
               }
@@ -715,76 +747,141 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
       WS0:
 
-        /* // UNDER DEVELOPMENT */
-        /* if (localSteal == false && numLocales != 1) { */
-        /*   // global work atealing attemps */
-        /*   int triesLocale = 0; */
-        /*   const int victimLocales[numLocales]; */
-        /*   permute(victimLocales,numLocales); */
+        // inter-node work stealing
+        if (localSteal == false && commSize != 1)
+        {
+          printf("Proc[%d] I am for global work stealing\n", MPIRank);
+          // global work stealing attempts
+          int flag = 1, zero = 0; // Lock/unlock values
+          int WS0loc = 0;
+          int triesLocale = 0;
+          int victimLocales[commSize];
+          permute(victimLocales, commSize);
 
-        /*   while (triesLocale < numLocales) { //WS0Loc loop */
-        /*     const int victimLocaleID = victimLocales[i]; */
+          while (triesLocale < commSize && WS0loc == 0) // WS0Loc loop
+          {
+            const int victimLocaleID = victimLocales[triesLocale];
+            if (victimLocaleID != MPIRank) // if not me
+            {
+              printf("Proc[%d] I am for global work stealing and I'm not me\n", MPIRank);
+              int victimTasks[D];
+              permute(victimTasks, D);
 
-        /*     if (victimLocaleID != locID) { // if not me */
-        /*       // TO DO */
-        /*       // ref victimMultiPool = distMultiPool[victimLocaleID]; //non-feasible in C as it is */
-        /*       const int victimTasks[D]; */
-        /*       permute(victimTasks,D); */
+              for (int j = 0; j < D; j++)
+              {
+                const int victimTaskID = victimTasks[j];
+                int lock_check;
 
-        /*       for(int j = 0; j < D; j++){ */
-        /* 	const int victimTaskID = victimTasks[j]; */
-        /* 	// TO DO */
-        /* 	// ref victim = victimMultiPool[victimTaskID]; // I need to check the lock on the victim pool of the given locID victim that came before (victimLocaleID) */
-        /* 	var nn = 0; //bricolage */
+#pragma omp single // Only one OpenMP thread to make the MPI calls
+                {
+                  // Lock access to the `lock_flag` window for the target process
+                  MPI_Win_lock(MPI_LOCK_EXCLUSIVE, victimLocaleID, 0, lock_win);
+                  // Check the lock flag before accessing the pool
+                  MPI_Get(&lock_check, 1, MPI_INT, victimLocaleID, victimTaskID, 1, MPI_INT, lock_win);
+                  MPI_Win_flush(victimLocaleID, lock_win); // Ensure `lock_check` is updated
 
-        /* 	label WS1 while (nn < 10) { */
-        /* 	  // TO DO */
-        /* 	  // In this if I need to recover the lock and size of the victim above */
-        /* 	  if victim.lock.compareAndSwap(false, true) { // get the lock */
-        /*               const size = victim.size; */
-        /* 	      int nodeSize = 0; */
+                  if (lock_check == 0)
+                  {
+                    printf("Proc[%d] I am for global work stealing and I'm okay being single and having no locks\n", MPIRank);
+                    // Set the flag (lock the pool in the intra-node level on the other process)
+                    MPI_Accumulate(&flag, 1, MPI_INT, victimLocaleID, victimTaskID, 1, MPI_INT, MPI_REPLACE, lock_win);
+                    MPI_Win_flush(victimLocaleID, lock_win); // Ensure flag is set before proceeding
 
-        /*               if (size >= 2*m) { */
-        /* 		//TO DO: communications (?) */
-        /*                 Node *p = popBackBulkFree(victim (?),m, M, &nodeSize); */
+                    // Process victim accessed through RMA API
+                    MPI_Win_lock(MPI_LOCK_EXCLUSIVE, victimLocaleID, 0, win); // To access other processes' multipools
 
-        /* 		if (nodeSize == 0) { */
-        /* 		  // TO DO: How to access this */
-        /*                   victim.lock.write(false); // reset lock */
-        /*                   printf("\nDEADCODE\n"); */
-        /* 		  exit(-1); */
-        /*                 } */
+                    SinglePool_ext remote_pool_data;
+                    MPI_Get(&remote_pool_data, 1, mySinglePoolExt, victimLocaleID, victimTaskID, 1, mySinglePoolExt, win); // Read the pool data of index victimTaskID
+                    MPI_Win_flush(victimLocaleID, win);                                                                    // Ensure `remote_pool_data` is updated
+                                                                                                                           // ref victim = victimMultiPool[victimTaskID]; (simulated by line above)
 
-        /*                 /\* for i in 0..#(size/2) { */
-        /* 		   pool_loc.pushBack(p[i]); */
-        /* 		   } *\/ */
+                    // int nn = 0;
 
-        /* 		// once p and nodeSize are properly recovered I do not need to worry with this line */
-        /* 		pushBackBulk(pool_loc, p, nodeSize); // atomic_store inside */
+                    // while (nn < 10) // WS1loc loop
+                    //{
+                    // WARNING: Rechecking the lock that could have change in the meanwhile due to atomic nature
+                    if (!remote_pool_data.lock)
+                    { // check the lock
+                      printf("Proc[%d] I am for global work stealing and I have no atomic locks\n", MPIRank);
+                      int size = remote_pool_data.size;
+                      int nodeSize = 0;
 
-        /*                 globalSteal = true; */
-        /*                 /\* nSSteal += 1; *\/ */
-        /* 		// TO DO : how to access victim's lock */
-        /*                 victim.lock.write(false); // reset lock */
-        /* 		goto WS0Loc; */
-        /*               } */
-        /* 	      // TO DO : how to access victim's lock */
-        /*               victim.lock.write(false); // reset lock */
-        /*               break; // Break out of WS1 loop */
-        /*             } */
+                      printf("Proc[%d] Size of the pool is %d\n", size);
+                      if (remote_pool_data.size >= 2 * m)
+                      {
+                        printf("Proc[%d] I am for global work stealing and I have no atomic locks. Besides my size is fine.\n", MPIRank);
+                        Node *p = popBackBulkFree(&remote_pool_data, m, M, &nodeSize); // victim pool inside process[victimLocaleID]
 
-        /* 	  nn ++; */
-        /* 	} */
-        /*       } // End of for loop finding victim pool inside thread[victimLocaleID] */
+                        if (nodeSize == 0)
+                        {
+                          // TO DO: How to access this
+                          // victim.lock.write(false); // reset lock
+                          MPI_Accumulate(&zero, 1, MPI_INT, victimLocaleID, victimTaskID, 1, MPI_INT, MPI_REPLACE, lock_win); // reset lock
+                          MPI_Win_flush(victimLocaleID, lock_win);
+                          MPI_Win_unlock(victimLocaleID, win);      // Unlock data window
+                          MPI_Win_unlock(victimLocaleID, lock_win); // Unlock lock window                                                            // Ensure lock is reset
+                          printf("\nDEADCODE\n");
+                          exit(-1);
+                        }
 
-        /*       triesLocale ++; */
-        /*     } // End of if victimLocaleID */
-        /*   } // End of WS0Loc loop */
-        /* WS0Loc: */
+                        /* for i in 0..#(size/2) {
+                           pool_loc.pushBack(p[i]);
+                        } */
+
+                        // Update original pool size
+                        int decrement = -nodeSize;
+                        MPI_Aint target_disp = offsetof(SinglePool_ext, size) / sizeof(int);
+                        MPI_Accumulate(&decrement, 1, MPI_INT, victimLocaleID, victimTaskID * D + target_disp, 1, MPI_INT, MPI_SUM, win);
+                        MPI_Win_flush(victimLocaleID, win); // Ensure size update is applied
+
+                        // once p and nodeSize are properly recovered I do not need to worry with this line
+                        pushBackBulk(pool_loc, p, nodeSize); // atomic_store inside
+
+                        globalSteal = true;
+                        nGSSteal += 1; // Update number of successful global steals
+
+                        // TO DO : how to access victim's lock
+                        // victim.lock.write(false); // reset lock
+                        MPI_Accumulate(&zero, 1, MPI_INT, victimLocaleID, victimTaskID, 1, MPI_INT, MPI_REPLACE, lock_win); // reset lock
+                        MPI_Win_flush(victimLocaleID, lock_win);                                                            // Ensure lock is reset
+
+                        MPI_Win_unlock(victimLocaleID, win);
+                        MPI_Win_unlock(victimLocaleID, lock_win);
+                        WS0loc = 1;
+                      }
+                      // if (WS0loc == 0)
+                      else
+                      {
+                        // TO DO : how to access victim's lock
+                        // victim.lock.write(false); // reset lock
+                        MPI_Accumulate(&zero, 1, MPI_INT, victimLocaleID, victimTaskID, 1, MPI_INT, MPI_REPLACE, lock_win); // reset lock
+                        MPI_Win_flush(victimLocaleID, lock_win);                                                            // Ensure lock is reset
+                        // MPI_Win_unlock(victimLocaleID, win);
+                        // break; // Break out of WS1loc loop
+                      }
+                    }
+                    // nn++;
+                    //}
+                    MPI_Win_unlock(victimLocaleID, win);
+                  } // End of if "lock_check"
+                  MPI_Win_unlock(victimLocaleID, lock_win);
+                } // End of #pragma omp single
+
+                if (WS0loc == 1)
+                  break; // Exit if steal was successful
+              } // End of for loop for victimTaskID
+
+              if (WS0loc == 1)
+                break; // Exit if steal was successful
+            } // End of if "if not me"
+            if (WS0loc == 0)
+              triesLocale++;
+          } // End of WS0Loc loop
+        }
 
         if (localSteal == false && globalSteal == false)
         {
-          // intra-node termination detection
+          // Intra-node termination detection
           if (taskState == BUSY)
           {
             taskState = IDLE;
@@ -792,38 +889,38 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
           }
           if (allIdle(eachTaskState, D, &allTasksIdleFlag))
           {
+            // Inter-node termination detection
             if (locState == BUSY)
             {
               locState = IDLE;
-              // all OpenMP threads access this
-              // all threads will inside insert the same value
-              // because they agree on the first allIdle
-              // now all eachLocaleState need to agree with one another
-              // only one OpenMP thread should be responsible for the MPI call
+              // All OpenMP threads access and agree on the value of the next variable at this stage
               atomic_store(&eachLocaleState, IDLE);
             }
-            // break;
-            //if (gpuID == 0)
-            #pragma omp single
+
+// A random OpenMP thread checks the global termination condition in every process
+#pragma omp single
             {
               bool *allLocaleStateTemp = (bool *)malloc(commSize * sizeof(bool));
+              _Atomic bool *allLocaleState = (_Atomic bool *)malloc(commSize * sizeof(_Atomic bool));
               bool eachLocaleStateTemp = atomic_load(&eachLocaleState);
 
               // Gather boolean states from all processes to all processes
               MPI_Allgather(&eachLocaleStateTemp, 1, MPI_C_BOOL, allLocaleStateTemp, 1, MPI_C_BOOL, MPI_COMM_WORLD);
-              _Atomic bool *allLocaleState = (_Atomic bool *)malloc(commSize * sizeof(_Atomic bool));
               for (int i = 0; i < commSize; i++)
                 atomic_store(&allLocaleState[i], allLocaleStateTemp[i]);
 
+              // Check if eachLocalState of every process agrees for termination
               if (allIdle(allLocaleState, commSize, &allLocalesIdleFlag))
-                atomic_store(&globalTerminationFlag, true); // Create this variable
+                atomic_store(&globalTerminationFlag, true);
 
               free(allLocaleStateTemp);
               free(allLocaleState);
             }
-            //#pragma omp barrier
             if (atomic_load(&globalTerminationFlag))
+            {
+              printf("From process %d thread %d nGSSteal = %d\n", MPIRank, omp_get_thread_num(), nGSSteal);
               break;
+            }
           }
           continue;
         }
@@ -1025,6 +1122,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
 
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Type_free(&myNode);
+  MPI_Type_free(&mySinglePoolExt);
 }
 
 int main(int argc, char *argv[])
