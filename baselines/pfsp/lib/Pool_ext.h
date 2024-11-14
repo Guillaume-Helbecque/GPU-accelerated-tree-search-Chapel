@@ -20,11 +20,11 @@ bulk operations.
 
 typedef struct
 {
-  Node* elements;
   int capacity;
   int front;
   int size;
   _Atomic bool lock;
+  Node* elements;
 } SinglePool_ext;
 
 void initSinglePool_ext(SinglePool_ext* pool);
