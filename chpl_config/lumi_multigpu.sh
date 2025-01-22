@@ -42,6 +42,5 @@ export CHPL_RT_NUM_GPUS_PER_LOCALE=8
 export CHPL_ROCM_PATH="/appl/lumi/SW/LUMI-23.09/G/EB/rocm/5.4.6"
 
 cd $CHPL_HOME
-patch -N -p1 < $HERE/perf_patch.patch # see Chapel PR #24970 on Github (remove it when Chapel 2.2 is released)
 make -j $NUM_T_LOCALE
 cd $HERE/..

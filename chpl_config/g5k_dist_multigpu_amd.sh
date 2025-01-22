@@ -49,6 +49,5 @@ export CHPL_GPU_MEM_STRATEGY="array_on_device"
 
 # Install Chapel
 cd $CHPL_HOME
-patch -N -p1 < $HERE/perf_patch.patch # see Chapel PR #24970 on Github (remove it when Chapel 2.2 is released)
 make -j $NUM_T_LOCALE
 cd $HERE/..
