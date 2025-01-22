@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10786275.svg)](https://doi.org/10.5281/zenodo.10786275)
+
 # GPU-accelerated tree-search in Chapel
 
 This repository contains the implementation of a GPU-accelerated tree-search algorithm in Chapel.
