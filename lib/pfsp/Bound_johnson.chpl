@@ -124,7 +124,7 @@ module Bound_johnson
   }
 
   // Empty record serves as comparator
-  record johnson_comp { }
+  record johnson_comp: relativeComparator { }
 
   //(after partitioning) sorting jobs in ascending order with this comparator yield an optimal schedule for the associated 2-machine FSP [Johnson, S. M. (1954). Optimal two-and three-stage production schedules with setup times included.closed access Naval research logistics quarterly, 1(1), 61–68.]
   proc johnson_comp.compare(j1, j2): int(32)

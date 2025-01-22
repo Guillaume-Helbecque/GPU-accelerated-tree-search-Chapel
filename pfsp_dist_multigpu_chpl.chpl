@@ -325,7 +325,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
   while (pool.size < D*m*numLocales) {
     var hasWork = 0;
-    var parent = pool.popFront(hasWork);
+    var parent = pool.popFrontFree(hasWork);
     if !hasWork then break;
 
     decompose(lbound1_p, lbound2_p, parent, exploredTree, exploredSol, best, pool);
