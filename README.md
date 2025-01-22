@@ -1,9 +1,9 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10786275.svg)](https://doi.org/10.5281/zenodo.10786275)
 
-# GPU-accelerated tree-search in Chapel
+# GPU-accelerated tree search in Chapel
 
-This repository contains the implementation of a GPU-accelerated tree-search algorithm in Chapel.
-The latter is instantiated on the backtracking method to solve instances of the N-Queens problem (proof-of-concept) and on the Branch-and-Bound method to solve Taillard's instances of the permutation flowshop scheduling problem (PFSP).
+This repository contains the implementation of a GPU-accelerated tree search algorithm in Chapel.
+The latter is instantiated on the backtracking method to solve instances of the N-Queens problem (proof-of-concept) and on the Branch-and-Bound method to solve Taillard's instances of the Permutation Flowshop Scheduling Problem (PFSP).
 For comparison purpose, CUDA-based counterpart implementations are also provided.
 
 ## Design
