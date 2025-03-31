@@ -4,9 +4,9 @@
 # LUMI pre-exascale supercomputer (https://docs.lumi-supercomputer.eu/).
 
 # Load modules
-module load LUMI/23.09
+module load LUMI/24.03
 module load partition/G
-module load rocm/5.4.6
+module load rocm/6.0.3
 
 export HERE=$(pwd)
 
@@ -25,7 +25,7 @@ export PATH="$PATH":"$CHPL_HOME/bin/$CHPL_BIN_SUBDIR:$CHPL_HOME/util"
 
 export CHPL_HOST_PLATFORM=`$CHPL_HOME/util/chplenv/chpl_platform.py`
 export CHPL_TARGET_COMPILER="llvm"
-export CHPL_LLVM="system" # required for AMD GPU architectures
+export CHPL_LLVM="bundled" # required for AMD GPU architectures
 export CHPL_COMM="none"
 export CHPL_LAUNCHER="none"
 
@@ -36,10 +36,6 @@ export CHPL_GPU_ARCH="gfx90a"
 export CHPL_GPU_MEM_STRATEGY="array_on_device" # default
 export CHPL_RT_NUM_THREADS_PER_LOCALE=8
 export CHPL_RT_NUM_GPUS_PER_LOCALE=8
-
-# Setting ROCm/LLVM path manually as the Chapel compiler targets a more recent
-# ROCm version (6.0.3) that is not supported by Chapel 2.1.0 (see Chapel issue #25952 on GitHub)
-export CHPL_ROCM_PATH="/appl/lumi/SW/LUMI-23.09/G/EB/rocm/5.4.6"
 
 cd $CHPL_HOME
 make -j $NUM_T_LOCALE
