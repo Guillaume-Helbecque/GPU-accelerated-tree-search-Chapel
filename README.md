@@ -45,21 +45,46 @@ By default, the target architecture for CUDA code generation is set to `sm_70`, 
 All the code is compiled using the provided makefiles.
 
 Common command-line options:
-- `m`: minimum number of elements to offload on a GPU device (default: 25);
-- `M`: maximum number of elements to offload on a GPU device (default: 50,000);
-- `D`: number of GPU device(s) (only in multi-GPU setting - default: 1).
+- **`--m`**: minimum number of elements to offload on a GPU device
+  - any positive integer (`25` by default)
+
+- **`--M`**: maximum number of elements to offload on a GPU device
+  - any positive integer greater than `--m` (`50,000` by default)
+
+- **`--D`**: number of GPU device(s) (only in multi-GPU setting)
+  - any positive integer, typically the number of GPU devices (`1` by default)
+
+- **`-nl`**: number of Chapel's locales (only in distributed setting)
+  - any positive integer, typically the number of compute nodes
+
+- **`--help`** or **`-h`**: help message
 
 Problem-specific command-line options:
 - N-Queens:
-    - `N`: number of queens (default: 14);
-    - `g`: number of safety check(s) per evaluation (default: 1);
+  - **`--N`**: number of queens
+    - any positive integer (`14` by default)
+
+  - **`--g`**: number of safety check(s) per evaluation
+    - any positive integer (`1` by default)
+
 - PFSP:
-    - `inst`: Taillard's instance index (1 to 120 - default: 14);
-    - `lb`: lower bound function (0 (lb1_d), 1 (lb1), or 2 (lb2) - default: 1);
-    - `ub`: upper bound initialization (0 (inf) or 1 (opt) - default: 1).
+  - `inst`: Taillard's instance to solve
+    - any positive integer between `001` and `120` (`014` by default)
+
+  <!-- TODO: give references -->
+  - **`--lb`**: lower bound function
+    - `1`: one-machine bound which can be computed in $\mathcal{O}(mn)$ steps per subproblem (default)
+    - `0`: fast implementation of `--lb 1`, which can be compute in $\mathcal{O}(m)$ steps per subproblem
+    - `2`: two-machine bound which can be computed in $\mathcal{O}(m^2n)$ steps per subproblem
+    <!-- a two-machine bound which relies on the exact resolution of two-machine problems obtained by relaxing capacity constraints on all machines, with the exception of a pair of machines \(M<sub>u</sub>,M<sub>v</sub>\)<sub>1<=u<v<=m</sub>, and taking the maximum over all $\frac{m(m-1)}{2}$ machine-pairs. It can be computed in $\mathcal{O}(m^2n)$ steps per subproblem. -->
+
+  - **`--ub`**: initial upper bound (UB)
+    - `0`: initialize the UB to $+\infty$, leading to a search from scratch
+    - `1`: initialize the UB to the best solution known (default)
 
 Unstable command-line options:
-- `perc`: percentage of the total size of the victim's pool to steal in WS (only in CUDA-based multi-GPU implementation - default: 0.5).
+- **`--perc`**: percentage of the total size of the victim's pool to steal in WS (only in CUDA-based multi-GPU implementation)
+  - any real number between `0` and `1` (`0.5` by default)
 
 ### Examples
 
