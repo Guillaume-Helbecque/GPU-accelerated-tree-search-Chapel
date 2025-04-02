@@ -4,6 +4,7 @@
 
 use Time;
 
+use util;
 use Pool;
 
 use NQueens_node;
@@ -38,6 +39,13 @@ proc print_results(const exploredTree: uint, const exploredSol: uint, const time
   writeln("Number of explored solutions: ", exploredSol);
   writeln("Elapsed time: ", timer, " [s]");
   writeln("=================================================\n");
+}
+
+proc help_message(): void
+{
+  writeln("\n  N-Queens Benchmark Parameters:\n");
+  writeln("   --N   int   number of queens");
+  writeln("   --g   int   number of safety check(s) per evaluation\n");
 }
 
 // Check queen's safety.
@@ -105,8 +113,18 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   writeln("\nExploration terminated.");
 }
 
-proc main()
+proc main(args: [] string)
 {
+  // Helper
+  for a in args[1..] {
+    if (a == "-h" || a == "--help") {
+      common_help_message();
+      help_message();
+
+      return 1;
+    }
+  }
+
   check_parameters();
   print_settings();
 

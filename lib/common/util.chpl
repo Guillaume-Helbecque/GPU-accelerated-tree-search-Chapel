@@ -28,4 +28,14 @@ module util
       }
     }
   }
+
+  proc common_help_message(): void
+  {
+    writeln("\n    usage:  main.out [parameter value] ...");
+    writeln("\n  General Parameters:\n");
+    writeln("   --m              int   minimum number of elements to offload on a GPU device");
+    writeln("   --M              int   maximum number of elements to offload on a GPU device");
+    writeln("   --D              int   number of GPU device(s)");
+    writeln("   --help (or -h)         this message");
+  }
 }
