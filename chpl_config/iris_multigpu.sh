@@ -22,8 +22,8 @@ export CHPL_HOME="$HERE/chapel-${CHPL_VERSION}MCG_nvidia"
 
 # Download Chapel if not found
 if [ ! -d "$CHPL_HOME" ]; then
-    wget -c https://github.com/chapel-lang/chapel/releases/download/$CHPL_VERSION/chapel-${CHPL_VERSION}.tar.gz -O - | tar xz
-    mv chapel-$CHPL_VERSION $CHPL_HOME
+  wget -c https://github.com/chapel-lang/chapel/releases/download/$CHPL_VERSION/chapel-${CHPL_VERSION}.tar.gz -O - | tar xz
+  mv chapel-$CHPL_VERSION $CHPL_HOME
 fi
 
 CHPL_BIN_SUBDIR=`"$CHPL_HOME"/util/chplenv/chpl_bin_subdir.py`
