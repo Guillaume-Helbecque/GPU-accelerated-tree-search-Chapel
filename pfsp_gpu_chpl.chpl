@@ -14,6 +14,8 @@ use Bound_johnson;
 use Bound_simple;
 use Taillard;
 
+const allowedLowerBounds = ["lb1", "lb1_d", "lb2"];
+
 /*******************************************************************************
 Implementation of the single-GPU PFSP search.
 *******************************************************************************/
@@ -22,7 +24,7 @@ config const m = 25;
 config const M = 50000;
 
 config const inst: int = 14; // instance
-config const lb: int = 1; // lower bound function
+config const lb: string = "lb1"; // lower bound function
 config const ub: int = 1; // initial upper bound
 /*
   NOTE: Only forward branching is considered because other strategies increase a
@@ -51,8 +53,8 @@ proc check_parameters()
   if (inst < 1 || inst > 120) then
     halt("Error: unsupported Taillard's instance");
 
-  if (lb < 0 || lb > 2) then
-    halt("Error: unsupported lower bound function");
+  if (allowedLowerBounds.find(lb) == -1) then
+    halt("Error - Unsupported lower bound");
 
   if (ub != 0 && ub != 1) then
     halt("Error: unsupported upper bound initialization");
@@ -65,9 +67,7 @@ proc print_settings(): void
   writeln("Resolution of PFSP Taillard's instance: ta", inst, " (m = ", machines, ", n = ", jobs, ")");
   if (ub == 0) then writeln("Initial upper bound: inf");
   else /* if (ub == 1) */ writeln("Initial upper bound: opt");
-  if (lb == 0) then writeln("Lower bound function: lb1_d");
-  else if (lb == 1) then writeln("Lower bound function: lb1");
-  else /* if (lb == 2) */ writeln("Lower bound function: lb2");
+  writeln("Lower bound function: ", lb);
   writeln("Branching rule: fwd");
   writeln("=================================================");
 }
@@ -177,13 +177,13 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
   select lb {
-    when 0 {
+    when "lb1_d" {
       decompose_lb1_d(parent, tree_loc, num_sol, best, pool);
     }
-    when 1 {
+    when "lb1" {
       decompose_lb1(parent, tree_loc, num_sol, best, pool);
     }
-    otherwise { // 2
+    otherwise { // lb2
       decompose_lb2(parent, tree_loc, num_sol, best, pool);
     }
   }
@@ -258,13 +258,13 @@ proc evaluate_gpu_lb2(const parents_d: [] Node, const size, const best, const lb
 proc evaluate_gpu(const parents_d: [] Node, const size, const best, const lbound1_d, const lbound2_d, ref bounds_d)
 {
   select lb {
-    when 0 {
+    when "lb1_d" {
       evaluate_gpu_lb1_d(parents_d, size, best, lbound1_d, bounds_d);
     }
-    when 1 {
+    when "lb1" {
       evaluate_gpu_lb1(parents_d, size, lbound1_d, bounds_d);
     }
-    otherwise { // 2
+    otherwise { // lb2
       evaluate_gpu_lb2(parents_d, size, best, lbound1_d, lbound2_d, bounds_d);
     }
   }
