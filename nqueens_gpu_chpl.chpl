@@ -138,6 +138,16 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref la
   }
 }
 
+class WrapperClassArrayParents {
+  forwarding var arr: [0..#M] Node = noinit;
+}
+type WrapperArrayParents = owned WrapperClassArrayParents?;
+
+class WrapperClassArrayLabels {
+  forwarding var arr: [0..#(M*N)] uint(8) = noinit;
+}
+type WrapperArrayLabels = owned WrapperClassArrayLabels?;
+
 // Single-GPU N-Queens search.
 proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
@@ -149,35 +159,65 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   pool.pushBack(root);
 
   var timer: stopwatch;
-  timer.start();
 
-  while true {
+  /*
+    Step 1: We perform a partial breadth-first search on CPU in order to create
+    a sufficiently large amount of work for GPU computation.
+  */
+  timer.start();
+  while (pool.size < m) {
     var hasWork = 0;
-    var parent = pool.popBack(hasWork);
+    var parent = pool.popFront(hasWork);
     if !hasWork then break;
 
     decompose(parent, exploredTree, exploredSol, pool);
+  }
+  timer.stop();
+  const res1 = (timer.elapsed(), exploredTree, exploredSol);
+  writeln("\nInitial search on CPU completed");
+  writeln("Size of the explored tree: ", res1[1]);
+  writeln("Number of explored solutions: ", res1[2]);
+  writeln("Elapsed time: ", res1[0], " [s]\n");
 
-    var poolSize = min(pool.size, M);
+  /*
+    Step 2: We continue the search on GPU in a depth-first manner, until there
+    is not enough work.
+  */
+  timer.start();
 
-    // If 'poolSize' is sufficiently large, we offload the pool on GPU.
-    if (poolSize >= m) {
+  var parents: [0..#M] Node = noinit;
+  var labels: [0..#(M*N)] uint(8) = noinit;
 
-      var parents: [0..#poolSize] Node = noinit;
-      for i in 0..#poolSize {
+  var parents_d: WrapperArrayParents;
+  var labels_d: WrapperArrayLabels;
+
+  on device {
+    parents_d = new WrapperArrayParents();
+    labels_d = new WrapperArrayLabels();
+  }
+
+  while true {
+    /*
+      Each task gets its parents nodes from the pool.
+    */
+    var poolSize = pool.popBackBulk(m, M, parents);
+
+    if (poolSize > 0) {
+      /* var parents: [0..#poolSize] Node = noinit; */
+      /* for i in 0..#poolSize {
         var hasWork = 0;
         parents[i] = pool.popBack(hasWork);
         if !hasWork then break;
-      }
+      } */
 
       const numLabels = N * poolSize;
-      var labels: [0..#numLabels] uint(8) = noinit;
+      /* var labels: [0..#numLabels] uint(8) = noinit; */
 
       on device {
-        const parents_d = parents; // host-to-device
-        var labels_d: [0..#numLabels] uint(8) = noinit;
-        evaluate_gpu(parents_d, numLabels, labels_d);
-        labels = labels_d; // device-to-host
+        parents_d!.arr = parents; // host-to-device
+        /* var labels_d: [0..#numLabels] uint(8) = noinit; */
+        evaluate_gpu(parents_d!.arr, numLabels, labels_d!.arr);
+        labels = labels_d!.arr; // device-to-host
       }
 
       /*
@@ -185,9 +225,36 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
       */
       generate_children(parents, poolSize, labels, exploredTree, exploredSol, pool);
     }
+    else {
+      break;
+    }
+  }
+  timer.stop();
+
+  const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
+  writeln("Search on GPU completed");
+  writeln("Size of the explored tree: ", res2[1]);
+  writeln("Number of explored solutions: ", res2[2]);
+  writeln("Elapsed time: ", res2[0], " [s]\n");
+
+  /*
+    Step 3: We complete the depth-first search on CPU.
+  */
+  timer.start();
+  while true {
+    var hasWork = 0;
+    var parent = pool.popBack(hasWork);
+    if !hasWork then break;
+
+    decompose(parent, exploredTree, exploredSol, pool);
   }
   timer.stop();
   elapsedTime = timer.elapsed();
+  const res3 = (elapsedTime, exploredTree, exploredSol) - res1 - res2;
+  writeln("Search on CPU completed");
+  writeln("Size of the explored tree: ", res3[1]);
+  writeln("Number of explored solutions: ", res3[2]);
+  writeln("Elapsed time: ", res3[0], " [s]");
 
   writeln("\nExploration terminated.");
 }
