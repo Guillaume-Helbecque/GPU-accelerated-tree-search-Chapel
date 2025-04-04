@@ -9,7 +9,7 @@ HIP_COMPILER  := hipcc
 
 C_COMMON_OPTS    := -O3
 CUDA_COMMON_OPTS := $(C_COMMON_OPTS) -arch=sm_70
-HIP_COMMON_OPTS  := $(C_COMMON_OPTS) -offload-arch=gfx906
+HIP_COMMON_OPTS  := $(C_COMMON_OPTS) --offload-arch=gfx906
 
 LIBPATH := lib
 

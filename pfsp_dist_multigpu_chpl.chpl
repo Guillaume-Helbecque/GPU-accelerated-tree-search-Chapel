@@ -3,6 +3,7 @@
 */
 
 use Time;
+use PrivateDist;
 use GpuDiagnostics;
 
 config const BLOCK_SIZE = 512;
@@ -15,7 +16,7 @@ use Bound_simple;
 use Taillard;
 
 /*******************************************************************************
-Implementation of the multi-GPU PFSP search.
+Implementation of the distributed multi-GPU PFSP search.
 *******************************************************************************/
 
 config const m = 25;
@@ -295,7 +296,7 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref bo
   }
 }
 
-// Multi-GPU PFSP search.
+// Distributed multi-GPU PFSP search.
 proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
   var best: int = initUB;
@@ -341,8 +342,8 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     is not enough work.
   */
   timer.start();
-  var eachLocaleExploredTree, eachLocaleExploredSol: [0..#numLocales] uint = noinit;
-  var eachLocaleBest: [0..#numLocales] int = noinit;
+  var eachLocaleExploredTree, eachLocaleExploredSol: [PrivateSpace] uint = noinit;
+  var eachLocaleBest: [PrivateSpace] int = noinit;
 
   const poolSize = pool.size;
   const c = poolSize / numLocales;

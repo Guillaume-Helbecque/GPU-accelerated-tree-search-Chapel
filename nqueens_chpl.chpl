@@ -14,12 +14,10 @@ Implementation of the sequential N-Queens search.
 
 config const N = 14;
 config const g = 1;
-config const m = 25;
-config const M = 50000;
 
 proc check_parameters()
 {
-  if ((N <= 0) || (g <= 0) || (m <= 0) || (M <= 0)) {
+  if ((N <= 0) || (g <= 0)) {
     halt("All parameters must be positive integers.\n");
   }
 }

@@ -1,20 +1,20 @@
 /*
-  Multi-GPU backtracking to solve instances of the N-Queens problem in Chapel.
+  Distributed multi-GPU backtracking to solve instances of the N-Queens problem in Chapel.
 */
 
 use Time;
-use Random;
+
+use Pool;
+use Pool_par;
+use PrivateDist;
 use GpuDiagnostics;
 
 use NQueens_node;
 
 config const BLOCK_SIZE = 512;
 
-use util;
-use Pool_par;
-
 /*******************************************************************************
-Implementation of the multi-GPU N-Queens search.
+Implementation of the distributed multi-GPU N-Queens search.
 *******************************************************************************/
 
 config const N = 14;
@@ -33,7 +33,7 @@ proc check_parameters()
 proc print_settings()
 {
   writeln("\n=================================================");
-  writeln("Multi-GPU Chapel (", D, " GPUs)\n");
+  writeln("Distributed multi-GPU Chapel (", numLocales, "x", D, " GPUs)\n");
   writeln("Resolution of the ", N, "-Queens instance");
   writeln("  with ", g, " safety check(s) per evaluation");
   writeln("=================================================");
@@ -82,7 +82,7 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref po
       child.board = parent.board;
       child.board[depth] <=> child.board[j];
       child.depth += 1;
-      pool.pushBack(child);
+      pool.pushBackFree(child);
       tree_loc += 1;
     }
   }
@@ -119,10 +119,8 @@ proc evaluate_gpu(const parents_d: [] Node, const size, ref labels_d)
 
 // Generate children nodes (evaluated on GPU) on CPU.
 proc generate_children(const ref parents: [] Node, const size: int, const ref labels: [] uint(8),
-  ref exploredTree: uint, ref exploredSol: uint, ref pool: SinglePool_par(Node))
+  ref exploredTree: uint, ref exploredSol: uint, ref pool: SinglePool(Node))
 {
-  pool.acquireLock();
-
   for i in 0..#size  {
     const parent = parents[i];
     const depth = parent.depth;
@@ -136,13 +134,11 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref la
         child.depth = depth + 1;
         child.board = parent.board;
         child.board[depth] <=> child.board[j];
-        pool.pushBackFree(child);
+        pool.pushBack(child);
         exploredTree += 1;
       }
     }
   }
-
-  pool.releaseLock();
 }
 
 class WrapperClassArrayParents {
@@ -155,16 +151,14 @@ class WrapperClassArrayLabels {
 }
 type WrapperArrayLabels = owned WrapperClassArrayLabels?;
 
-// Multi-GPU N-Queens search.
+// Distributed multi-GPU N-Queens search.
 proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
   var root = new Node(N);
 
   var pool = new SinglePool_par(Node);
-  pool.pushBack(root);
 
-  var allTasksIdleFlag: atomic bool = false;
-  var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
+  pool.pushBackFree(root);
 
   var timer: stopwatch;
 
@@ -173,7 +167,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     a sufficiently large amount of work for GPU computation.
   */
   timer.start();
-  while (pool.size < D*m) {
+  while (pool.size < D*m*numLocales) {
     var hasWork = 0;
     var parent = pool.popFrontFree(hasWork);
     if !hasWork then break;
@@ -192,164 +186,118 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     is not enough work.
   */
   timer.start();
-  var eachExploredTree, eachExploredSol: [0..#D] uint;
+  var eachLocaleExploredTree, eachLocaleExploredSol: [PrivateSpace] uint = noinit;
 
   const poolSize = pool.size;
-  const c = poolSize / D;
-  const l = poolSize - (D-1)*c;
+  const c = poolSize / numLocales;
+  const l = poolSize - (numLocales-1)*c;
   const f = pool.front;
-  var lock: atomic bool;
 
   pool.front = 0;
   pool.size = 0;
 
-  var multiPool: [0..#D] SinglePool_par(Node);
+  coforall (locID, loc) in zip(0..#numLocales, Locales) with (ref pool,
+    ref eachLocaleExploredTree, ref eachLocaleExploredSol) do on loc {
 
-  coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol,
-    ref eachTaskState, ref multiPool) {
+    var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
 
-    const device = here.gpus[gpuID];
+    var pool_lloc = new SinglePool(Node);
 
-    var nSteal, nSSteal: int;
-
-    var tree, sol: uint;
-    ref pool_loc = multiPool[gpuID];
-    var taskState: bool = BUSY;
-
-    // each task gets its chunk
-    pool_loc.elements[0..#c] = pool.elements[gpuID+f.. by D #c];
-    pool_loc.size += c;
-    if (gpuID == D-1) {
-      pool_loc.elements[c..#(l-c)] = pool.elements[(D*c)+f..#(l-c)];
-      pool_loc.size += l-c;
+    // each locale gets its chunk
+    pool_lloc.elements[0..#c] = pool.elements[locID+f.. by numLocales #c];
+    pool_lloc.size += c;
+    if (locID == numLocales-1) {
+      pool_lloc.elements[c..#(l-c)] = pool.elements[(numLocales*c)+f..#(l-c)];
+      pool_lloc.size += l-c;
     }
 
-    var parents: [0..#M] Node = noinit;
-    var labels: [0..#(M*N)] uint(8) = noinit;
+    const poolSize_l = pool_lloc.size;
+    const c_l = poolSize_l / D;
+    const l_l = poolSize_l - (D-1)*c_l;
+    const f_l = pool_lloc.front;
 
-    var parents_d: WrapperArrayParents;
-    var labels_d: WrapperArrayLabels;
+    pool_lloc.front = 0;
+    pool_lloc.size = 0;
 
-    on device {
-      parents_d = new WrapperArrayParents();
-      labels_d = new WrapperArrayLabels();
-    }
+    coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol) {
 
-    while true {
-      /*
-        Each task gets its parents nodes from the pool.
-      */
-      var poolSize = pool_loc.popBackBulk(m, M, parents);
+      const device = here.gpus[gpuID];
 
-      if (poolSize > 0) {
-        if (taskState == IDLE) {
-          taskState = BUSY;
-          eachTaskState[gpuID].write(BUSY);
-        }
+      var tree, sol: uint;
+      var pool_loc = new SinglePool(Node);
 
-        /* poolSize = min(poolSize, M);
-        for i in 0..#poolSize {
-          var hasWork = 0;
-          parents[i] = pool_loc.popBack(hasWork);
-          if !hasWork then break;
-        } */
+      // each task gets its chunk
+      pool_loc.elements[0..#c_l] = pool_lloc.elements[gpuID+f_l.. by D #c_l];
+      pool_loc.size += c_l;
+      if (gpuID == D-1) {
+        pool_loc.elements[c_l..#(l_l-c_l)] = pool_lloc.elements[(D*c_l)+f_l..#(l_l-c_l)];
+        pool_loc.size += l_l-c_l;
+      }
 
-        const numLabels = N * poolSize;
+      var parents: [0..#M] Node = noinit;
+      var labels: [0..#(M*N)] uint(8) = noinit;
 
-        on device {
-          parents_d!.arr = parents; // host-to-device
-          evaluate_gpu(parents_d!.arr, numLabels, labels_d!.arr);
-          labels = labels_d!.arr; // device-to-host
-        }
+      var parents_d: WrapperArrayParents;
+      var labels_d: WrapperArrayLabels;
 
+      on device {
+        parents_d = new WrapperArrayParents();
+        labels_d = new WrapperArrayLabels();
+      }
+
+      while true {
         /*
-          Each task generates and inserts its children nodes to the pool.
+          Each task gets its parents nodes from the pool.
         */
-        generate_children(parents, poolSize, labels, tree, sol, pool_loc);
-      }
-      else {
-        // work stealing
-        var tries = 0;
-        var steal = false;
-        const victims = permute(0..#D);
-
-        label WS0 while (tries < D && steal == false) {
-          const victimID = victims[tries];
-
-          if (victimID != gpuID) { // if not me
-            ref victim = multiPool[victimID];
-            nSteal += 1;
-            var nn = 0;
-
-            label WS1 while (nn < 10) {
-              if victim.lock.compareAndSwap(false, true) { // get the lock
-                const size = victim.size;
-
-                if (size >= 2*m) {
-                  var (hasWork, p) = victim.popFrontBulkFree(m, M);
-                  if (hasWork == 0) {
-                    victim.lock.write(false); // reset lock
-                    halt("DEADCODE in work stealing");
-                  }
-
-                  /* for i in 0..#(size/2) {
-                    pool_loc.pushBack(p[i]);
-                  } */
-                  pool_loc.pushBackBulk(p);
-
-                  steal = true;
-                  nSSteal += 1;
-                  victim.lock.write(false); // reset lock
-                  break WS0;
-                }
-
-                victim.lock.write(false); // reset lock
-                break WS1;
-              }
-
-              nn += 1;
-              currentTask.yieldExecution();
-            }
+        var poolSize = pool_loc.size;
+        if (poolSize >= m) {
+          poolSize = min(poolSize, M);
+          for i in 0..#poolSize {
+            var hasWork = 0;
+            parents[i] = pool_loc.popBack(hasWork);
+            if !hasWork then break;
           }
-          tries += 1;
+
+          const numLabels = N * poolSize;
+
+          on device {
+            parents_d!.arr = parents; // host-to-device
+            evaluate_gpu(parents_d!.arr, numLabels, labels_d!.arr);
+            labels = labels_d!.arr; // device-to-host
+          }
+
+          /*
+            Each task generates and inserts its children nodes to the pool.
+          */
+          generate_children(parents, poolSize, labels, tree, sol, pool_loc);
         }
-
-        if (steal == false) {
-          // termination
-          if (taskState == BUSY) {
-            taskState = IDLE;
-            eachTaskState[gpuID].write(IDLE);
-          }
-          if allIdle(eachTaskState, allTasksIdleFlag) {
-            writeln("task ", gpuID, " exits normally");
-            break;
-          }
-          continue;
-        } else {
-          continue;
+        else {
+          break;
         }
       }
-    }
 
-    if lock.compareAndSwap(false, true) {
       const poolLocSize = pool_loc.size;
-      for p in 0..#poolLocSize {
-        var hasWork = 0;
-        pool.pushBack(pool_loc.popBack(hasWork));
-        if !hasWork then break;
+      if (poolLocSize > 0) {
+        for p in 0..#poolLocSize {
+          var hasWork = 0;
+          pool.pushBack(pool_loc.popBack(hasWork));
+          if !hasWork then break;
+        }
       }
-      lock.write(false);
+
+      eachExploredTree[gpuID] = tree;
+      eachExploredSol[gpuID] = sol;
     }
 
-    eachExploredTree[gpuID] = tree;
-    eachExploredSol[gpuID] = sol;
+    eachLocaleExploredTree[locID] = (+ reduce eachExploredTree);
+    eachLocaleExploredSol[locID] = (+ reduce eachExploredSol);
   }
   timer.stop();
 
-  exploredTree += (+ reduce eachExploredTree);
-  exploredSol += (+ reduce eachExploredSol);
+  exploredTree += (+ reduce eachLocaleExploredTree);
+  exploredSol += (+ reduce eachLocaleExploredSol);
 
-  writeln("workload per GPU: ", 100.0*eachExploredTree/(exploredTree-res1[1]):real, "\n");
+  writeln("workload per Locale: ", 100.0*eachLocaleExploredTree/(exploredTree-res1[1]):real, "\n");
 
   const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
   writeln("Search on GPU completed");

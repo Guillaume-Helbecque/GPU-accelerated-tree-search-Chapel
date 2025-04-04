@@ -56,6 +56,7 @@ module Pool_par
       }
     }
 
+    // Insertion to the end of the deque. Parallel-safety is not guaranteed.
     proc ref pushBackFree(node: eltType) {
       if (this.front + this.size >= this.capacity) {
         this.capacity *= 2;
