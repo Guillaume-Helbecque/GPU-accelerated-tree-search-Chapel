@@ -83,10 +83,9 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref po
   for j in depth..(N-1) {
     if isSafe(parent.board, depth, parent.board[j]) {
       var child = new Node();
-      child.depth = parent.depth;
+      child.depth = depth + 1;
       child.board = parent.board;
       child.board[depth] <=> child.board[j];
-      child.depth += 1;
       pool.pushBack(child);
       tree_loc += 1;
     }
@@ -159,6 +158,12 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   var timer: stopwatch;
   timer.start();
 
+  var parents: [0..#M] Node = noinit;
+  var labels: [0..#(M*N)] uint(8) = noinit;
+
+  on device var parents_d: [0..#M] Node;
+  on device var labels_d: [0..#(M*N)] uint(8);
+
   while true {
     var hasWork = 0;
     var parent = pool.popBack(hasWork);
@@ -171,7 +176,6 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     // If 'poolSize' is sufficiently large, we offload the pool on GPU.
     if (poolSize >= m) {
 
-      var parents: [0..#poolSize] Node = noinit;
       for i in 0..#poolSize {
         var hasWork = 0;
         parents[i] = pool.popBack(hasWork);
@@ -179,14 +183,12 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
       }
 
       const numLabels = N * poolSize;
-      var labels: [0..#numLabels] uint(8) = noinit;
 
+      parents_d = parents; // host-to-device
       on device {
-        const parents_d = parents; // host-to-device
-        var labels_d: [0..#numLabels] uint(8) = noinit;
         evaluate_gpu(parents_d, numLabels, labels_d);
-        labels = labels_d; // device-to-host
       }
+      labels = labels_d; // device-to-host
 
       /*
         Each task generates and inserts its children nodes to the pool.
