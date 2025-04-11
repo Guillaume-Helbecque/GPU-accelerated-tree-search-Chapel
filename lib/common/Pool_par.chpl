@@ -30,6 +30,8 @@ module Pool_par
         if this.lock.compareAndSwap(false, true) {
           return;
         }
+
+        currentTask.yieldExecution();
       }
     }
 
@@ -54,16 +56,6 @@ module Pool_par
 
         currentTask.yieldExecution();
       }
-    }
-
-    proc ref pushBackFree(node: eltType) {
-      if (this.front + this.size >= this.capacity) {
-        this.capacity *= 2;
-        this.dom = {0..#this.capacity};
-      }
-
-      this.elements[this.front + this.size] = node;
-      this.size += 1;
     }
 
     // Insertion to the end of the deque. Parallel-safety is not guaranteed.

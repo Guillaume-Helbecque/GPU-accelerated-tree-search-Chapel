@@ -135,14 +135,16 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref la
     if (depth == N) {
       exploredSol += 1;
     }
-    for j in depth..(N-1) {
-      if (labels[j + i * N] == 1) {
-        var child = new Node();
-        child.depth = depth + 1;
-        child.board = parent.board;
-        child.board[depth] <=> child.board[j];
-        pool.pushBackFree(child);
-        exploredTree += 1;
+    else {
+      for j in depth..(N-1) {
+        if (labels[j + i * N] == 1) {
+          var child = new Node();
+          child.depth = depth + 1;
+          child.board = parent.board;
+          child.board[depth] <=> child.board[j];
+          pool.pushBackFree(child);
+          exploredTree += 1;
+        }
       }
     }
   }
