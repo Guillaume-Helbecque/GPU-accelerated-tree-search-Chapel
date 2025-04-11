@@ -155,6 +155,9 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 
   pool.pushBack(root);
 
+  var allTasksIdleFlag: atomic bool = false;
+  var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
+
   var timer: stopwatch;
 
   /*
@@ -195,12 +198,13 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   var multiPool: [0..#D] SinglePool_par(Node);
 
   coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol,
-    ref multiPool) {
+    ref eachTaskState, ref multiPool) {
 
     const device = here.gpus[gpuID];
 
     var tree, sol: uint;
     ref pool_loc = multiPool[gpuID];
+    var taskState: bool = BUSY;
 
     // each task gets its chunk
     pool_loc.elements[0..#c] = pool.elements[gpuID+f.. by D #c];
@@ -223,6 +227,11 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
       var poolSize = pool_loc.popBackBulk(m, M, parents);
 
       if (poolSize > 0) {
+        if (taskState == IDLE) {
+          taskState = BUSY;
+          eachTaskState[gpuID].write(BUSY);
+        }
+
         /* poolSize = min(poolSize, M);
 
         for i in 0..#poolSize {
@@ -245,7 +254,16 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
         generate_children(parents, poolSize, labels, tree, sol, pool_loc);
       }
       else {
-        break;
+        // termination
+        if (taskState == BUSY) {
+          taskState = IDLE;
+          eachTaskState[gpuID].write(IDLE);
+        }
+        if allIdle(eachTaskState, allTasksIdleFlag) {
+          writeln("task ", gpuID, " exits normally");
+          break;
+        }
+        continue;
       }
     }
 
