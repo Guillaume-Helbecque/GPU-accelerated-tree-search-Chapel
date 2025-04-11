@@ -126,6 +126,8 @@ proc evaluate_gpu(const parents_d: [] Node, const size, ref labels_d)
 proc generate_children(const ref parents: [] Node, const size: int, const ref labels: [] uint(8),
   ref exploredTree: uint, ref exploredSol: uint, ref pool)
 {
+  pool.acquireLock();
+
   for i in 0..#size  {
     const parent = parents[i];
     const depth = parent.depth;
@@ -139,11 +141,13 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref la
         child.depth = depth + 1;
         child.board = parent.board;
         child.board[depth] <=> child.board[j];
-        pool.pushBack(child);
+        pool.pushBackFree(child);
         exploredTree += 1;
       }
     }
   }
+
+  pool.releaseLock();
 }
 
 // Multi-GPU N-Queens search.
@@ -318,14 +322,11 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
       }
     }
 
-    if lock.compareAndSwap(false, true) {
-      const poolLocSize = pool_loc.size;
-      for p in 0..#poolLocSize {
-        var hasWork = 0;
-        pool.pushBack(pool_loc.popBack(hasWork));
-        if !hasWork then break;
-      }
-      lock.write(false);
+    const poolLocSize = pool_loc.size;
+    for p in 0..#poolLocSize {
+      var hasWork = 0;
+      pool.pushBack(pool_loc.popBack(hasWork));
+      if !hasWork then break;
     }
 
     eachExploredTree[gpuID] = tree;

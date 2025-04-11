@@ -25,6 +25,18 @@ module Pool_par
       this.lock = false;
     }
 
+    proc ref acquireLock() {
+      while true {
+        if this.lock.compareAndSwap(false, true) {
+          return;
+        }
+      }
+    }
+
+    proc ref releaseLock() {
+      this.lock.write(false);
+    }
+
     // Parallel-safe insertion to the end of the deque.
     proc ref pushBack(node: eltType) {
       while true {
@@ -42,6 +54,16 @@ module Pool_par
 
         currentTask.yieldExecution();
       }
+    }
+
+    proc ref pushBackFree(node: eltType) {
+      if (this.front + this.size >= this.capacity) {
+        this.capacity *= 2;
+        this.dom = {0..#this.capacity};
+      }
+
+      this.elements[this.front + this.size] = node;
+      this.size += 1;
     }
 
     // Insertion to the end of the deque. Parallel-safety is not guaranteed.
