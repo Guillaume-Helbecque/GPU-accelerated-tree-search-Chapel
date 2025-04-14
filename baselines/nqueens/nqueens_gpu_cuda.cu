@@ -298,9 +298,9 @@ void nqueens_search(const int N, const int G, const int m, const int M,
   }
 
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-
   double t3 = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
   *elapsedTime = t1 + t2 + t3;
+
   printf("\nSearch on CPU completed\n");
   printf("Size of the explored tree: %llu\n", *exploredTree);
   printf("Number of explored solutions: %llu\n", *exploredSol);
