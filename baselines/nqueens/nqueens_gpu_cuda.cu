@@ -15,7 +15,7 @@
 
 #define BLOCK_SIZE 512
 
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
+// #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 /*******************************************************************************
 Implementation of the single-GPU N-Queens search.
@@ -225,7 +225,7 @@ void nqueens_search(const int N, const int G, const int m, const int M,
     Node parent = popFront(&pool, &hasWork);
     if (!hasWork) break;
 
-    decompose(N, G, parent, tree_loc, num_sol, &pool);
+    decompose(N, G, parent, exploredTree, exploredSol, &pool);
   }
 
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
@@ -251,16 +251,16 @@ void nqueens_search(const int N, const int G, const int m, const int M,
   cudaMalloc(&labels_d, M*N * sizeof(uint8_t));
 
   while (1) {
-    int poolSize = pool.size;
+    int poolSize = popBackBulk(&pool, m, M, parents);
 
-    if (poolSize >= m) {
-      poolSize = MIN(poolSize, M);
-
-      for (int i = 0; i < poolSize; i++) {
-        int hasWork = 0;
-        parents[i] = popBack(&pool, &hasWork);
-        if (!hasWork) break;
-      }
+    if (poolSize > 0) {
+      // poolSize = MIN(poolSize, M);
+      //
+      // for (int i = 0; i < poolSize; i++) {
+      //   int hasWork = 0;
+      //   parents[i] = popBack(&pool, &hasWork);
+      //   if (!hasWork) break;
+      // }
 
       const int numLabels = N * poolSize;
       const int nbBlocks = ceil((double)numLabels / BLOCK_SIZE);
@@ -294,7 +294,7 @@ void nqueens_search(const int N, const int G, const int m, const int M,
     Node parent = popBack(&pool, &hasWork);
     if (!hasWork) break;
 
-    decompose(N, G, parent, tree_loc, num_sol, &pool);
+    decompose(N, G, parent, exploredTree, exploredSol, &pool);
   }
 
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);

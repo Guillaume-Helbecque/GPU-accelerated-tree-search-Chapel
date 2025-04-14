@@ -46,6 +46,18 @@ module Pool
       return default;
     }
 
+    // Bulk removal from the end of the deque.
+    proc ref popBackBulk(const m: int, const M: int, ref parents) {
+      if (this.size >= m) {
+        const poolSize = min(this.size, M);
+        this.size -= poolSize;
+        parents[0..#poolSize] = this.elements[(this.front + this.size)..#poolSize];
+        return poolSize;
+      }
+
+      return 0;
+    }
+
     // Removal from the front of the deque.
     proc ref popFront(ref hasWork: int) {
       if (this.size > 0) {

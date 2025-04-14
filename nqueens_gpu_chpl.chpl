@@ -3,11 +3,10 @@
 */
 
 use Time;
+use GpuDiagnostics;
 
 use util;
 use Pool;
-use GpuDiagnostics;
-
 use NQueens_node;
 
 config const BLOCK_SIZE = 512;
@@ -173,7 +172,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     var parent = pool.popFront(hasWork);
     if !hasWork then break;
 
-    decompose(parent, exploredTree, exploredSol, best, pool);
+    decompose(parent, exploredTree, exploredSol, pool);
   }
 
   timer.stop();
@@ -197,17 +196,16 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   on device var labels_d: [0..#(M*N)] uint(8);
 
   while true {
-    var poolSize = pool.size;
+    var poolSize = pool.popBackBulk(m, M, parents);
 
-    // If 'poolSize' is sufficiently large, we offload the pool on GPU.
-    if (poolSize >= m) {
-      poolSize = min(poolSize, M);
+    if (poolSize > 0) {
+      /* poolSize = min(poolSize, M);
 
       for i in 0..#poolSize {
         var hasWork = 0;
         parents[i] = pool.popBack(hasWork);
         if !hasWork then break;
-      }
+      } */
 
       const numLabels = N * poolSize;
 
@@ -243,7 +241,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     var parent = pool.popBack(hasWork);
     if !hasWork then break;
 
-    decompose(parent, exploredTree, exploredSol, best, pool);
+    decompose(parent, exploredTree, exploredSol, pool);
   }
 
   timer.stop();
