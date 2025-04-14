@@ -15,8 +15,6 @@
 
 #define BLOCK_SIZE 512
 
-// #define MIN(a, b) ((a) < (b) ? (a) : (b))
-
 /*******************************************************************************
 Implementation of the single-GPU N-Queens search.
 *******************************************************************************/
@@ -158,11 +156,10 @@ __global__ void evaluate_gpu(const int N, const int G, const Node* parents_d, ui
     // If child 'k' is not scheduled, we evaluate its safety 'G' times, otherwise 0.
     if (k >= depth) {
       isSafe = 1;
-      // const int G_notScheduled = G * (k >= depth);
       for (int i = 0; i < depth; i++) {
         const uint8_t pbi = parent.board[i];
 
-        for (int g = 0; g < G/*G_notScheduled*/; g++) {
+        for (int g = 0; g < G; g++) {
           isSafe *= (pbi != queen_num - (depth - i) &&
                      pbi != queen_num + (depth - i));
         }
@@ -254,14 +251,6 @@ void nqueens_search(const int N, const int G, const int m, const int M,
     int poolSize = popBackBulk(&pool, m, M, parents);
 
     if (poolSize > 0) {
-      // poolSize = MIN(poolSize, M);
-      //
-      // for (int i = 0; i < poolSize; i++) {
-      //   int hasWork = 0;
-      //   parents[i] = popBack(&pool, &hasWork);
-      //   if (!hasWork) break;
-      // }
-
       const int numLabels = N * poolSize;
       const int nbBlocks = ceil((double)numLabels / BLOCK_SIZE);
 

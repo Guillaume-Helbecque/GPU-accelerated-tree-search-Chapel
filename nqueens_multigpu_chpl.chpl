@@ -108,11 +108,10 @@ proc evaluate_gpu(const parents_d: [] Node, const size, ref labels_d)
     // If child 'k' is not scheduled, we evaluate its safety 'G' times, otherwise 0.
     if (k >= depth) {
       isSafe = 1;
-      /* const G_notScheduled = g * (k >= depth); */
       for i in 0..#depth {
         const pbi = parent.board[i];
 
-        for _g in 0..#g {//G_notScheduled {
+        for _g in 0..#g {
           isSafe *= (pbi != queen_num - (depth - i) &&
                      pbi != queen_num + (depth - i));
         }
@@ -240,20 +239,10 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
           eachTaskState[gpuID].write(BUSY);
         }
 
-        /* poolSize = min(poolSize, M);
-
-        for i in 0..#poolSize {
-          var hasWork = 0;
-          parents[i] = pool_loc.popBack(hasWork);
-          if !hasWork then break;
-        } */
-
         const numLabels = N * poolSize;
 
         parents_d = parents; // host-to-device
-        on device {
-          evaluate_gpu(parents_d, numLabels, labels_d);
-        }
+        on device do evaluate_gpu(parents_d, numLabels, labels_d); // GPU kernel
         labels = labels_d; // device-to-host
 
         /*
@@ -286,9 +275,6 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
                     halt("DEADCODE in work stealing");
                   }
 
-                  /* for i in 0..#(size/2) {
-                    pool_loc.pushBack(p[i]);
-                  } */
                   pool_loc.pushBackBulk(p);
 
                   steal = true;
