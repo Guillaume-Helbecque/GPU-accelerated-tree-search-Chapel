@@ -72,7 +72,7 @@ proc isSafe(const board, const queen_num, const row_pos): uint(8)
 }
 
 // Evaluate and generate children nodes on CPU.
-proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref pool: SinglePool(Node))
+proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref pool)
 {
   const depth = parent.depth;
 
@@ -124,7 +124,7 @@ proc evaluate_gpu(const parents_d: [] Node, const size, ref labels_d)
 
 // Generate children nodes (evaluated on GPU) on CPU.
 proc generate_children(const ref parents: [] Node, const size: int, const ref labels: [] uint(8),
-  ref exploredTree: uint, ref exploredSol: uint, ref pool: SinglePool(Node))
+  ref exploredTree: uint, ref exploredSol: uint, ref pool)
 {
   for i in 0..#size  {
     const parent = parents[i];

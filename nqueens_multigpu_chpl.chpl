@@ -81,14 +81,16 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref po
   if (depth == N) {
     num_sol += 1;
   }
-  for j in depth..(N-1) {
-    if isSafe(parent.board, depth, parent.board[j]) {
-      var child = new Node();
-      child.depth = depth + 1;
-      child.board = parent.board;
-      child.board[depth] <=> child.board[j];
-      pool.pushBack(child);
-      tree_loc += 1;
+  else {
+    for j in depth..(N-1) {
+      if isSafe(parent.board, depth, parent.board[j]) {
+        var child = new Node();
+        child.depth = depth + 1;
+        child.board = parent.board;
+        child.board[depth] <=> child.board[j];
+        pool.pushBack(child);
+        tree_loc += 1;
+      }
     }
   }
 }
@@ -105,6 +107,7 @@ proc evaluate_gpu(const parents_d: [] Node, const size, ref labels_d)
     const queen_num = parent.board[k];
 
     var isSafe: uint(8);
+
     // If child 'k' is not scheduled, we evaluate its safety 'G' times, otherwise 0.
     if (k >= depth) {
       isSafe = 1;
@@ -157,7 +160,6 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   var root = new Node(N);
 
   var pool = new SinglePool_par(Node);
-
   pool.pushBack(root);
 
   var allTasksIdleFlag: atomic bool = false;
@@ -170,6 +172,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     a sufficiently large amount of work for GPU computation.
   */
   timer.start();
+
   while (pool.size < D*m) {
     var hasWork = 0;
     var parent = pool.popFrontFree(hasWork);
@@ -177,8 +180,10 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 
     decompose(parent, exploredTree, exploredSol, pool);
   }
+
   timer.stop();
   const res1 = (timer.elapsed(), exploredTree, exploredSol);
+
   writeln("\nInitial search on CPU completed");
   writeln("Size of the explored tree: ", res1[1]);
   writeln("Number of explored solutions: ", res1[2]);
@@ -189,6 +194,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     is not enough work.
   */
   timer.start();
+
   var eachExploredTree, eachExploredSol: [0..#D] uint;
 
   const poolSize = pool.size;
@@ -228,9 +234,6 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     on device var labels_d: [0..#(M*N)] uint(8);
 
     while true {
-      /*
-        Each task gets its parents nodes from the pool.
-      */
       var poolSize = pool_loc.popBackBulk(m, M, parents);
 
       if (poolSize > 0) {
@@ -320,23 +323,25 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     eachExploredTree[gpuID] = tree;
     eachExploredSol[gpuID] = sol;
   }
+
   timer.stop();
+  const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
+
+  writeln("Search on GPU completed");
+  writeln("Size of the explored tree: ", res2[1]);
+  writeln("Number of explored solutions: ", res2[2]);
+  writeln("Elapsed time: ", res2[0], " [s]\n");
 
   exploredTree += (+ reduce eachExploredTree);
   exploredSol += (+ reduce eachExploredSol);
 
   writeln("workload per GPU: ", 100.0*eachExploredTree/(exploredTree-res1[1]):real, "\n");
 
-  const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
-  writeln("Search on GPU completed");
-  writeln("Size of the explored tree: ", res2[1]);
-  writeln("Number of explored solutions: ", res2[2]);
-  writeln("Elapsed time: ", res2[0], " [s]\n");
-
   /*
     Step 3: We complete the depth-first search on CPU.
   */
   timer.start();
+
   while true {
     var hasWork = 0;
     var parent = pool.popBackFree(hasWork);
@@ -344,9 +349,11 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 
     decompose(parent, exploredTree, exploredSol, pool);
   }
+
   timer.stop();
   elapsedTime = timer.elapsed();
   const res3 = (elapsedTime, exploredTree, exploredSol) - res1 - res2;
+
   writeln("Search on CPU completed");
   writeln("Size of the explored tree: ", res3[1]);
   writeln("Number of explored solutions: ", res3[2]);
