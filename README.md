@@ -84,7 +84,7 @@ Problem-specific command-line options:
 
 Unstable command-line options:
 - **`--perc`**: percentage of the total size of the victim's pool to steal in WS (only in CUDA-based multi-GPU implementation)
-  - any real number between `0` and `1` (`0.5` by default)
+  - any real number between `0.0` and `1.0` (`0.5` by default)
 
 ### Examples
 
