@@ -34,15 +34,6 @@ config const ub: int = 1; // initial upper bound
 const jobs = taillard_get_nb_jobs(inst);
 const machines = taillard_get_nb_machines(inst);
 
-var lbound1 = new lb1_bound_data(jobs, machines);
-taillard_get_processing_times(lbound1.p_times, inst);
-fill_min_heads_tails(lbound1);
-
-var lbound2 = new lb2_bound_data(jobs, machines);
-fill_machine_pairs(lbound2/*, LB2_FULL*/);
-fill_lags(lbound1.p_times, lbound2);
-fill_johnson_schedules(lbound1.p_times, lbound2);
-
 const initUB = if (ub == 1) then taillard_get_best_ub(inst) else max(int);
 
 proc check_parameters()
@@ -94,8 +85,8 @@ proc help_message(): void
 }
 
 // Evaluate and generate children nodes on CPU.
-proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  ref best: int, ref pool: SinglePool(Node))
+proc decompose_lb1(const lb1_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
+  ref best: int, ref pool)
 {
   for i in parent.limit1+1..(jobs-1) {
     var child = new Node();
@@ -104,7 +95,7 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     child.prmu = parent.prmu;
     child.prmu[parent.depth] <=> child.prmu[i];
 
-    var lowerbound = lb1_bound(lbound1, child.prmu, child.limit1, jobs);
+    var lowerbound = lb1_bound(lb1_data, child.prmu, child.limit1, jobs);
 
     if (child.depth == jobs) { // if child leaf
       num_sol += 1;
@@ -121,12 +112,12 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   }
 }
 
-proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  ref best: int, ref pool: SinglePool(Node))
+proc decompose_lb1_d(const lb1_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
+  ref best: int, ref pool)
 {
   var lb_begin: MAX_JOBS*int(32);
 
-  lb1_children_bounds(lbound1, parent.prmu, parent.limit1, jobs, lb_begin);
+  lb1_children_bounds(lb1_data, parent.prmu, parent.limit1, jobs, lb_begin);
 
   for i in parent.limit1+1..(jobs-1) {
     const job = parent.prmu[i];
@@ -153,8 +144,8 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   }
 }
 
-proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  ref best: int, ref pool: SinglePool(Node))
+proc decompose_lb2(const lb1_data, const lb2_data, const parent: Node, ref tree_loc: uint,
+  ref num_sol: uint, ref best: int, ref pool)
 {
   for i in parent.limit1+1..(jobs-1) {
     var child = new Node();
@@ -163,7 +154,7 @@ proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     child.prmu = parent.prmu;
     child.prmu[parent.depth] <=> child.prmu[i];
 
-    var lowerbound = lb2_bound(lbound1, lbound2, child.prmu, child.limit1, jobs, best);
+    var lowerbound = lb2_bound(lb1_data, lb2_data, child.prmu, child.limit1, jobs, best);
 
     if (child.depth == jobs) { // if child leaf
       num_sol += 1;
@@ -181,18 +172,18 @@ proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 }
 
 // Evaluate and generate children nodes on CPU.
-proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  ref best: int, ref pool: SinglePool(Node))
+proc decompose(const lb1_data, const lb2_data, const parent: Node, ref tree_loc: uint,
+  ref num_sol: uint, ref best: int, ref pool)
 {
   select lb {
     when "lb1_d" {
-      decompose_lb1_d(parent, tree_loc, num_sol, best, pool);
+      decompose_lb1_d(lb1_data, parent, tree_loc, num_sol, best, pool);
     }
     when "lb1" {
-      decompose_lb1(parent, tree_loc, num_sol, best, pool);
+      decompose_lb1(lb1_data, parent, tree_loc, num_sol, best, pool);
     }
     otherwise { // lb2
-      decompose_lb2(parent, tree_loc, num_sol, best, pool);
+      decompose_lb2(lb1_data, lb2_data, parent, tree_loc, num_sol, best, pool);
     }
   }
 }
@@ -331,12 +322,21 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   */
   timer.start();
 
+  var lbound1 = new lb1_bound_data(jobs, machines);
+  taillard_get_processing_times(lbound1.p_times, inst);
+  fill_min_heads_tails(lbound1);
+
+  var lbound2 = new lb2_bound_data(jobs, machines);
+  fill_machine_pairs(lbound2/*, LB2_FULL*/);
+  fill_lags(lbound1.p_times, lbound2);
+  fill_johnson_schedules(lbound1.p_times, lbound2);
+
   while (pool.size < m) {
     var hasWork = 0;
     var parent = pool.popFront(hasWork);
     if !hasWork then break;
 
-    decompose(parent, exploredTree, exploredSol, best, pool);
+    decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
   }
 
   timer.stop();
@@ -371,16 +371,9 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   lbound2_d.machine_pair_order = lbound2.machine_pair_order;
 
   while true {
+    var poolSize = pool.popBackBulk(m, M, parents);
 
-    var poolSize = pool.size;
-    if (poolSize >= m) {
-      poolSize = min(poolSize, M);
-      for i in 0..#poolSize {
-        var hasWork = 0;
-        parents[i] = pool.popBack(hasWork);
-        if !hasWork then break;
-      }
-
+    if (poolSize > 0) {
       /*
         TODO: Optimize 'numBounds' based on the fact that the maximum number of
         generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
@@ -420,7 +413,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     var parent = pool.popBack(hasWork);
     if !hasWork then break;
 
-    decompose(parent, exploredTree, exploredSol, best, pool);
+    decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
   }
 
   timer.stop();

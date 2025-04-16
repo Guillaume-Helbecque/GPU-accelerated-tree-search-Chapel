@@ -88,7 +88,7 @@ proc help_message(): void
 
 // Evaluate and generate children nodes on CPU.
 proc decompose_lb1(const lb1_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  ref best: int, ref pool: SinglePool_par(Node))
+  ref best: int, ref pool)
 {
   for i in parent.limit1+1..(jobs-1) {
     var child = new Node();
@@ -146,8 +146,8 @@ proc decompose_lb1_d(const lb1_data, const parent: Node, ref tree_loc: uint, ref
   }
 }
 
-proc decompose_lb2(const lb1_data, const lb2_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  ref best: int, ref pool: SinglePool_par(Node))
+proc decompose_lb2(const lb1_data, const lb2_data, const parent: Node, ref tree_loc: uint,
+  ref num_sol: uint, ref best: int, ref pool: SinglePool_par(Node))
 {
   for i in parent.limit1+1..(jobs-1) {
     var child = new Node();
@@ -174,8 +174,8 @@ proc decompose_lb2(const lb1_data, const lb2_data, const parent: Node, ref tree_
 }
 
 // Evaluate and generate children nodes on CPU.
-proc decompose(const lb1_data, const lb2_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  ref best: int, ref pool: SinglePool_par(Node))
+proc decompose(const lb1_data, const lb2_data, const parent: Node, ref tree_loc: uint,
+  ref num_sol: uint, ref best: int, ref pool)
 {
   select lb {
     when "lb1_d" {
