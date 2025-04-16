@@ -35,14 +35,14 @@ config const ub: int = 1; // initial upper bound
 const jobs = taillard_get_nb_jobs(inst);
 const machines = taillard_get_nb_machines(inst);
 
-var lbound1 = new WrapperLB1(jobs, machines); //lb1_bound_data(jobs, machines);
-taillard_get_processing_times(lbound1!.lb1_bound.p_times, inst);
-fill_min_heads_tails(lbound1!.lb1_bound);
+var lbound1 = new lb1_bound_data(jobs, machines);
+taillard_get_processing_times(lbound1.p_times, inst);
+fill_min_heads_tails(lbound1);
 
-var lbound2 = new WrapperLB2(jobs, machines);
-fill_machine_pairs(lbound2!.lb2_bound/*, LB2_FULL*/);
-fill_lags(lbound1!.lb1_bound.p_times, lbound2!.lb2_bound);
-fill_johnson_schedules(lbound1!.lb1_bound.p_times, lbound2!.lb2_bound);
+var lbound2 = new lb2_bound_data(jobs, machines);
+fill_machine_pairs(lbound2/*, LB2_FULL*/);
+fill_lags(lbound1.p_times, lbound2);
+fill_johnson_schedules(lbound1.p_times, lbound2);
 
 const initUB = if (ub == 1) then taillard_get_best_ub(inst) else max(int);
 
@@ -105,7 +105,7 @@ proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     child.prmu = parent.prmu;
     child.prmu[parent.depth] <=> child.prmu[i];
 
-    var lowerbound = lb1_bound(lbound1!.lb1_bound, child.prmu, child.limit1, jobs);
+    var lowerbound = lb1_bound(lbound1, child.prmu, child.limit1, jobs);
 
     if (child.depth == jobs) { // if child leaf
       num_sol += 1;
@@ -127,7 +127,7 @@ proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
 {
   var lb_begin: MAX_JOBS*int(32);
 
-  lb1_children_bounds(lbound1!.lb1_bound, parent.prmu, parent.limit1, jobs, lb_begin);
+  lb1_children_bounds(lbound1, parent.prmu, parent.limit1, jobs, lb_begin);
 
   for i in parent.limit1+1..(jobs-1) {
     const job = parent.prmu[i];
@@ -164,7 +164,7 @@ proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     child.prmu = parent.prmu;
     child.prmu[parent.depth] <=> child.prmu[i];
 
-    var lowerbound = lb2_bound(lbound1!.lb1_bound, lbound2!.lb2_bound, child.prmu, child.limit1, jobs, best);
+    var lowerbound = lb2_bound(lbound1, lbound2, child.prmu, child.limit1, jobs, best);
 
     if (child.depth == jobs) { // if child leaf
       num_sol += 1;
@@ -211,7 +211,7 @@ proc evaluate_gpu_lb1(const parents_d: [] Node, const size, const lbound1_d, ref
 
     if (k >= parent.limit1+1) {
       prmu[depth] <=> prmu[k];
-      bounds_d[threadId] = lb1_bound(lbound1_d!.lb1_bound, prmu, parent.limit1+1, jobs);
+      bounds_d[threadId] = lb1_bound(lbound1_d, prmu, parent.limit1+1, jobs);
       prmu[depth] <=> prmu[k];
     }
   }
@@ -233,7 +233,7 @@ proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size, const best, const 
 
     var lb_begin: MAX_JOBS*int(32);
 
-    lb1_children_bounds(lbound1_d!.lb1_bound, parent.prmu, parent.limit1, jobs, lb_begin);
+    lb1_children_bounds(lbound1_d, parent.prmu, parent.limit1, jobs, lb_begin);
 
     for k in 0..#jobs {
       if (k >= parent.limit1+1) {
@@ -257,7 +257,7 @@ proc evaluate_gpu_lb2(const parents_d: [] Node, const size, const best, const lb
 
     if (k >= parent.limit1+1) {
       prmu[depth] <=> prmu[k];
-      bounds_d[threadId] = lb2_bound(lbound1_d!.lb1_bound, lbound2_d!.lb2_bound, prmu, parent.limit1+1, jobs, best);
+      bounds_d[threadId] = lb2_bound(lbound1_d, lbound2_d, prmu, parent.limit1+1, jobs, best);
       prmu[depth] <=> prmu[k];
     }
   }
@@ -355,26 +355,19 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   var parents: [0..#M] Node = noinit;
   var bounds: [0..#(M*jobs)] int(32) = noinit;
 
-  var lbound1_d: lbound1.type;
-  var lbound2_d: lbound2.type;
-  var parents_d: WrapperArrayParents;
-  var bounds_d: WrapperArrayBounds;
+  on device var parents_d: [0..#M] Node;
+  on device var bounds_d: [0..#(M*jobs)] int(32);
 
-  on device {
-    lbound1_d = new WrapperLB1(jobs, machines);
-    lbound1_d!.lb1_bound.p_times   = lbound1!.lb1_bound.p_times;
-    lbound1_d!.lb1_bound.min_heads = lbound1!.lb1_bound.min_heads;
-    lbound1_d!.lb1_bound.min_tails = lbound1!.lb1_bound.min_tails;
+  on device var lbound1_d = new lb1_bound_data(jobs, machines);
+  lbound1_d.p_times   = lbound1.p_times;
+  lbound1_d.min_heads = lbound1.min_heads;
+  lbound1_d.min_tails = lbound1.min_tails;
 
-    lbound2_d = new WrapperLB2(jobs, machines);
-    lbound2_d!.lb2_bound.johnson_schedules  = lbound2!.lb2_bound.johnson_schedules;
-    lbound2_d!.lb2_bound.lags               = lbound2!.lb2_bound.lags;
-    lbound2_d!.lb2_bound.machine_pairs      = lbound2!.lb2_bound.machine_pairs;
-    lbound2_d!.lb2_bound.machine_pair_order = lbound2!.lb2_bound.machine_pair_order;
-
-    parents_d = new WrapperArrayParents();
-    bounds_d = new WrapperArrayBounds();
-  }
+  on device var lbound2_d = new lb2_bound_data(jobs, machines);
+  lbound2_d.johnson_schedules  = lbound2.johnson_schedules;
+  lbound2_d.lags               = lbound2.lags;
+  lbound2_d.machine_pairs      = lbound2.machine_pairs;
+  lbound2_d.machine_pair_order = lbound2.machine_pair_order;
 
   while true {
 
@@ -394,11 +387,9 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
       */
       const numBounds = jobs * poolSize;
 
-      on device {
-        parents_d!.arr = parents; // host-to-device
-        evaluate_gpu(parents_d!.arr, numBounds, best, lbound1_d, lbound2_d, bounds_d!.arr);
-        bounds = bounds_d!.arr; // device-to-host
-      }
+      parents_d = parents; // host-to-device
+      on device do evaluate_gpu(parents_d, numBounds, best, lbound1_d, lbound2_d, bounds_d);
+      bounds = bounds_d; // device-to-host
 
       /*
         Each task generates and inserts its children nodes to the pool.
