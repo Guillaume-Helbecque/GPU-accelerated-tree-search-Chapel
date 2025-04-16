@@ -5,17 +5,16 @@
 use Time;
 use GpuDiagnostics;
 
-config const BLOCK_SIZE = 512;
-
 use util;
 use Pool;
-
 use PFSP_node;
 use Bound_johnson;
 use Bound_simple;
 use Taillard;
 
 const allowedLowerBounds = ["lb1", "lb1_d", "lb2"];
+
+config const BLOCK_SIZE = 512;
 
 /*******************************************************************************
 Implementation of the single-GPU PFSP search.
@@ -339,8 +338,10 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
     decompose(parent, exploredTree, exploredSol, best, pool);
   }
+
   timer.stop();
   const res1 = (timer.elapsed(), exploredTree, exploredSol);
+
   writeln("\nInitial search on CPU completed");
   writeln("Size of the explored tree: ", res1[1]);
   writeln("Number of explored solutions: ", res1[2]);
@@ -388,7 +389,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
       const numBounds = jobs * poolSize;
 
       parents_d = parents; // host-to-device
-      on device do evaluate_gpu(parents_d, numBounds, best, lbound1_d, lbound2_d, bounds_d);
+      on device do evaluate_gpu(parents_d, numBounds, best, lbound1_d, lbound2_d, bounds_d); // GPU kernel
       bounds = bounds_d; // device-to-host
 
       /*
@@ -400,9 +401,10 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
       break;
     }
   }
-  timer.stop();
 
+  timer.stop();
   const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
+
   writeln("Search on GPU completed");
   writeln("Size of the explored tree: ", res2[1]);
   writeln("Number of explored solutions: ", res2[2]);
@@ -412,6 +414,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     Step 3: We complete the depth-first search on CPU.
   */
   timer.start();
+
   while true {
     var hasWork = 0;
     var parent = pool.popBack(hasWork);
@@ -419,9 +422,11 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
     decompose(parent, exploredTree, exploredSol, best, pool);
   }
+
   timer.stop();
   elapsedTime = timer.elapsed();
   const res3 = (elapsedTime, exploredTree, exploredSol) - res1 - res2;
+
   writeln("Search on CPU completed");
   writeln("Size of the explored tree: ", res3[1]);
   writeln("Number of explored solutions: ", res3[2]);
