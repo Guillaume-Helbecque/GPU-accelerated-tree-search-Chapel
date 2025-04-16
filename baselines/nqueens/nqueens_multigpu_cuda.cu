@@ -166,18 +166,17 @@ __global__ void evaluate_gpu(const int N, const int G, const Node* parents_d, ui
     const uint8_t depth = parent.depth;
     const uint8_t queen_num = parent.board[k];
 
-    uint8_t isSafe = 1;
+    uint8_t isSafe;
 
     // If child 'k' is not scheduled, we evaluate its safety 'G' times, otherwise 0.
     if (k >= depth) {
-      // const int G_notScheduled = G * (k >= depth);
+      isSafe = 1
       for (int i = 0; i < depth; i++) {
         const uint8_t pbi = parent.board[i];
-        int y;
+
         for (int g = 0; g < G; g++) {
           isSafe *= (pbi != queen_num - (depth - i) &&
                      pbi != queen_num + (depth - i));
-          y += g;
         }
       }
       labels_d[threadId] = isSafe;
@@ -196,14 +195,16 @@ void generate_children(const int N, const Node* parents, const int size, const u
     if (depth == N) {
       *exploredSol += 1;
     }
-    for (int j = depth; j < N; j++) {
-      if (labels[j + i * N] == 1) {
-        Node child;
-        memcpy(child.board, parent.board, N * sizeof(uint8_t));
-        swap(&child.board[depth], &child.board[j]);
-        child.depth = depth + 1;
-        pushBack(pool, child);
-        *exploredTree += 1;
+    else {
+      for (int j = depth; j < N; j++) {
+        if (labels[j + i * N] == 1) {
+          Node child;
+          child.depth = depth + 1;
+          memcpy(child.board, parent.board, N * sizeof(uint8_t));
+          swap(&child.board[depth], &child.board[j]);
+          pushBack(pool, child);
+          *exploredTree += 1;
+        }
       }
     }
   }
@@ -229,6 +230,7 @@ void nqueens_search(const int N, const int G, const int m, const int M, const in
     a sufficiently large amount of work for GPU computation.
   */
   startTime = omp_get_wtime();
+
   while (pool.size < D * m) {
     int hasWork = 0;
     Node parent = popFront(&pool, &hasWork);
@@ -236,8 +238,10 @@ void nqueens_search(const int N, const int G, const int m, const int M, const in
 
     decompose(N, G, parent, exploredTree, exploredSol, &pool);
   }
+
   endTime = omp_get_wtime();
   double t1 = endTime - startTime;
+
   printf("\nInitial search on CPU completed\n");
   printf("Size of the explored tree: %llu\n", *exploredTree);
   printf("Number of explored solutions: %llu\n", *exploredSol);
@@ -248,6 +252,7 @@ void nqueens_search(const int N, const int G, const int m, const int M, const in
     is not enough work.
   */
   startTime = omp_get_wtime();
+
   unsigned long long int eachExploredTree[D], eachExploredSol[D];
 
   const int poolSize = pool.size;
@@ -334,6 +339,7 @@ void nqueens_search(const int N, const int G, const int m, const int M, const in
 
     deleteSinglePool(&pool_loc);
   }
+
   endTime = omp_get_wtime();
   double t2 = endTime - startTime;
 
@@ -351,6 +357,7 @@ void nqueens_search(const int N, const int G, const int m, const int M, const in
     Step 3: We complete the depth-first search on CPU.
   */
   startTime = omp_get_wtime();
+
   while (1) {
     int hasWork = 0;
     Node parent = popBack(&pool, &hasWork);
@@ -358,9 +365,11 @@ void nqueens_search(const int N, const int G, const int m, const int M, const in
 
     decompose(N, G, parent, exploredTree, exploredSol, &pool);
   }
+
   endTime = omp_get_wtime();
   double t3 = endTime - startTime;
   *elapsedTime = t1 + t2 + t3;
+
   printf("\nSearch on CPU completed\n");
   printf("Size of the explored tree: %llu\n", *exploredTree);
   printf("Number of explored solutions: %llu\n", *exploredSol);

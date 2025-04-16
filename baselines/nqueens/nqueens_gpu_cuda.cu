@@ -15,8 +15,6 @@
 
 #define BLOCK_SIZE 512
 
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-
 /*******************************************************************************
 Implementation of the single-GPU N-Queens search.
 *******************************************************************************/
@@ -127,14 +125,16 @@ void decompose(const int N, const int G, const Node parent,
   if (depth == N) {
     *num_sol += 1;
   }
-  for (int j = depth; j < N; j++) {
-    if (isSafe(G, parent.board, depth, parent.board[j])) {
-      Node child;
-      memcpy(child.board, parent.board, N * sizeof(uint8_t));
-      swap(&child.board[depth], &child.board[j]);
-      child.depth = depth + 1;
-      pushBack(pool, child);
-      *tree_loc += 1;
+  else {
+    for (int j = depth; j < N; j++) {
+      if (isSafe(G, parent.board, depth, parent.board[j])) {
+        Node child;
+        child.depth = depth + 1;
+        memcpy(child.board, parent.board, N * sizeof(uint8_t));
+        swap(&child.board[depth], &child.board[j]);
+        pushBack(pool, child);
+        *tree_loc += 1;
+      }
     }
   }
 }
@@ -151,18 +151,17 @@ __global__ void evaluate_gpu(const int N, const int G, const Node* parents_d, ui
     const uint8_t depth = parent.depth;
     const uint8_t queen_num = parent.board[k];
 
-    uint8_t isSafe = 1;
+    uint8_t isSafe;
 
     // If child 'k' is not scheduled, we evaluate its safety 'G' times, otherwise 0.
     if (k >= depth) {
-      // const int G_notScheduled = G * (k >= depth);
+      isSafe = 1;
       for (int i = 0; i < depth; i++) {
         const uint8_t pbi = parent.board[i];
-        int y;
-        for (int g = 0; g < G/*G_notScheduled*/; g++) {
+
+        for (int g = 0; g < G; g++) {
           isSafe *= (pbi != queen_num - (depth - i) &&
                      pbi != queen_num + (depth - i));
-          y += g;
         }
       }
       labels_d[threadId] = isSafe;
@@ -181,14 +180,16 @@ void generate_children(const int N, const Node* parents, const int size, const u
     if (depth == N) {
       *exploredSol += 1;
     }
-    for (int j = depth; j < N; j++) {
-      if (labels[j + i * N] == 1) {
-        Node child;
-        memcpy(child.board, parent.board, N * sizeof(uint8_t));
-        swap(&child.board[depth], &child.board[j]);
-        child.depth = depth + 1;
-        pushBack(pool, child);
-        *exploredTree += 1;
+    else {
+      for (int j = depth; j < N; j++) {
+        if (labels[j + i * N] == 1) {
+          Node child;
+          child.depth = depth + 1;
+          memcpy(child.board, parent.board, N * sizeof(uint8_t));
+          swap(&child.board[depth], &child.board[j]);
+          pushBack(pool, child);
+          *exploredTree += 1;
+        }
       }
     }
   }
@@ -207,7 +208,36 @@ void nqueens_search(const int N, const int G, const int m, const int M,
 
   pushBack(&pool, root);
 
-  clock_t startTime = clock();
+  // Timers
+  struct timespec start, end;
+
+  /*
+    Step 1: We perform a partial breadth-first search on CPU in order to create
+    a sufficiently large amount of work for GPU computation.
+  */
+  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+
+  while (pool.size < m) {
+    int hasWork = 0;
+    Node parent = popFront(&pool, &hasWork);
+    if (!hasWork) break;
+
+    decompose(N, G, parent, exploredTree, exploredSol, &pool);
+  }
+
+  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+  double t1 = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+
+  printf("\nInitial search on CPU completed\n");
+  printf("Size of the explored tree: %llu\n", *exploredTree);
+  printf("Number of explored solutions: %llu\n", *exploredSol);
+  printf("Elapsed time: %f [s]\n", t1);
+
+  /*
+    Step 2: We continue the search on GPU in a depth-first manner, until there
+    is not enough work.
+  */
+  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
   Node* parents = (Node*)malloc(M * sizeof(Node));
   uint8_t* labels = (uint8_t*)malloc(M*N * sizeof(uint8_t));
@@ -218,47 +248,60 @@ void nqueens_search(const int N, const int G, const int m, const int M,
   cudaMalloc(&labels_d, M*N * sizeof(uint8_t));
 
   while (1) {
+    int poolSize = popBackBulk(&pool, m, M, parents);
+
+    if (poolSize > 0) {
+      const int numLabels = N * poolSize;
+      const int nbBlocks = ceil((double)numLabels / BLOCK_SIZE);
+
+      cudaMemcpy(parents_d, parents, poolSize * sizeof(Node), cudaMemcpyHostToDevice);
+      evaluate_gpu<<<nbBlocks, BLOCK_SIZE>>>(N, G, parents_d, labels_d, numLabels);
+      cudaMemcpy(labels, labels_d, numLabels * sizeof(uint8_t), cudaMemcpyDeviceToHost);
+
+      generate_children(N, parents, poolSize, labels, exploredTree, exploredSol, &pool);
+    }
+    else {
+      break;
+    }
+  }
+
+  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+  double t2 = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+
+  printf("\nSearch on GPU completed\n");
+  printf("Size of the explored tree: %llu\n", *exploredTree);
+  printf("Number of explored solutions: %llu\n", *exploredSol);
+  printf("Elapsed time: %f [s]\n", t2);
+
+  /*
+    Step 3: We complete the depth-first search on CPU.
+  */
+  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+
+  while (1) {
     int hasWork = 0;
     Node parent = popBack(&pool, &hasWork);
     if (!hasWork) break;
 
     decompose(N, G, parent, exploredTree, exploredSol, &pool);
-
-    int poolSize = MIN(pool.size, M);
-
-    // If 'poolSize' is sufficiently large, we offload the pool on GPU.
-    if (poolSize >= m) {
-
-      for (int i = 0; i < poolSize; i++) {
-        int hasWork = 0;
-        parents[i] = popBack(&pool, &hasWork);
-        if (!hasWork) break;
-      }
-
-      const int numLabels = N * poolSize;
-
-      cudaMemcpy(parents_d, parents, poolSize * sizeof(Node), cudaMemcpyHostToDevice);
-
-      const int nbBlocks = ceil((double)numLabels / BLOCK_SIZE);
-
-      evaluate_gpu<<<nbBlocks, BLOCK_SIZE>>>(N, G, parents_d, labels_d, numLabels);
-
-      cudaMemcpy(labels, labels_d, numLabels * sizeof(uint8_t), cudaMemcpyDeviceToHost);
-
-      generate_children(N, parents, poolSize, labels, exploredTree, exploredSol, &pool);
-    }
   }
+
+  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+  double t3 = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+  *elapsedTime = t1 + t2 + t3;
+
+  printf("\nSearch on CPU completed\n");
+  printf("Size of the explored tree: %llu\n", *exploredTree);
+  printf("Number of explored solutions: %llu\n", *exploredSol);
+  printf("Elapsed time: %f [s]\n", t3);
+
+  printf("\nExploration terminated.\n");
 
   cudaFree(parents_d);
   cudaFree(labels_d);
 
   free(parents);
   free(labels);
-
-  clock_t endTime = clock();
-  *elapsedTime = (double)(endTime - startTime) / CLOCKS_PER_SEC;
-
-  printf("\nExploration terminated.\n");
 
   deleteSinglePool(&pool);
 }
