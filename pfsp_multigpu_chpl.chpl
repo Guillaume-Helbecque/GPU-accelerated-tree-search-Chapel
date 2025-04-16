@@ -305,16 +305,6 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref bo
   }
 }
 
-class WrapperClassArrayParents {
-  forwarding var arr: [0..#M] Node = noinit;
-}
-type WrapperArrayParents = owned WrapperClassArrayParents?;
-
-class WrapperClassArrayBounds {
-  forwarding var arr: [0..#(M*jobs)] int(32) = noinit;
-}
-type WrapperArrayBounds = owned WrapperClassArrayBounds?;
-
 // Multi-GPU PFSP search.
 proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {

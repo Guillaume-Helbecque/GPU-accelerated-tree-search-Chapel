@@ -47,18 +47,6 @@ module Bound_johnson
     }
   }
 
-  /* NOTE: This wrapper allows one to store persistent data on the GPU memory. */
-  class WrapperClassLB2 {
-    forwarding var lb2_bound: lb2_bound_data;
-
-    proc init(const jobs: int(32), const machines: int(32))
-    {
-      this.lb2_bound = new lb2_bound_data(jobs, machines);
-    }
-  }
-
-  type WrapperLB2 = owned WrapperClassLB2?;
-
   proc fill_machine_pairs(ref lb2_data: lb2_bound_data/*, enum lb2_variant lb2_type*/): void
   {
     var lb2_type = lb2_variant.LB2_LEARN;
