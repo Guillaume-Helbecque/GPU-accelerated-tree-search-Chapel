@@ -152,16 +152,6 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref la
   }
 }
 
-class WrapperClassArrayParents {
-  forwarding var arr: [0..#M] Node = noinit;
-}
-type WrapperArrayParents = owned WrapperClassArrayParents?;
-
-class WrapperClassArrayLabels {
-  forwarding var arr: [0..#(M*N)] uint(8) = noinit;
-}
-type WrapperArrayLabels = owned WrapperClassArrayLabels?;
-
 // Distributed multi-GPU N-Queens search.
 proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
@@ -251,13 +241,8 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
       var parents: [0..#M] Node = noinit;
       var labels: [0..#(M*N)] uint(8) = noinit;
 
-      var parents_d: WrapperArrayParents;
-      var labels_d: WrapperArrayLabels;
-
-      on device {
-        parents_d = new WrapperArrayParents();
-        labels_d = new WrapperArrayLabels();
-      }
+      on device var parents_d: [0..#M] Node;
+      on device var labels_d: [0..#(M*N)] uint(8);
 
       while true {
         /*
@@ -274,11 +259,9 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 
           const numLabels = N * poolSize;
 
-          on device {
-            parents_d!.arr = parents; // host-to-device
-            evaluate_gpu(parents_d!.arr, numLabels, labels_d!.arr);
-            labels = labels_d!.arr; // device-to-host
-          }
+          parents_d = parents; // host-to-device
+          on device do evaluate_gpu(parents_d, numLabels, labels_d); // GPU kernel
+          labels = labels_d; // device-to-host
 
           /*
             Each task generates and inserts its children nodes to the pool.
