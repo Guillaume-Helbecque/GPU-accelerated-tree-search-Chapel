@@ -191,6 +191,8 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   timer.start();
 
   var eachLocaleExploredTree, eachLocaleExploredSol: [PrivateSpace] uint = noinit;
+  var eachLocaleState: [PrivateSpace] atomic bool = BUSY; // one locale per compute node
+  var allLocalesIdleFlag: atomic bool = false;
 
   const poolSize = pool.size;
   const c = poolSize / numLocales;
@@ -201,9 +203,12 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   pool.size = 0;
 
   coforall (locID, loc) in zip(0..#numLocales, Locales) with (ref pool,
-    ref eachLocaleExploredTree, ref eachLocaleExploredSol) do on loc {
+    ref eachLocaleExploredTree, ref eachLocaleExploredSol,
+    ref eachLocaleState) do on loc {
 
     var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
+    var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
+    var allTasksIdleFlag: atomic bool = false;
 
     var pool_lloc = new SinglePool(Node);
 
@@ -226,12 +231,13 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     var multiPool: [0..#D] SinglePool_par(Node);
 
     coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol,
-      ref multiPool) {
+      ref multiPool, ref eachTaskState) {
 
       const device = here.gpus[gpuID];
 
       var tree, sol: uint;
       ref pool_loc = multiPool[gpuID];
+      var taskState, locState: bool = BUSY;
 
       // each task gets its chunk
       pool_loc.elements[0..#c_l] = pool_lloc.elements[gpuID+f_l.. by D #c_l];
@@ -253,6 +259,15 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
         */
         var poolSize = pool_loc.size;
         if (poolSize >= m) {
+          if (taskState == IDLE) {
+            taskState = BUSY;
+            eachTaskState[gpuID].write(BUSY);
+          }
+          if (locState == IDLE) {
+            locState = BUSY;
+            eachLocaleState[here.id].write(BUSY);
+          }
+
           poolSize = min(poolSize, M);
           for i in 0..#poolSize {
             var hasWork = 0;
@@ -272,7 +287,20 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
           generate_children(parents, poolSize, labels, tree, sol, pool_loc);
         }
         else {
-          break;
+          if (taskState == BUSY) {
+            taskState = IDLE;
+            eachTaskState[gpuID].write(IDLE);
+          }
+          if allIdle(eachTaskState, allTasksIdleFlag) {
+            if (locState == BUSY) {
+              locState = IDLE;
+              eachLocaleState[here.id].write(IDLE);
+            }
+            if allIdle(eachLocaleState, allLocalesIdleFlag) {
+              break;
+            }
+          }
+          continue;
         }
       }
 
