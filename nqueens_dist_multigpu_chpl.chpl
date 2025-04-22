@@ -206,9 +206,11 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   pool.front = 0;
   pool.size = 0;
 
+  var distMultiPool: [PrivateSpace][0..#D] SinglePool_par(Node);
+
   coforall (locID, loc) in zip(0..#numLocales, Locales) with (ref pool,
     ref eachLocaleExploredTree, ref eachLocaleExploredSol,
-    ref eachLocaleState) do on loc {
+    ref eachLocaleState, ref distMultiPool) do on loc {
 
     var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
     var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
@@ -232,7 +234,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     pool_lloc.front = 0;
     pool_lloc.size = 0;
 
-    var multiPool: [0..#D] SinglePool_par(Node);
+    ref multiPool = distMultiPool[locID];
 
     coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol,
       ref multiPool, ref eachTaskState) {
@@ -267,7 +269,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
           }
           if (locState == IDLE) {
             locState = BUSY;
-            eachLocaleState[here.id].write(BUSY);
+            eachLocaleState[locID].write(BUSY);
           }
 
           const numLabels = N * poolSize;
@@ -332,7 +334,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
             if allIdle(eachTaskState, allTasksIdleFlag) {
               if (locState == BUSY) {
                 locState = IDLE;
-                eachLocaleState[here.id].write(IDLE);
+                eachLocaleState[locID].write(IDLE);
               }
               if allIdle(eachLocaleState, allLocalesIdleFlag) {
                 break;
