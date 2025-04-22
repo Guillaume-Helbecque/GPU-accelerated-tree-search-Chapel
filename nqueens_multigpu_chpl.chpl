@@ -88,7 +88,7 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref po
         child.depth = depth + 1;
         child.board = parent.board;
         child.board[depth] <=> child.board[j];
-        pool.pushBack(child);
+        pool.pushBackFree(child);
         tree_loc += 1;
       }
     }
@@ -162,9 +162,6 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   var pool = new SinglePool_par(Node);
   pool.pushBack(root);
 
-  var allTasksIdleFlag: atomic bool = false;
-  var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
-
   var timer: stopwatch;
 
   /*
@@ -196,12 +193,13 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   timer.start();
 
   var eachExploredTree, eachExploredSol: [0..#D] uint;
+  var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
+  var allTasksIdleFlag: atomic bool = false;
 
   const poolSize = pool.size;
   const c = poolSize / D;
   const l = poolSize - (D-1)*c;
   const f = pool.front;
-  var lock: atomic bool;
 
   pool.front = 0;
   pool.size = 0;
@@ -254,7 +252,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
         generate_children(parents, poolSize, labels, tree, sol, pool_loc);
       }
       else {
-        // work stealing
+        // work stealing attempts
         var tries = 0;
         var steal = false;
         const victims = permute(0..#D);
@@ -296,6 +294,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
           }
           tries += 1;
         }
+
         if (steal == false) {
           // termination
           if (taskState == BUSY) {

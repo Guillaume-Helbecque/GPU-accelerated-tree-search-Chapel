@@ -6,7 +6,6 @@ use Time;
 
 use util;
 use Pool;
-
 use NQueens_node;
 
 /*******************************************************************************
@@ -68,22 +67,23 @@ proc isSafe(const board, const queen_num, const row_pos): uint(8)
 }
 
 // Evaluate and generate children nodes on CPU.
-proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref pool: SinglePool(Node))
+proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref pool)
 {
   const depth = parent.depth;
 
   if (depth == N) {
     num_sol += 1;
   }
-  for j in depth..(N-1) {
-    if isSafe(parent.board, depth, parent.board[j]) {
-      var child = new Node();
-      child.depth = parent.depth;
-      child.board = parent.board;
-      child.board[depth] <=> child.board[j];
-      child.depth += 1;
-      pool.pushBack(child);
-      tree_loc += 1;
+  else {
+    for j in depth..(N-1) {
+      if isSafe(parent.board, depth, parent.board[j]) {
+        var child = new Node();
+        child.depth = depth + 1;
+        child.board = parent.board;
+        child.board[depth] <=> child.board[j];
+        pool.pushBack(child);
+        tree_loc += 1;
+      }
     }
   }
 }
@@ -94,7 +94,6 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   var root = new Node(N);
 
   var pool = new SinglePool(Node);
-
   pool.pushBack(root);
 
   var timer: stopwatch;
