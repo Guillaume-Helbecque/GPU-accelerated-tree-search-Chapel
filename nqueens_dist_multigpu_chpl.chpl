@@ -284,16 +284,16 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
           generate_children(parents, poolSize, labels, tree, sol, pool_loc);
         }
         else {
-          // work stealing
+          // intra-node work stealing
           var tries = 0;
-          var steal = false;
-          const victims = permute(0..#D);
+          var localSteal, globalSteal = false;
+          const victimTasks = permute(0..#D);
 
-          label WS0 while (tries < D && steal == false) {
-            const victimID = victims[tries];
+          label WS0 while (tries < D && localSteal == false) {
+            const victimTaskID = victimTasks[tries];
 
-            if (victimID != gpuID) { // if not me
-              ref victim = multiPool[victimID];
+            if (victimTaskID != gpuID) { // if not me
+              ref victim = multiPool[victimTaskID];
               var nn = 0;
 
               label WS1 while (nn < 10) {
@@ -309,7 +309,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 
                     pool_loc.pushBackBulk(p);
 
-                    steal = true;
+                    localSteal = true;
                     victim.lock.write(false); // reset lock
                     break WS0;
                   }
@@ -325,7 +325,59 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
             tries += 1;
           }
 
-          if (steal == false) {
+          if (localSteal == false && numLocales != 1) {
+            // inter-node work stealing
+            var tries = 0;
+            const victimLocales = permute(0..#numLocales);
+
+            label WS3 while (tries < numLocales && globalSteal == false) {
+              const victimLocaleID = victimLocales[tries];
+
+              if (victimLocaleID != locID) { // if not me
+                ref victimMultiPool = distMultiPool[victimLocaleID];
+                /* var tries2 = 0; */
+                const victimTasks = permute(0..#D);
+
+                for victimTaskID in 0..#D {
+                /* label WS1 while (tries2 < D && steal == false) { */
+                  /* const victimTaskID = victimTasks[tries2]; */
+                  ref victim = victimMultiPool[victimTaskID];
+                  var nn = 0;
+
+                  label WS4 while (nn < 10) {
+                    if victim.lock.compareAndSwap(false, true) { // get the lock
+                      const size = victim.size;
+
+                      if (size >= 2*m) {
+                        var (hasWork, p) = victim.popFrontBulkFree(m, M);
+                        if (hasWork == 0) {
+                          victim.lock.write(false); // reset lock
+                          halt("DEADCODE in work stealing");
+                        }
+
+                        pool_loc.pushBackBulk(p);
+
+                        globalSteal = true;
+                        /* nSSteal += 1; */
+                        victim.lock.write(false); // reset lock
+                        /* break WS1; */
+                      }
+
+                      victim.lock.write(false); // reset lock
+                      break WS4;
+                    }
+
+                    nn += 1;
+                    currentTask.yieldExecution();
+                  }
+                  /* tries2 += 1; */
+                }
+              }
+              tries += 1;
+            }
+          }
+
+          if (localSteal == false && globalSteal == false) {
             // termination
             if (taskState == BUSY) {
               taskState = IDLE;
