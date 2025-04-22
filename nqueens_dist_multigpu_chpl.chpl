@@ -284,13 +284,13 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
           generate_children(parents, poolSize, labels, tree, sol, pool_loc);
         }
         else {
-          // intra-node work stealing
-          var tries = 0;
           var localSteal, globalSteal = false;
+
+          // intra-node work stealing attempts
           const victimTasks = permute(0..#D);
 
-          label WS0 while (tries < D && localSteal == false) {
-            const victimTaskID = victimTasks[tries];
+          label WS0 for i in 0..#D {
+            const victimTaskID = victimTasks[i];
 
             if (victimTaskID != gpuID) { // if not me
               ref victim = multiPool[victimTaskID];
@@ -322,25 +322,22 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
                 currentTask.yieldExecution();
               }
             }
-            tries += 1;
           }
 
           if (localSteal == false && numLocales != 1) {
-            // inter-node work stealing
-            var tries = 0;
+            // inter-node work stealing attempts
             const victimLocales = permute(0..#numLocales);
 
-            label WS3 while (tries < numLocales && globalSteal == false) {
-              const victimLocaleID = victimLocales[tries];
+            label WS3 for i in 0..#numLocales {
+              const victimLocaleID = victimLocales[i];
 
               if (victimLocaleID != locID) { // if not me
                 ref victimMultiPool = distMultiPool[victimLocaleID];
-                /* var tries2 = 0; */
                 const victimTasks = permute(0..#D);
 
-                for victimTaskID in 0..#D {
+                for j in 0..#D {
                 /* label WS1 while (tries2 < D && steal == false) { */
-                  /* const victimTaskID = victimTasks[tries2]; */
+                  const victimTaskID = victimTasks[j];
                   ref victim = victimMultiPool[victimTaskID];
                   var nn = 0;
 
@@ -359,8 +356,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 
                         globalSteal = true;
                         /* nSSteal += 1; */
-                        victim.lock.write(false); // reset lock
-                        /* break WS1; */
+                        /* victim.lock.write(false); // reset lock */
                       }
 
                       victim.lock.write(false); // reset lock
@@ -370,10 +366,8 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
                     nn += 1;
                     currentTask.yieldExecution();
                   }
-                  /* tries2 += 1; */
                 }
               }
-              tries += 1;
             }
           }
 
