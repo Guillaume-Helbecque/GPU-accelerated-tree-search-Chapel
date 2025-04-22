@@ -218,7 +218,7 @@ proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size, const best, const 
   @assertOnGpu
   foreach parentId in 0..#(size/jobs) {
     var parent = parents_d[parentId];
-    const depth = parent.depth;
+    /* const depth = parent.depth; */
     var prmu = parent.prmu;
 
     var lb_begin: MAX_JOBS*int(32);
@@ -289,10 +289,10 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref bo
       } else { // if not leaf
         if (lowerbound < best) { // if child feasible
           var child = new Node();
-          child.depth = parent.depth + 1;
+          child.depth = depth + 1;
           child.limit1 = parent.limit1 + 1;
           child.prmu = parent.prmu;
-          child.prmu[parent.depth] <=> child.prmu[j];
+          child.prmu[depth] <=> child.prmu[j];
 
           pool.pushBack(child);
           exploredTree += 1;

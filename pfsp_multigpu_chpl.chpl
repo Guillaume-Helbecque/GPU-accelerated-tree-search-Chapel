@@ -107,7 +107,7 @@ proc decompose_lb1(const lb1_data, const parent: Node, ref tree_loc: uint, ref n
       }
     } else { // if not leaf
       if (lowerbound < best) { // if child feasible
-        pool.pushBack(child);
+        pool.pushBackFree(child);
         tree_loc += 1;
       }
     }
@@ -115,7 +115,7 @@ proc decompose_lb1(const lb1_data, const parent: Node, ref tree_loc: uint, ref n
 }
 
 proc decompose_lb1_d(const lb1_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  ref best: int, ref pool: SinglePool_par(Node))
+  ref best: int, ref pool)
 {
   var lb_begin: MAX_JOBS*int(32);
 
@@ -139,7 +139,7 @@ proc decompose_lb1_d(const lb1_data, const parent: Node, ref tree_loc: uint, ref
         child.prmu = parent.prmu;
         child.prmu[parent.depth] <=> child.prmu[i];
 
-        pool.pushBack(child);
+        pool.pushBackFree(child);
         tree_loc += 1;
       }
     }
@@ -147,7 +147,7 @@ proc decompose_lb1_d(const lb1_data, const parent: Node, ref tree_loc: uint, ref
 }
 
 proc decompose_lb2(const lb1_data, const lb2_data, const parent: Node, ref tree_loc: uint,
-  ref num_sol: uint, ref best: int, ref pool: SinglePool_par(Node))
+  ref num_sol: uint, ref best: int, ref pool)
 {
   for i in parent.limit1+1..(jobs-1) {
     var child = new Node();
@@ -166,7 +166,7 @@ proc decompose_lb2(const lb1_data, const lb2_data, const parent: Node, ref tree_
       }
     } else { // if not leaf
       if (lowerbound < best) { // if child feasible
-        pool.pushBack(child);
+        pool.pushBackFree(child);
         tree_loc += 1;
       }
     }
@@ -220,7 +220,7 @@ proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size, const best, const 
   @assertOnGpu
   foreach parentId in 0..#(size/jobs) {
     var parent = parents_d[parentId];
-    const depth = parent.depth;
+    /* const depth = parent.depth; */
     var prmu = parent.prmu;
 
     var lb_begin: MAX_JOBS*int(32);
@@ -273,8 +273,10 @@ proc evaluate_gpu(const parents_d: [] Node, const size, const best, const lbound
 
 // Generate children nodes (evaluated by GPU) on CPU.
 proc generate_children(const ref parents: [] Node, const size: int, const ref bounds: [] int(32),
-  ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool: SinglePool_par(Node))
+  ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool)
 {
+  pool.acquireLock();
+
   for i in 0..#size {
     const parent = parents[i];
     const depth = parent.depth;
@@ -291,17 +293,19 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref bo
       } else { // if not leaf
         if (lowerbound < best) { // if child feasible
           var child = new Node();
-          child.depth = parent.depth + 1;
+          child.depth = depth + 1;
           child.limit1 = parent.limit1 + 1;
           child.prmu = parent.prmu;
-          child.prmu[parent.depth] <=> child.prmu[j];
+          child.prmu[depth] <=> child.prmu[j];
 
-          pool.pushBack(child);
+          pool.pushBackFree(child);
           exploredTree += 1;
         }
       }
     }
   }
+
+  pool.releaseLock();
 }
 
 // Multi-GPU PFSP search.
@@ -313,9 +317,6 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
   var pool = new SinglePool_par(Node);
   pool.pushBack(root);
-
-  var allTasksIdleFlag: atomic bool = false;
-  var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
 
   var timer: stopwatch;
 
@@ -358,12 +359,13 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
   var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
   var eachBest: [0..#D] int = noinit;
+  var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
+  var allTasksIdleFlag: atomic bool = false;
 
   const poolSize = pool.size;
   const c = poolSize / D;
   const l = poolSize - (D-1)*c;
   const f = pool.front;
-  var lock_p: atomic bool;
 
   pool.front = 0;
   pool.size = 0;
@@ -433,7 +435,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         generate_children(parents, poolSize, bounds, tree, sol, best_l, pool_loc);
       }
       else {
-        // work stealing
+        // work stealing attempts
         var tries = 0;
         var steal = false;
         const victims = permute(0..#D);
@@ -457,9 +459,6 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
                     halt("DEADCODE in work stealing");
                   }
 
-                  /* for i in 0..#(size/2) {
-                    pool_loc.pushBack(p[i]);
-                  } */
                   pool_loc.pushBackBulk(p);
 
                   steal = true;
