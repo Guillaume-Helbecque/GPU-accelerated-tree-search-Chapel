@@ -292,7 +292,6 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 
             if (victimID != gpuID) { // if not me
               ref victim = multiPool[victimID];
-              nSteal += 1;
               var nn = 0;
 
               label WS1 while (nn < 10) {
@@ -309,7 +308,6 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
                     pool_loc.pushBackBulk(p);
 
                     steal = true;
-                    nSSteal += 1;
                     victim.lock.write(false); // reset lock
                     break WS0;
                   }
