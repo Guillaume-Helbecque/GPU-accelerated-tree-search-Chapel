@@ -1,6 +1,8 @@
 #include "Pool.h"
 #include <stdlib.h>
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 void initSinglePool(SinglePool* pool)
 {
   pool->elements = (Node*)malloc(CAPACITY * sizeof(Node));
@@ -31,6 +33,20 @@ Node popBack(SinglePool* pool, int* hasWork)
   }
 
   return (Node){0};
+}
+
+// Bulk removal from the end of the deque.
+int popBackBulk(SinglePool* pool, const int m, const int M, Node* parents) {
+  if (pool->size >= m) {
+    const int poolSize = MIN(pool->size, M);
+    pool->size -= poolSize;
+    for (int i = 0; i < poolSize; i++) {
+      parents[i] = pool->elements[pool->front + pool->size + i];
+    }
+    return poolSize;
+  }
+
+  return 0;
 }
 
 // Removal from the front of the deque.

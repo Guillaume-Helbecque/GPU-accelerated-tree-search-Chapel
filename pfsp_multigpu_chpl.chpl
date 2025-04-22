@@ -6,17 +6,16 @@ use Time;
 use Random;
 use GpuDiagnostics;
 
-config const BLOCK_SIZE = 512;
-
 use util;
 use Pool_par;
-
 use PFSP_node;
 use Bound_johnson;
 use Bound_simple;
 use Taillard;
 
 const allowedLowerBounds = ["lb1", "lb1_d", "lb2"];
+
+config const BLOCK_SIZE = 512;
 
 /*******************************************************************************
 Implementation of the multi-GPU PFSP search.
@@ -89,7 +88,7 @@ proc help_message(): void
 
 // Evaluate and generate children nodes on CPU.
 proc decompose_lb1(const lb1_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  ref best: int, ref pool: SinglePool_par(Node))
+  ref best: int, ref pool)
 {
   for i in parent.limit1+1..(jobs-1) {
     var child = new Node();
@@ -108,7 +107,7 @@ proc decompose_lb1(const lb1_data, const parent: Node, ref tree_loc: uint, ref n
       }
     } else { // if not leaf
       if (lowerbound < best) { // if child feasible
-        pool.pushBack(child);
+        pool.pushBackFree(child);
         tree_loc += 1;
       }
     }
@@ -116,7 +115,7 @@ proc decompose_lb1(const lb1_data, const parent: Node, ref tree_loc: uint, ref n
 }
 
 proc decompose_lb1_d(const lb1_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  ref best: int, ref pool: SinglePool_par(Node))
+  ref best: int, ref pool)
 {
   var lb_begin: MAX_JOBS*int(32);
 
@@ -140,15 +139,15 @@ proc decompose_lb1_d(const lb1_data, const parent: Node, ref tree_loc: uint, ref
         child.prmu = parent.prmu;
         child.prmu[parent.depth] <=> child.prmu[i];
 
-        pool.pushBack(child);
+        pool.pushBackFree(child);
         tree_loc += 1;
       }
     }
   }
 }
 
-proc decompose_lb2(const lb1_data, const lb2_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  ref best: int, ref pool: SinglePool_par(Node))
+proc decompose_lb2(const lb1_data, const lb2_data, const parent: Node, ref tree_loc: uint,
+  ref num_sol: uint, ref best: int, ref pool)
 {
   for i in parent.limit1+1..(jobs-1) {
     var child = new Node();
@@ -167,7 +166,7 @@ proc decompose_lb2(const lb1_data, const lb2_data, const parent: Node, ref tree_
       }
     } else { // if not leaf
       if (lowerbound < best) { // if child feasible
-        pool.pushBack(child);
+        pool.pushBackFree(child);
         tree_loc += 1;
       }
     }
@@ -175,8 +174,8 @@ proc decompose_lb2(const lb1_data, const lb2_data, const parent: Node, ref tree_
 }
 
 // Evaluate and generate children nodes on CPU.
-proc decompose(const lb1_data, const lb2_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-  ref best: int, ref pool: SinglePool_par(Node))
+proc decompose(const lb1_data, const lb2_data, const parent: Node, ref tree_loc: uint,
+  ref num_sol: uint, ref best: int, ref pool)
 {
   select lb {
     when "lb1_d" {
@@ -221,7 +220,7 @@ proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size, const best, const 
   @assertOnGpu
   foreach parentId in 0..#(size/jobs) {
     var parent = parents_d[parentId];
-    const depth = parent.depth;
+    /* const depth = parent.depth; */
     var prmu = parent.prmu;
 
     var lb_begin: MAX_JOBS*int(32);
@@ -261,21 +260,23 @@ proc evaluate_gpu(const parents_d: [] Node, const size, const best, const lbound
 {
   select lb {
     when "lb1_d" {
-      evaluate_gpu_lb1_d(parents_d, size, best, lbound1_d!.lb1_bound, bounds_d);
+      evaluate_gpu_lb1_d(parents_d, size, best, lbound1_d, bounds_d);
     }
     when "lb1" {
-      evaluate_gpu_lb1(parents_d, size, lbound1_d!.lb1_bound, bounds_d);
+      evaluate_gpu_lb1(parents_d, size, lbound1_d, bounds_d);
     }
     otherwise { // lb2
-      evaluate_gpu_lb2(parents_d, size, best, lbound1_d!.lb1_bound, lbound2_d!.lb2_bound, bounds_d);
+      evaluate_gpu_lb2(parents_d, size, best, lbound1_d, lbound2_d, bounds_d);
     }
   }
 }
 
 // Generate children nodes (evaluated by GPU) on CPU.
 proc generate_children(const ref parents: [] Node, const size: int, const ref bounds: [] int(32),
-  ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool: SinglePool_par(Node))
+  ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool)
 {
+  pool.acquireLock();
+
   for i in 0..#size {
     const parent = parents[i];
     const depth = parent.depth;
@@ -292,28 +293,20 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref bo
       } else { // if not leaf
         if (lowerbound < best) { // if child feasible
           var child = new Node();
-          child.depth = parent.depth + 1;
+          child.depth = depth + 1;
           child.limit1 = parent.limit1 + 1;
           child.prmu = parent.prmu;
-          child.prmu[parent.depth] <=> child.prmu[j];
+          child.prmu[depth] <=> child.prmu[j];
 
-          pool.pushBack(child);
+          pool.pushBackFree(child);
           exploredTree += 1;
         }
       }
     }
   }
-}
 
-class WrapperClassArrayParents {
-  forwarding var arr: [0..#M] Node = noinit;
+  pool.releaseLock();
 }
-type WrapperArrayParents = owned WrapperClassArrayParents?;
-
-class WrapperClassArrayBounds {
-  forwarding var arr: [0..#(M*jobs)] int(32) = noinit;
-}
-type WrapperArrayBounds = owned WrapperClassArrayBounds?;
 
 // Multi-GPU PFSP search.
 proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
@@ -324,9 +317,6 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
   var pool = new SinglePool_par(Node);
   pool.pushBack(root);
-
-  var allTasksIdleFlag: atomic bool = false;
-  var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
 
   var timer: stopwatch;
 
@@ -352,8 +342,10 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
     decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
   }
+
   timer.stop();
   const res1 = (timer.elapsed(), exploredTree, exploredSol);
+
   writeln("\nInitial search on CPU completed");
   writeln("Size of the explored tree: ", res1[1]);
   writeln("Number of explored solutions: ", res1[2]);
@@ -364,14 +356,16 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     is not enough work.
   */
   timer.start();
+
   var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
   var eachBest: [0..#D] int = noinit;
+  var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
+  var allTasksIdleFlag: atomic bool = false;
 
   const poolSize = pool.size;
   const c = poolSize / D;
   const l = poolSize - (D-1)*c;
   const f = pool.front;
-  var lock_p: atomic bool;
 
   pool.front = 0;
   pool.size = 0;
@@ -401,31 +395,21 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     var parents: [0..#M] Node = noinit;
     var bounds: [0..#(M*jobs)] int(32) = noinit;
 
-    var lbound1_d: WrapperLB1;
-    var lbound2_d: WrapperLB2;
-    var parents_d: WrapperArrayParents;
-    var bounds_d: WrapperArrayBounds;
+    on device var parents_d: [0..#M] Node;
+    on device var bounds_d: [0..#(M*jobs)] int(32);
 
-    on device {
-      lbound1_d = new WrapperLB1(jobs, machines);
-      lbound1_d!.lb1_bound.p_times   = lbound1.p_times;
-      lbound1_d!.lb1_bound.min_heads = lbound1.min_heads;
-      lbound1_d!.lb1_bound.min_tails = lbound1.min_tails;
+    on device var lbound1_d = new lb1_bound_data(jobs, machines);
+    lbound1_d.p_times   = lbound1.p_times;
+    lbound1_d.min_heads = lbound1.min_heads;
+    lbound1_d.min_tails = lbound1.min_tails;
 
-      lbound2_d = new WrapperLB2(jobs, machines);
-      lbound2_d!.lb2_bound.johnson_schedules  = lbound2.johnson_schedules;
-      lbound2_d!.lb2_bound.lags               = lbound2.lags;
-      lbound2_d!.lb2_bound.machine_pairs      = lbound2.machine_pairs;
-      lbound2_d!.lb2_bound.machine_pair_order = lbound2.machine_pair_order;
-
-      parents_d = new WrapperArrayParents();
-      bounds_d = new WrapperArrayBounds();
-    }
+    on device var lbound2_d = new lb2_bound_data(jobs, machines);
+    lbound2_d.johnson_schedules  = lbound2.johnson_schedules;
+    lbound2_d.lags               = lbound2.lags;
+    lbound2_d.machine_pairs      = lbound2.machine_pairs;
+    lbound2_d.machine_pair_order = lbound2.machine_pair_order;
 
     while true {
-      /*
-        Each task gets its parents nodes from the pool.
-      */
       var poolSize = pool_loc.popBackBulk(m, M, parents);
 
       if (poolSize > 0) {
@@ -434,15 +418,6 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
           eachTaskState[gpuID].write(BUSY);
         }
 
-        /* poolSize = min(poolSize, M);
-        var hasWork = 0;
-        var parents: [0..#poolSize] Node = noinit;
-        pool_loc.popBackBulk(poolSize, parents, hasWork);
-        if (hasWork == 0) {
-          writeln("DEADCODE in get parents");
-          break;
-        } */
-
         /*
           TODO: Optimize 'numBounds' based on the fact that the maximum number of
           generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
@@ -450,11 +425,9 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         */
         const numBounds = jobs * poolSize;
 
-        on device {
-          parents_d!.arr = parents; // host-to-device
-          evaluate_gpu(parents_d!.arr, numBounds, best_l, lbound1_d, lbound2_d, bounds_d!.arr);
-          bounds = bounds_d!.arr; // device-to-host
-        }
+        parents_d = parents; // host-to-device
+        on device do evaluate_gpu(parents_d, numBounds, best_l, lbound1_d, lbound2_d, bounds_d); // GPU kernel
+        bounds = bounds_d; // device-to-host
 
         /*
           Each task generates and inserts its children nodes to the pool.
@@ -462,7 +435,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
         generate_children(parents, poolSize, bounds, tree, sol, best_l, pool_loc);
       }
       else {
-        // work stealing
+        // work stealing attempts
         var tries = 0;
         var steal = false;
         const victims = permute(0..#D);
@@ -486,9 +459,6 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
                     halt("DEADCODE in work stealing");
                   }
 
-                  /* for i in 0..#(size/2) {
-                    pool_loc.pushBack(p[i]);
-                  } */
                   pool_loc.pushBackBulk(p);
 
                   steal = true;
@@ -525,23 +495,25 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
       }
     }
 
-    if lock_p.compareAndSwap(false, true) {
-      const poolLocSize = pool_loc.size;
-      for p in 0..#poolLocSize {
-        var hasWork = 0;
-        pool.pushBack(pool_loc.popBack(hasWork));
-        if !hasWork then break;
-      }
-      lock_p.write(false);
+    const poolLocSize = pool_loc.size;
+    for p in 0..#poolLocSize {
+      var hasWork = 0;
+      pool.pushBack(pool_loc.popBack(hasWork));
+      if !hasWork then break;
     }
 
     eachExploredTree[gpuID] = tree;
     eachExploredSol[gpuID] = sol;
     eachBest[gpuID] = best_l;
-
-    writeln("work stealing tries on tasks ", gpuID, " : ", nSteal, " and successes : ", nSSteal);
   }
+
   timer.stop();
+  const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
+
+  writeln("Search on GPU completed");
+  writeln("Size of the explored tree: ", res2[1]);
+  writeln("Number of explored solutions: ", res2[2]);
+  writeln("Elapsed time: ", res2[0], " [s]\n");
 
   exploredTree += (+ reduce eachExploredTree);
   exploredSol += (+ reduce eachExploredSol);
@@ -549,16 +521,11 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
   writeln("workload per GPU: ", 100.0*eachExploredTree/(exploredTree-res1[1]):real);
 
-  const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
-  writeln("Search on GPU completed");
-  writeln("Size of the explored tree: ", res2[1]);
-  writeln("Number of explored solutions: ", res2[2]);
-  writeln("Elapsed time: ", res2[0], " [s]\n");
-
   /*
     Step 3: We complete the depth-first search on CPU.
   */
   timer.start();
+
   while true {
     var hasWork = 0;
     var parent = pool.popBackFree(hasWork);
@@ -566,9 +533,11 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
     decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
   }
+
   timer.stop();
   elapsedTime = timer.elapsed();
   const res3 = (elapsedTime, exploredTree, exploredSol) - res1 - res2;
+
   writeln("Search on CPU completed");
   writeln("Size of the explored tree: ", res3[1]);
   writeln("Number of explored solutions: ", res3[2]);

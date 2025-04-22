@@ -162,10 +162,10 @@ void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const No
 {
   for (int i = parent.limit1+1; i < jobs; i++) {
     Node child;
-    memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
-    swap(&child.prmu[parent.depth], &child.prmu[i]);
     child.depth = parent.depth + 1;
     child.limit1 = parent.limit1 + 1;
+    memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
+    swap(&child.prmu[parent.depth], &child.prmu[i]);
 
     int lowerbound = lb1_bound(lbound1, child.prmu, child.limit1, jobs);
 
@@ -204,9 +204,9 @@ void decompose_lb1_d(const int jobs, const lb1_bound_data* const lbound1, const 
     } else { // if not leaf
       if (lb < *best) { // if child feasible
         Node child;
-        memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
         child.depth = parent.depth + 1;
         child.limit1 = parent.limit1 + 1;
+        memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
         swap(&child.prmu[child.limit1], &child.prmu[i]);
 
         pushBack(pool, child);
@@ -224,10 +224,10 @@ void decompose_lb2(const int jobs, const lb1_bound_data* const lbound1, const lb
 {
   for (int i = parent.limit1+1; i < jobs; i++) {
     Node child;
-    memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
-    swap(&child.prmu[parent.depth], &child.prmu[i]);
     child.depth = parent.depth + 1;
     child.limit1 = parent.limit1 + 1;
+    memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
+    swap(&child.prmu[parent.depth], &child.prmu[i]);
 
     int lowerbound = lb2_bound(lbound1, lbound2, child.prmu, child.limit1, jobs, *best);
 
@@ -277,19 +277,19 @@ void generate_children(Node* parents, const int size, const int jobs, int* bound
       const int lowerbound = bounds[j + i * jobs];
 
       // If child leaf
-      if(depth + 1 == jobs){
+      if (depth + 1 == jobs) {
         *exploredSol += 1;
 
         // If child feasible
-        if(lowerbound < *best) *best = lowerbound;
+        if (lowerbound < *best) *best = lowerbound;
 
       } else { // If not leaf
-        if(lowerbound < *best) {
+        if (lowerbound < *best) {
           Node child;
-          memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
-          swap(&child.prmu[depth], &child.prmu[j]);
           child.depth = depth + 1;
           child.limit1 = parent.limit1 + 1;
+          memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
+          swap(&child.prmu[depth], &child.prmu[j]);
 
           pushBack(pool, child);
           *exploredTree += 1;
@@ -316,11 +316,14 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
 
   pushBack(&pool, root);
 
-  // Timer
   struct timespec start, end;
+
+  /*
+    Step 1: We perform a partial breadth-first search on CPU in order to create
+    a sufficiently large amount of work for GPU computation.
+  */
   clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
-  // Bounding data
   lb1_bound_data* lbound1;
   lbound1 = new_bound_data(jobs, machines);
   taillard_get_processing_times(lbound1->p_times, inst);
@@ -332,19 +335,14 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   fill_lags(lbound1->p_times, lbound2);
   fill_johnson_schedules(lbound1->p_times, lbound2);
 
-  /*
-    Step 1: We perform a partial breadth-first search on CPU in order to create
-    a sufficiently large amount of work for GPU computation.
-  */
-
-  while(pool.size < m) {
-    // CPU side
+  while (pool.size < m) {
     int hasWork = 0;
     Node parent = popFront(&pool, &hasWork);
     if (!hasWork) break;
 
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
   }
+
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
   double t1 = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 
@@ -357,7 +355,6 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
     Step 2: We continue the search on GPU in a depth-first manner, until there
     is not enough work.
   */
-
   clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
   // TODO: add function 'copyBoundsDevice' to perform the deep copy of bounding data
@@ -413,27 +410,18 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   lbound2_d.nb_jobs = lbound2->nb_jobs;
   lbound2_d.nb_machines = lbound2->nb_machines;
 
-  // Allocating parents vector on CPU and GPU
   Node* parents = (Node*)malloc(M * sizeof(Node));
-  Node* parents_d;
-  cudaMalloc((void**)&parents_d, M * sizeof(Node));
-
-  // Allocating bounds vector on CPU and GPU
   int* bounds = (int*)malloc((jobs*M) * sizeof(int));
+
+  Node* parents_d;
   int *bounds_d;
+  cudaMalloc((void**)&parents_d, M * sizeof(Node));
   cudaMalloc((void**)&bounds_d, (jobs*M) * sizeof(int));
 
   while (1) {
-    int poolSize = pool.size;
-    if (poolSize >= m) {
-      poolSize = MIN(poolSize,M);
+    int poolSize = popBackBulk(&pool, m, M, parents);
 
-      for(int i= 0; i < poolSize; i++) {
-        int hasWork = 0;
-        parents[i] = popBack(&pool,&hasWork);
-        if (!hasWork) break;
-      }
-
+    if (poolSize > 0) {
       /*
         TODO: Optimize 'numBounds' based on the fact that the maximum number of
         generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
@@ -443,10 +431,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       const int nbBlocks = ceil((double)numBounds / BLOCK_SIZE);
 
       cudaMemcpy(parents_d, parents, poolSize *sizeof(Node), cudaMemcpyHostToDevice);
-
-      // numBounds is the 'size' of the problem
       evaluate_gpu(jobs, lb, numBounds, nbBlocks, best, lbound1_d, lbound2_d, parents_d, bounds_d);
-
       cudaMemcpy(bounds, bounds_d, numBounds * sizeof(int), cudaMemcpyDeviceToHost);
 
       /*
@@ -458,6 +443,7 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
       break;
     }
   }
+
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
   double t2 = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 
@@ -469,8 +455,8 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   /*
     Step 3: We complete the depth-first search on CPU.
   */
-
   clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+
   while (1) {
     int hasWork = 0;
     Node parent = popBack(&pool, &hasWork);
@@ -479,14 +465,17 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
     decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
   }
 
-  // Freeing memory for structs
-  deleteSinglePool(&pool);
-  free_bound_data(lbound1);
-  free_johnson_bd_data(lbound2);
+  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+  double t3 = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+  *elapsedTime = t1 + t2 + t3;
 
-  // Freeing memory for device
-  cudaFree(parents_d);
-  cudaFree(bounds_d);
+  printf("\nSearch on CPU completed\n");
+  printf("Size of the explored tree: %llu\n", *exploredTree);
+  printf("Number of explored solutions: %llu\n", *exploredSol);
+  printf("Elapsed time: %f [s]\n", t3);
+
+  printf("\nExploration terminated.\n");
+
   cudaFree(p_times_d);
   cudaFree(min_heads_d);
   cudaFree(min_tails_d);
@@ -495,20 +484,15 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, int* be
   cudaFree(machine_pairs_1_d);
   cudaFree(machine_pairs_2_d);
   cudaFree(machine_pair_order_d);
+  cudaFree(parents_d);
+  cudaFree(bounds_d);
 
-  //Freeing memory for host
+  free_bound_data(lbound1);
+  free_johnson_bd_data(lbound2);
   free(parents);
   free(bounds);
 
-  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-  double t3 = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-  *elapsedTime = t1 + t2 + t3;
-  printf("\nSearch on CPU completed\n");
-  printf("Size of the explored tree: %llu\n", *exploredTree);
-  printf("Number of explored solutions: %llu\n", *exploredSol);
-  printf("Elapsed time: %f [s]\n", t3);
-
-  printf("\nExploration terminated.\n");
+  deleteSinglePool(&pool);
 }
 
 int main(int argc, char* argv[])
