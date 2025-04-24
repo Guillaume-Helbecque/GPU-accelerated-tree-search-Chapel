@@ -11,6 +11,7 @@
 #include <getopt.h>
 #include <time.h>
 
+#include "../commons/util.h"
 #include "lib/c_bound_simple.h"
 #include "lib/c_bound_johnson.h"
 #include "lib/c_taillard.h"
@@ -103,13 +104,6 @@ void print_results(const int optimum, const unsigned long long int exploredTree,
   printf("=================================================\n");
 }
 
-inline void swap(int* a, int* b)
-{
-  int tmp = *b;
-  *b = *a;
-  *a = tmp;
-}
-
 // Evaluate and generate children nodes on CPU.
 void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const Node parent,
   int* best, unsigned long long int* tree_loc, unsigned long long int* num_sol, SinglePool* pool)
@@ -119,7 +113,7 @@ void decompose_lb1(const int jobs, const lb1_bound_data* const lbound1, const No
     child.depth = parent.depth + 1;
     child.limit1 = parent.limit1 + 1;
     memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
-    swap(&child.prmu[parent.depth], &child.prmu[i]);
+    swap_int(&child.prmu[parent.depth], &child.prmu[i]);
 
     int lowerbound = lb1_bound(lbound1, child.prmu, child.limit1, jobs);
 
@@ -161,7 +155,7 @@ void decompose_lb1_d(const int jobs, const lb1_bound_data* const lbound1, const 
         child.depth = parent.depth + 1;
         child.limit1 = parent.limit1 + 1;
         memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
-        swap(&child.prmu[parent.depth], &child.prmu[i]);
+        swap_int(&child.prmu[parent.depth], &child.prmu[i]);
 
         pushBack(pool, child);
         *tree_loc += 1;
@@ -181,7 +175,7 @@ void decompose_lb2(const int jobs, const lb1_bound_data* const lbound1, const lb
     child.depth = parent.depth + 1;
     child.limit1 = parent.limit1 + 1;
     memcpy(child.prmu, parent.prmu, jobs * sizeof(int));
-    swap(&child.prmu[parent.depth], &child.prmu[i]);
+    swap_int(&child.prmu[parent.depth], &child.prmu[i]);
 
     int lowerbound = lb2_bound(lbound1, lbound2, child.prmu, child.limit1, jobs, *best);
 

@@ -10,6 +10,7 @@
 #include <time.h>
 #include "cuda_runtime.h"
 
+#include "../commons/util.h"
 #include "lib/NQueens_node.h"
 #include "lib/Pool.h"
 
@@ -90,13 +91,6 @@ void print_results(const unsigned long long int exploredTree,
   printf("=================================================\n");
 }
 
-void swap(uint8_t* a, uint8_t* b)
-{
-  uint8_t tmp = *b;
-  *b = *a;
-  *a = tmp;
-}
-
 // Check queen's safety.
 uint8_t isSafe(const int G, const uint8_t* board, const uint8_t queen_num, const uint8_t row_pos)
 {
@@ -131,7 +125,7 @@ void decompose(const int N, const int G, const Node parent,
         Node child;
         child.depth = depth + 1;
         memcpy(child.board, parent.board, N * sizeof(uint8_t));
-        swap(&child.board[depth], &child.board[j]);
+        swap_uint8(&child.board[depth], &child.board[j]);
         pushBack(pool, child);
         *tree_loc += 1;
       }
@@ -186,7 +180,7 @@ void generate_children(const int N, const Node* parents, const int size, const u
           Node child;
           child.depth = depth + 1;
           memcpy(child.board, parent.board, N * sizeof(uint8_t));
-          swap(&child.board[depth], &child.board[j]);
+          swap_uint8(&child.board[depth], &child.board[j]);
           pushBack(pool, child);
           *exploredTree += 1;
         }
