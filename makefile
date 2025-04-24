@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 # Common settings
 CHPL_COMPILER := chpl
-CHPL_COMMON_OPTS := --fast -M lib/common
+CHPL_COMMON_OPTS := --fast -M lib/commons
 
 # Source files
 CHPL_NQUEENS_SOURCES := nqueens_chpl.chpl nqueens_gpu_chpl.chpl nqueens_multigpu_chpl.chpl nqueens_dist_multigpu_chpl.chpl
