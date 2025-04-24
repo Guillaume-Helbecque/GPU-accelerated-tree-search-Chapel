@@ -12,6 +12,7 @@ CUDA_COMMON_OPTS := $(C_COMMON_OPTS) -arch=sm_70
 HIP_COMMON_OPTS  := $(C_COMMON_OPTS) --offload-arch=gfx906
 
 LIBPATH := lib
+COMMONS_PATH := ../commons
 
 # Platform-specific flags and libraries
 ifeq ($(SYSTEM), g5k)
@@ -35,6 +36,10 @@ all: nqueens_c.out nqueens_gpu_cuda.out nqueens_multigpu_cuda.out nqueens_gpu_hi
 
 # Pattern rule for C library source files
 $(LIBPATH)/%.o: $(LIBPATH)/%.c
+	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@
+
+# Pattern rule for C common source files
+$(COMMONS_PATH)/%.o: $(COMMONS_PATH)/%.c
 	$(C_COMPILER) $(C_COMMON_OPTS) -c $< -o $@
 
 # Build executable for sequential in C
@@ -71,4 +76,4 @@ nqueens_multigpu_hip.out: nqueens_multigpu_hip.o $(LIBPATH)/NQueens_node.o $(LIB
 .PHONY: clean
 
 clean:
-	rm -f *.out *.o *.hip $(LIBPATH)/*.o
+	rm -f *.out *.o *.hip $(LIBPATH)/*.o $(COMMONS_PATH)/*.o

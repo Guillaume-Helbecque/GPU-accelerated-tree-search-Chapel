@@ -1,4 +1,5 @@
-#include "Auxiliary.h"
+#include <stdlib.h>
+#include "util.h"
 
 // Function to check if all elements in an array of atomic bool are IDLE
 static bool _allIdle(_Atomic bool arr[], int size) {
