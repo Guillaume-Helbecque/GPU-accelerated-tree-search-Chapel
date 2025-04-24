@@ -22,7 +22,6 @@
 #include "lib/c_taillard.h"
 #include "lib/evaluate.h"
 #include "lib/Pool_ext.h"
-#include "lib/Auxiliary.h"
 
 /******************************************************************************
 CUDA error checking
