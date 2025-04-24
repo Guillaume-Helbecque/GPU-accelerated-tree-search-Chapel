@@ -5,8 +5,6 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
-
 #define BLOCK_SIZE 512
 
 #define MAX_JOBS 20
@@ -14,7 +12,7 @@ extern "C" {
 
 typedef struct
 {
-  uint8_t depth;
+  int depth;
   int limit1;
   int prmu[MAX_JOBS];
 } Node;

@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include <limits.h>
@@ -263,7 +262,7 @@ void generate_children(Node* parents, const int size, const int jobs, int* bound
 {
   for (int i = 0; i < size; i++) {
     Node parent = parents[i];
-    const uint8_t depth = parent.depth;
+    const int depth = parent.depth;
 
     for (int j = parent.limit1+1; j < jobs; j++) {
       const int lowerbound = bounds[j + i * jobs];

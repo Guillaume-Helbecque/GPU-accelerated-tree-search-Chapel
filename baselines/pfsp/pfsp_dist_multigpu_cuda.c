@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include <limits.h>
@@ -34,7 +33,7 @@ void create_mpi_node_type(MPI_Datatype *mpi_node_type) {
   offsets[1] = offsetof(Node, limit1);
   offsets[2] = offsetof(Node, prmu);
 
-  MPI_Datatype types[3] = {MPI_UINT8_T, MPI_INT, MPI_INT};
+  MPI_Datatype types[3] = {MPI_INT, MPI_INT, MPI_INT};
   MPI_Type_create_struct(3, blocklengths, offsets, types, mpi_node_type);
   MPI_Type_commit(mpi_node_type);
 }
@@ -299,7 +298,7 @@ void generate_children(Node* parents, const int size, const int jobs, int* bound
 {
   for (int i = 0; i < size; i++) {
     Node parent = parents[i];
-    const uint8_t depth = parent.depth;
+    const int depth = parent.depth;
 
     for (int j = parent.limit1+1; j < jobs; j++) {
       const int lowerbound = bounds[j + i * jobs];
