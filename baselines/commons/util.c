@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "util.h"
 
 // Function to check if all elements in an array of atomic bool are IDLE

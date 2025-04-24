@@ -5,7 +5,6 @@
 extern "C" {
 #endif
 
-#include <stdlib.h>
 #include <stdint.h>
 
 #define BLOCK_SIZE 512

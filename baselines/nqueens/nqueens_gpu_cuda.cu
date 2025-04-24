@@ -8,7 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
-#include "cuda_runtime.h"
+#include <cuda.h>
 
 #include "../commons/util.h"
 #include "lib/NQueens_node.h"

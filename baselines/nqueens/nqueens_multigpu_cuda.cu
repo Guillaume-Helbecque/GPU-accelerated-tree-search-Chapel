@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <omp.h>
-#include "cuda_runtime.h"
+#include <cuda.h>
 
 #include "../commons/util.h"
 #include "lib/NQueens_node.h"
@@ -164,7 +164,7 @@ __global__ void evaluate_gpu(const int N, const int G, const Node* parents_d, ui
 
     // If child 'k' is not scheduled, we evaluate its safety 'G' times, otherwise 0.
     if (k >= depth) {
-      isSafe = 1
+      isSafe = 1;
       for (int i = 0; i < depth; i++) {
         const uint8_t pbi = parent.board[i];
 

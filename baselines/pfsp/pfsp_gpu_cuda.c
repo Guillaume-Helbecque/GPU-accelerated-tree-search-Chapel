@@ -7,13 +7,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include <unistd.h>
 #include <limits.h>
 #include <getopt.h>
 #include <time.h>
 #include <math.h>
 #include <cuda.h>
-#include <cuda_runtime.h>
 
 #include "../commons/util.h"
 #include "lib/c_bound_simple.h"

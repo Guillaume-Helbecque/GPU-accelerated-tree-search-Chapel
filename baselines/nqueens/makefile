@@ -76,4 +76,4 @@ nqueens_multigpu_hip.out: nqueens_multigpu_hip.o $(LIBPATH)/NQueens_node.o $(LIB
 .PHONY: clean
 
 clean:
-	rm -f *.out *.o *.hip $(LIBPATH)/*.o
+	rm -f *.out *.o *.hip $(LIBPATH)/*.o $(COMMONS_PATH)/*.o

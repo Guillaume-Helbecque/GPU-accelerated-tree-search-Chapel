@@ -7,13 +7,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include <unistd.h>
 #include <limits.h>
 #include <getopt.h>
 #include <time.h>
 #include <math.h>
 #include <omp.h>
-#include <cuda_runtime.h>
+#include <cuda.h>
 #include <stdatomic.h>
 
 #include "../commons/util.h"
