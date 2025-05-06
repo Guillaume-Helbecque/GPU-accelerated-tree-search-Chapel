@@ -1,11 +1,4 @@
 #!/bin/bash -l
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=1
-#SBATCH --time=01:00:00
-#SBATCH --exclusive
-#SBATCH -p gpu
-#SBATCH -G 4
 
 # Configuration of Chapel for (multi-)GPU-accelerated experiments on the Iris
 # cluster of the Université du Luxembourg (https://hpc-docs.uni.lu/systems/iris/).
