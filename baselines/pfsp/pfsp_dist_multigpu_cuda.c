@@ -582,10 +582,10 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
             victim = &multiPool[victimID];
             nSteal ++;
             int nn = 0;
-            int count = 0;
+            // int count = 0;
             while (nn < 10) { // WS1 loop
               expected = false;
-              count++;
+              // count++;
               if (atomic_compare_exchange_strong(&(victim->lock), &expected, true)) { // get the lock
                 int size = victim->size;
                 int nodeSize = 0;
@@ -778,14 +778,14 @@ void pfsp_search(const int inst, const int lb, const int m, const int M, const i
     Step 3: We complete the depth-first search on CPU.
   */
   if (MPIRank == 0) {
-    int count = 0;
+    // int count = 0;
     startTime = omp_get_wtime();
     while (1) {
       int hasWork = 0;
       Node parent = popBack(&pool, &hasWork);
       if (!hasWork) break;
       decompose(jobs, lb, best, lbound1, lbound2, parent, exploredTree, exploredSol, &pool);
-      count++;
+      // count++;
     }
   }
 

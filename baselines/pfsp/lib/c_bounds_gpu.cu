@@ -126,9 +126,9 @@ add_front_and_bound_gpu(const lb1_bound_data lb1_data, const int job, const int 
   int tmp0 = front[0] + p_times[job];
   int tmp1;
 
-  int idle = 0;
+  // int idle = 0;
   for (int i = 1; i < nb_machines; i++) {
-    idle += MAX(0, tmp0 - front[i]);
+    // idle += MAX(0, tmp0 - front[i]);
 
     tmp1 = MAX(tmp0, front[i]);
     lb   = MAX(lb, tmp1 + remain[i] + back[i]);
