@@ -197,6 +197,8 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     ref eachLocaleExploredTree, ref eachLocaleExploredSol) do on loc {
 
     var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
+    var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
+    var allTasksIdleFlag: atomic bool = false;
 
     var pool_lloc = new SinglePool(Node);
 
@@ -219,12 +221,13 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     var multiPool: [0..#D] SinglePool(Node);
 
     coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol,
-      ref multiPool) {
+      ref multiPool, ref eachTaskState) {
 
       const device = here.gpus[gpuID];
 
       var tree, sol: uint;
       ref pool_loc = multiPool[gpuID];
+      var taskState: bool = BUSY;
 
       // each task gets its chunk
       pool_loc.elements[0..#c_l] = pool_lloc.elements[gpuID+f_l.. by D #c_l];
@@ -246,6 +249,11 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
         */
         var poolSize = pool_loc.size;
         if (poolSize >= m) {
+          if (taskState == IDLE) {
+            taskState = BUSY;
+            eachTaskState[gpuID].write(BUSY);
+          }
+
           poolSize = min(poolSize, M);
           for i in 0..#poolSize {
             var hasWork = 0;
@@ -265,7 +273,14 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
           generate_children(parents, poolSize, labels, tree, sol, pool_loc);
         }
         else {
-          break;
+          if (taskState == BUSY) {
+            taskState = IDLE;
+            eachTaskState[gpuID].write(IDLE);
+          }
+          if allIdle(eachTaskState, allTasksIdleFlag) {
+            break;
+          }
+          continue;
         }
       }
 
