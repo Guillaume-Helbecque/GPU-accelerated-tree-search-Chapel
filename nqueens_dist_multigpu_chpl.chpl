@@ -7,6 +7,7 @@ use Random;
 use PrivateDist;
 use GpuDiagnostics;
 
+use util;
 use Pool;
 use Pool_par;
 use NQueens_node;
