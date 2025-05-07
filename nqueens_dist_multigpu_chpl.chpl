@@ -122,7 +122,7 @@ proc evaluate_gpu(const parents_d: [] Node, const size, ref labels_d)
 
 // Generate children nodes (evaluated on GPU) on CPU.
 proc generate_children(const ref parents: [] Node, const size: int, const ref labels: [] uint(8),
-  ref exploredTree: uint, ref exploredSol: uint, ref pool: SinglePool(Node))
+  ref exploredTree: uint, ref exploredSol: uint, ref pool: SinglePool_par(Node))
 {
   pool.acquireLock();
 
