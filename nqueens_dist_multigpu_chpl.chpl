@@ -223,7 +223,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     pool_lloc.front = 0;
     pool_lloc.size = 0;
 
-    var multiPool: [0..#D] SinglePool(Node);
+    var multiPool: [0..#D] SinglePool_par(Node);
 
     coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol,
       ref multiPool, ref eachTaskState) {
