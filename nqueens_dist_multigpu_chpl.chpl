@@ -198,8 +198,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   pool.front = 0;
   pool.size = 0;
 
-  for (locID, loc) in zip(0..#numLocales, Locales) with (ref pool,
-    ref eachLocaleExploredTree, ref eachLocaleExploredSol) {
+  for (locID, loc) in zip(0..#numLocales, Locales) {
 
     var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
     var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
