@@ -366,7 +366,7 @@ proc main(args: [] string)
   // Helper
   for a in args[1..] {
     if (a == "-h" || a == "--help") {
-      common_help_message();
+      /* common_help_message(); */
       help_message();
 
       return 1;
