@@ -25,6 +25,20 @@ module Pool_par
       this.lock = false;
     }
 
+    proc ref acquireLock() {
+      while true {
+        if this.lock.compareAndSwap(false, true) {
+          return;
+        }
+
+        currentTask.yieldExecution();
+      }
+    }
+
+    proc ref releaseLock() {
+      this.lock.write(false);
+    }
+
     // Parallel-safe insertion to the end of the deque.
     proc ref pushBack(node: eltType) {
       while true {
