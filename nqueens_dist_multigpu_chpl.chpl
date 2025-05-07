@@ -216,12 +216,15 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     pool_lloc.front = 0;
     pool_lloc.size = 0;
 
-    coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol) {
+    var multiPool: [0..#D] SinglePool_par(Node);
+
+    coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol,
+      ref multiPool) {
 
       const device = here.gpus[gpuID];
 
       var tree, sol: uint;
-      var pool_loc = new SinglePool(Node);
+      ref pool_loc = multiPool[gpuID];
 
       // each task gets its chunk
       pool_loc.elements[0..#c_l] = pool_lloc.elements[gpuID+f_l.. by D #c_l];
