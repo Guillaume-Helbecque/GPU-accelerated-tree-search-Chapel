@@ -201,28 +201,29 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   coforall (locID, loc) in zip(0..#numLocales, Locales) with (ref pool,
     ref eachLocaleExploredTree, ref eachLocaleExploredSol) do on loc {
 
-      /* local { */
-        var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
-        var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
-        var allTasksIdleFlag: atomic bool = false;
+      var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
+      var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
+      var allTasksIdleFlag: atomic bool = false;
 
-        var pool_lloc = new SinglePool(Node);
+      var pool_lloc = new SinglePool(Node);
 
-        // each locale gets its chunk
-        pool_lloc.elements[0..#c] = pool.elements[locID+f.. by numLocales #c];
-        pool_lloc.size += c;
-        if (locID == numLocales-1) {
-          pool_lloc.elements[c..#(l-c)] = pool.elements[(numLocales*c)+f..#(l-c)];
-          pool_lloc.size += l-c;
-        }
+      // each locale gets its chunk
+      pool_lloc.elements[0..#c] = pool.elements[locID+f.. by numLocales #c];
+      pool_lloc.size += c;
+      if (locID == numLocales-1) {
+        pool_lloc.elements[c..#(l-c)] = pool.elements[(numLocales*c)+f..#(l-c)];
+        pool_lloc.size += l-c;
+      }
 
-        const poolSize_l = pool_lloc.size;
-        const c_l = poolSize_l / D;
-        const l_l = poolSize_l - (D-1)*c_l;
-        const f_l = pool_lloc.front;
+      const poolSize_l = pool_lloc.size;
+      const c_l = poolSize_l / D;
+      const l_l = poolSize_l - (D-1)*c_l;
+      const f_l = pool_lloc.front;
 
-        pool_lloc.front = 0;
-        pool_lloc.size = 0;
+      pool_lloc.front = 0;
+      pool_lloc.size = 0;
+
+      local {
 
         var multiPool: [0..#D] SinglePool_par(Node);
 
@@ -253,18 +254,11 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
             var poolSize = pool_loc.popBackBulk(m, M, parents);
 
             if (poolSize > 0) {
-              local {
+              /* local { */
                 if (taskState == IDLE) {
                   taskState = BUSY;
                   eachTaskState[gpuID].write(BUSY);
                 }
-
-                /* poolSize = min(poolSize, M);
-                for i in 0..#poolSize {
-                  var hasWork = 0;
-                  parents[i] = pool_loc.popBack(hasWork);
-                  if !hasWork then break;
-                } */
 
                 const numLabels = N * poolSize;
 
@@ -276,238 +270,87 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
                   Each task generates and inserts its children nodes to the pool.
                 */
                 generate_children(parents, poolSize, labels, tree, sol, pool_loc);
-              }
+              /* } */
             }
             else {
-              // work stealing
-              var tries = 0;
-              var steal = false;
-              const victims = permute(0..#D);
+              local {
+                // work stealing
+                var tries = 0;
+                var steal = false;
+                const victims = permute(0..#D);
 
-              label WS0 while (tries < D && steal == false) {
-                const victimID = victims[tries];
+                label WS0 while (tries < D && steal == false) {
+                  const victimID = victims[tries];
 
-                if (victimID != gpuID) { // if not me
-                  ref victim = multiPool[victimID];
-                  /* nSteal += 1; */
-                  var nn = 0;
+                  if (victimID != gpuID) { // if not me
+                    ref victim = multiPool[victimID];
+                    /* nSteal += 1; */
+                    var nn = 0;
 
-                  label WS1 while (nn < 10) {
-                    if victim.lock.compareAndSwap(false, true) { // get the lock
-                      const size = victim.size;
+                    label WS1 while (nn < 10) {
+                      if victim.lock.compareAndSwap(false, true) { // get the lock
+                        const size = victim.size;
 
-                      if (size >= 2*m) {
-                        var (hasWork, p) = victim.popFrontBulkFree(m, M);
-                        if (hasWork == 0) {
+                        if (size >= 2*m) {
+                          var (hasWork, p) = victim.popFrontBulkFree(m, M);
+                          if (hasWork == 0) {
+                            victim.lock.write(false); // reset lock
+                            halt("DEADCODE in work stealing");
+                          }
+
+                          pool_loc.pushBackBulk(p);
+
+                          steal = true;
+                          /* nSSteal += 1; */
                           victim.lock.write(false); // reset lock
-                          halt("DEADCODE in work stealing");
+                          break WS0;
                         }
 
-                        pool_loc.pushBackBulk(p);
-
-                        steal = true;
-                        /* nSSteal += 1; */
                         victim.lock.write(false); // reset lock
-                        break WS0;
+                        break WS1;
                       }
 
-                      victim.lock.write(false); // reset lock
-                      break WS1;
+                      nn += 1;
+                      currentTask.yieldExecution();
                     }
-
-                    nn += 1;
-                    currentTask.yieldExecution();
                   }
+                  tries += 1;
                 }
-                tries += 1;
-              }
 
-              if (steal == false) {
-                // termination
-                if (taskState == BUSY) {
-                  taskState = IDLE;
-                  eachTaskState[gpuID].write(IDLE);
+                if (steal == false) {
+                  // termination
+                  if (taskState == BUSY) {
+                    taskState = IDLE;
+                    eachTaskState[gpuID].write(IDLE);
+                  }
+                  if allIdle(eachTaskState, allTasksIdleFlag) {
+                    break;
+                  }
+                  continue;
+                } else {
+                  continue;
                 }
-                if allIdle(eachTaskState, allTasksIdleFlag) {
-                  break;
-                }
-                continue;
-              } else {
-                continue;
               }
             }
           }
 
-          const poolLocSize = pool_loc.size;
+          /* const poolLocSize = pool_loc.size;
           if (poolLocSize > 0) {
             for p in 0..#poolLocSize {
               var hasWork = 0;
               pool.pushBack(pool_loc.popBack(hasWork));
               if !hasWork then break;
             }
-          }
+          } */
 
           eachExploredTree[gpuID] = tree;
           eachExploredSol[gpuID] = sol;
         }
-
-        eachLocaleExploredTree[locID] = (+ reduce eachExploredTree);
-        eachLocaleExploredSol[locID] = (+ reduce eachExploredSol);
-      /* } */
-    }
-    /* else local {
-      writeln("hellooooooooooooooooooooo");
-      var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
-      var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
-      var allTasksIdleFlag: atomic bool = false;
-
-      var pool_lloc = new SinglePool(Node);
-
-      // each locale gets its chunk
-      pool_lloc.elements[0..#c] = pool.elements[locID+f.. by numLocales #c];
-      pool_lloc.size += c;
-      if (locID == numLocales-1) {
-        pool_lloc.elements[c..#(l-c)] = pool.elements[(numLocales*c)+f..#(l-c)];
-        pool_lloc.size += l-c;
-      }
-
-      const poolSize_l = pool_lloc.size;
-      const c_l = poolSize_l / D;
-      const l_l = poolSize_l - (D-1)*c_l;
-      const f_l = pool_lloc.front;
-
-      pool_lloc.front = 0;
-      pool_lloc.size = 0;
-
-      var multiPool: [0..#D] SinglePool_par(Node);
-
-      coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol,
-        ref multiPool, ref eachTaskState) {
-
-        const device = here.gpus[gpuID];
-
-        var tree, sol: uint;
-        ref pool_loc = multiPool[gpuID];
-        var taskState: bool = BUSY;
-
-        // each task gets its chunk
-        pool_loc.elements[0..#c_l] = pool_lloc.elements[gpuID+f_l.. by D #c_l];
-        pool_loc.size += c_l;
-        if (gpuID == D-1) {
-          pool_loc.elements[c_l..#(l_l-c_l)] = pool_lloc.elements[(D*c_l)+f_l..#(l_l-c_l)];
-          pool_loc.size += l_l-c_l;
-        }
-
-        var parents: [0..#M] Node = noinit;
-        var labels: [0..#(M*N)] uint(8) = noinit;
-
-        on device var parents_d: [0..#M] Node;
-        on device var labels_d: [0..#(M*N)] uint(8);
-
-        while true {
-          var poolSize = pool_loc.popBackBulk(m, M, parents);
-
-          if (poolSize > 0) {
-            if (taskState == IDLE) {
-              taskState = BUSY;
-              eachTaskState[gpuID].write(BUSY);
-            }
-
-            /* poolSize = min(poolSize, M);
-            for i in 0..#poolSize {
-              var hasWork = 0;
-              parents[i] = pool_loc.popBack(hasWork);
-              if !hasWork then break;
-            } */
-
-            const numLabels = N * poolSize;
-
-            parents_d = parents; // host-to-device
-            on device do evaluate_gpu(parents_d, numLabels, labels_d); // GPU kernel
-            labels = labels_d; // device-to-host
-
-            /*
-              Each task generates and inserts its children nodes to the pool.
-            */
-            generate_children(parents, poolSize, labels, tree, sol, pool_loc);
-          }
-          else {
-            // work stealing
-            var tries = 0;
-            var steal = false;
-            const victims = permute(0..#D);
-
-            label WS0 while (tries < D && steal == false) {
-              const victimID = victims[tries];
-
-              if (victimID != gpuID) { // if not me
-                ref victim = multiPool[victimID];
-                /* nSteal += 1; */
-                var nn = 0;
-
-                label WS1 while (nn < 10) {
-                  if victim.lock.compareAndSwap(false, true) { // get the lock
-                    const size = victim.size;
-
-                    if (size >= 2*m) {
-                      var (hasWork, p) = victim.popFrontBulkFree(m, M);
-                      if (hasWork == 0) {
-                        victim.lock.write(false); // reset lock
-                        halt("DEADCODE in work stealing");
-                      }
-
-                      pool_loc.pushBackBulk(p);
-
-                      steal = true;
-                      /* nSSteal += 1; */
-                      victim.lock.write(false); // reset lock
-                      break WS0;
-                    }
-
-                    victim.lock.write(false); // reset lock
-                    break WS1;
-                  }
-
-                  nn += 1;
-                  currentTask.yieldExecution();
-                }
-              }
-              tries += 1;
-            }
-
-            if (steal == false) {
-              // termination
-              if (taskState == BUSY) {
-                taskState = IDLE;
-                eachTaskState[gpuID].write(IDLE);
-              }
-              if allIdle(eachTaskState, allTasksIdleFlag) {
-                break;
-              }
-              continue;
-            } else {
-              continue;
-            }
-          }
-        }
-
-        const poolLocSize = pool_loc.size;
-        if (poolLocSize > 0) {
-          for p in 0..#poolLocSize {
-            var hasWork = 0;
-            pool.pushBack(pool_loc.popBack(hasWork));
-            if !hasWork then break;
-          }
-        }
-
-        eachExploredTree[gpuID] = tree;
-        eachExploredSol[gpuID] = sol;
       }
 
       eachLocaleExploredTree[locID] = (+ reduce eachExploredTree);
       eachLocaleExploredSol[locID] = (+ reduce eachExploredSol);
-    } */
-  /* } */
+    }
 
   timer.stop();
 
