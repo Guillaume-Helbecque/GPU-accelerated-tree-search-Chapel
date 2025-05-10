@@ -202,7 +202,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
     ref eachLocaleExploredTree, ref eachLocaleExploredSol) {
 
     if (locID != 0) {
-      do on loc {
+      on loc {
         var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
         var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
         var allTasksIdleFlag: atomic bool = false;
