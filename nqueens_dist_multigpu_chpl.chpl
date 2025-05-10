@@ -200,8 +200,9 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 
   for (locID, loc) in zip(0..#numLocales, Locales) {
 
-    if (locID != 0) then begin with (ref pool,
+    /* if (locID != 0) then begin with (ref pool,
       ref eachLocaleExploredTree, ref eachLocaleExploredSol) {
+        writeln("hello");
       on loc {
         var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
         var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
@@ -353,8 +354,9 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
         eachLocaleExploredTree[locID] = (+ reduce eachExploredTree);
         eachLocaleExploredSol[locID] = (+ reduce eachExploredSol);
       }
-    }
-    else {
+    } */
+    /* else { */
+      writeln("hellooooooooooooooooooooo");
       var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
       var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
       var allTasksIdleFlag: atomic bool = false;
@@ -504,7 +506,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 
       eachLocaleExploredTree[locID] = (+ reduce eachExploredTree);
       eachLocaleExploredSol[locID] = (+ reduce eachExploredSol);
-    }
+    /* } */
   }
 
   timer.stop();
