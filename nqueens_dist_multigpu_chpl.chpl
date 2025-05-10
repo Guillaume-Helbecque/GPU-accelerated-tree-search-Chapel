@@ -198,12 +198,10 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   pool.front = 0;
   pool.size = 0;
 
-  for (locID, loc) in zip(0..#numLocales, Locales) {
+  coforall (locID, loc) in zip(0..#numLocales, Locales) with (ref pool,
+    ref eachLocaleExploredTree, ref eachLocaleExploredSol) do on loc {
 
-    /* if (locID != 0) then begin with (ref pool,
-      ref eachLocaleExploredTree, ref eachLocaleExploredSol) {
-        writeln("hello");
-      on loc {
+      /* local { */
         var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
         var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
         var allTasksIdleFlag: atomic bool = false;
@@ -255,28 +253,30 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
             var poolSize = pool_loc.popBackBulk(m, M, parents);
 
             if (poolSize > 0) {
-              if (taskState == IDLE) {
-                taskState = BUSY;
-                eachTaskState[gpuID].write(BUSY);
+              local {
+                if (taskState == IDLE) {
+                  taskState = BUSY;
+                  eachTaskState[gpuID].write(BUSY);
+                }
+
+                /* poolSize = min(poolSize, M);
+                for i in 0..#poolSize {
+                  var hasWork = 0;
+                  parents[i] = pool_loc.popBack(hasWork);
+                  if !hasWork then break;
+                } */
+
+                const numLabels = N * poolSize;
+
+                parents_d = parents; // host-to-device
+                on device do evaluate_gpu(parents_d, numLabels, labels_d); // GPU kernel
+                labels = labels_d; // device-to-host
+
+                /*
+                  Each task generates and inserts its children nodes to the pool.
+                */
+                generate_children(parents, poolSize, labels, tree, sol, pool_loc);
               }
-
-              /* poolSize = min(poolSize, M);
-              for i in 0..#poolSize {
-                var hasWork = 0;
-                parents[i] = pool_loc.popBack(hasWork);
-                if !hasWork then break;
-              } */
-
-              const numLabels = N * poolSize;
-
-              parents_d = parents; // host-to-device
-              on device do evaluate_gpu(parents_d, numLabels, labels_d); // GPU kernel
-              labels = labels_d; // device-to-host
-
-              /*
-                Each task generates and inserts its children nodes to the pool.
-              */
-              generate_children(parents, poolSize, labels, tree, sol, pool_loc);
             }
             else {
               // work stealing
@@ -353,9 +353,9 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 
         eachLocaleExploredTree[locID] = (+ reduce eachExploredTree);
         eachLocaleExploredSol[locID] = (+ reduce eachExploredSol);
-      }
-    } */
-    /* else { */
+      /* } */
+    }
+    /* else local {
       writeln("hellooooooooooooooooooooo");
       var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
       var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
@@ -506,8 +506,8 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 
       eachLocaleExploredTree[locID] = (+ reduce eachExploredTree);
       eachLocaleExploredSol[locID] = (+ reduce eachExploredSol);
-    /* } */
-  }
+    } */
+  /* } */
 
   timer.stop();
 
