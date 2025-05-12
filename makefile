@@ -5,8 +5,8 @@ CHPL_COMPILER := chpl
 CHPL_COMMON_OPTS := --fast -M lib/commons
 
 # Source files
-CHPL_NQUEENS_SOURCES := nqueens_chpl.chpl nqueens_gpu_chpl.chpl nqueens_multigpu_chpl.chpl nqueens_dist_multigpu_chpl.chpl
-CHPL_PFSP_SOURCES := pfsp_chpl.chpl pfsp_gpu_chpl.chpl pfsp_multigpu_chpl.chpl pfsp_dist_multigpu_chpl.chpl
+CHPL_NQUEENS_SOURCES := nqueens_chpl.chpl nqueens_gpu_chpl.chpl nqueens_multigpu_chpl.chpl nqueens_dist_multigpu_chpl.chpl nqueens_dist_multigpu_chpl_no_ws.chpl
+CHPL_PFSP_SOURCES := pfsp_chpl.chpl pfsp_gpu_chpl.chpl pfsp_multigpu_chpl.chpl pfsp_dist_multigpu_chpl.chpl pfsp_dist_multigpu_chpl_no_ws.chpl
 
 # Executable files
 CHPL_NQUEENS_EXECUTABLES := $(CHPL_NQUEENS_SOURCES:.chpl=.out)
@@ -33,6 +33,9 @@ nqueens_multigpu_chpl.out: nqueens_multigpu_chpl.chpl
 nqueens_dist_multigpu_chpl.out: nqueens_dist_multigpu_chpl.chpl
 	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_NQUEENS_LIBPATH) $< -o $@
 
+nqueens_dist_multigpu_chpl_no_ws.out: nqueens_dist_multigpu_chpl_no_ws.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_NQUEENS_LIBPATH) $< -o $@
+
 # PFSP
 
 pfsp_chpl.out: pfsp_chpl.chpl
@@ -45,6 +48,9 @@ pfsp_multigpu_chpl.out: pfsp_multigpu_chpl.chpl
 	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_LIBPATH) $< -o $@
 
 pfsp_dist_multigpu_chpl.out: pfsp_dist_multigpu_chpl.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_LIBPATH) $< -o $@
+
+pfsp_dist_multigpu_chpl_no_ws.out: pfsp_dist_multigpu_chpl_no_ws.chpl
 	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_LIBPATH) $< -o $@
 
 # Utilities
