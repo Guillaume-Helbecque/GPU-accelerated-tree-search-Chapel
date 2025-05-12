@@ -34,7 +34,7 @@ export CHPL_COMM_SUBSTRATE='udp' # for Ethernet network
 # export CHPL_COMM_SUBSTRATE='ibv' # for InfiniBand network
 export CHPL_TARGET_CPU='native'
 # NUM_T_LOCALE=$(cat /proc/cpuinfo | grep processor | wc -l)
-export CHPL_RT_NUM_THREADS_PER_LOCALE=2
+export CHPL_RT_NUM_THREADS_PER_LOCALE=12
 
 export GASNET_QUIET=1
 export GASNET_IBV_SPAWNER='ssh'
@@ -44,8 +44,8 @@ export GASNET_PHYSMEM_MAX='64 GB'
 # GPU-related environment variables
 export CHPL_LOCALE_MODEL="gpu"
 export CHPL_GPU="nvidia"
-export CHPL_GPU_ARCH="sm_70"
-export CHPL_RT_NUM_GPUS_PER_LOCALE=2
+export CHPL_GPU_ARCH="sm_80"
+export CHPL_RT_NUM_GPUS_PER_LOCALE=8
 export CHPL_GPU_MEM_STRATEGY="array_on_device"
 
 # Install Chapel

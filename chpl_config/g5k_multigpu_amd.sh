@@ -27,7 +27,7 @@ export CHPL_HOST_PLATFORM=`$CHPL_HOME/util/chplenv/chpl_platform.py`
 export CHPL_LLVM=system # required for AMD arch
 
 NUM_T_LOCALE=$(cat /proc/cpuinfo | grep processor | wc -l)
-export CHPL_RT_NUM_THREADS_PER_LOCALE=8
+export CHPL_RT_NUM_THREADS_PER_LOCALE=12
 export CHPL_RT_NUM_GPUS_PER_LOCALE=8
 export CHPL_LOCALE_MODEL="gpu"
 export CHPL_GPU="amd"
