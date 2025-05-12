@@ -1,7 +1,7 @@
 #!/bin/bash -l
-#SBATCH --job-name=pfsp_inter_500k
-#SBATCH --output=pfsp_inter_500k.o%j
-#SBATCH --error=pfsp_inter_500k.e%j
+#SBATCH --job-name=pfsp_inter_500k_no_ws
+#SBATCH --output=pfsp_inter_500k_no_ws.o%j
+#SBATCH --error=pfsp_inter_500k_no_ws.e%j
 #SBATCH --partition=standard-g
 #SBATCH --nodes=128
 #SBATCH --ntasks-per-node=1

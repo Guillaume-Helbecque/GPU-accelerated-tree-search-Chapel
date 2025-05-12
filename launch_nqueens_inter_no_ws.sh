@@ -1,7 +1,7 @@
 #!/bin/bash -l
-#SBATCH --job-name=nqueens_inter
-#SBATCH --output=nqueens_inter.o%j
-#SBATCH --error=nqueens_inter.e%j
+#SBATCH --job-name=nqueens_inter_no_ws
+#SBATCH --output=nqueens_inter_no_ws.o%j
+#SBATCH --error=nqueens_inter_no_ws.e%j
 #SBATCH --partition=standard-g
 #SBATCH --nodes=128
 #SBATCH --ntasks-per-node=1
