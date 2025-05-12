@@ -196,9 +196,6 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 
   var eachLocaleExploredTree, eachLocaleExploredSol: [PrivateSpace] uint = noinit;
 
-  var eachLocaleState: [PrivateSpace] atomic bool = BUSY; // one locale per compute node
-  var allLocalesIdleFlag: atomic bool = false;
-
   const poolSize = pool.size;
   const c = poolSize / numLocales;
   const l = poolSize - (numLocales-1)*c;
@@ -211,7 +208,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 
   coforall (locID, loc) in zip(0..#numLocales, Locales) with (ref pool,
     ref eachLocaleExploredTree, ref eachLocaleExploredSol,
-    ref eachLocaleState, ref distMultiPool) do on loc {
+    ref distMultiPool) do on loc {
 
     var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
     var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
@@ -244,7 +241,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
 
       var tree, sol: uint;
       ref pool_loc = multiPool[gpuID];
-      var taskState, locState: bool = BUSY;
+      var taskState: bool = BUSY;
 
       // each task gets its chunk
       pool_loc.elements[0..#c_l] = pool_lloc.elements[gpuID+f_l.. by D #c_l];
@@ -269,10 +266,6 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
               taskState = BUSY;
               eachTaskState[gpuID].write(BUSY);
             }
-            if (locState == IDLE) {
-              locState = BUSY;
-              eachLocaleState[locID].write(BUSY);
-            }
 
             const numLabels = N * poolSize;
 
@@ -287,7 +280,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
           }
         }
         else {
-          var localSteal, globalSteal = false;
+          var localSteal = false;
 
           local {
             // intra-node work stealing attempts
@@ -329,67 +322,14 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
             }
           }
 
-          if (localSteal == false && numLocales != 1) {
-            // inter-node work stealing attempts
-            const victimLocales = permute(0..#numLocales);
-
-            label WS00 for i in 0..#numLocales {
-              const victimLocaleID = victimLocales[i];
-
-              if (victimLocaleID != locID) { // if not me
-                ref victimMultiPool = distMultiPool[victimLocaleID];
-                const victimTasks = permute(0..#D);
-
-                for j in 0..#D {
-                /* label WS1 while (tries2 < D && steal == false) { */
-                  const victimTaskID = victimTasks[j];
-                  ref victim = victimMultiPool[victimTaskID];
-                  var nn = 0;
-
-                  label WS11 while (nn < 10) {
-                    if victim.lock.compareAndSwap(false, true) { // get the lock
-                      const size = victim.size;
-
-                      if (size >= 2*m) {
-                        var (hasWork, p) = victim.popFrontBulkFree(m, M);
-                        if (hasWork == 0) {
-                          victim.lock.write(false); // reset lock
-                          halt("DEADCODE in work stealing");
-                        }
-
-                        pool_loc.pushBackBulk(p);
-
-                        globalSteal = true;
-                        /* nSSteal += 1; */
-                        /* victim.lock.write(false); // reset lock */
-                      }
-
-                      victim.lock.write(false); // reset lock
-                      break WS00;
-                    }
-
-                    nn += 1;
-                    currentTask.yieldExecution();
-                  }
-                }
-              }
-            }
-          }
-
-          if (localSteal == false && globalSteal == false) {
+          if (localSteal == false) {
             // termination
             if (taskState == BUSY) {
               taskState = IDLE;
               eachTaskState[gpuID].write(IDLE);
             }
             if allIdle(eachTaskState, allTasksIdleFlag) {
-              if (locState == BUSY) {
-                locState = IDLE;
-                eachLocaleState[locID].write(IDLE);
-              }
-              if allIdle(eachLocaleState, allLocalesIdleFlag) {
-                break;
-              }
+              break;
             }
             continue;
           } else {
