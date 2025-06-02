@@ -160,7 +160,7 @@ proc nqueens_search(ref exploredTree: uint, ref exploredSol: uint, ref elapsedTi
   var root = new Node(N);
 
   var pool = new SinglePool_par(Node);
-  pool.pushBack(root);
+  pool.pushBackFree(root);
 
   var timer: stopwatch;
 
