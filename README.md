@@ -21,7 +21,7 @@ The following Chapel implementations are available:
 - `[nqueens/pfsp]_chpl.chpl`: sequential version;
 - `[nqueens/pfsp]_gpu_chpl.chpl`: single-GPU version;
 - `[nqueens/pfsp]_multigpu_chpl.chpl`: multi-GPU version;
-- `[nqueens/pfsp]_dist_multigpu_chpl.chpl`: distributed multi-GPU version (unstable).
+- `[nqueens/pfsp]_dist_multigpu_chpl.chpl`: distributed multi-GPU version.
 
 In addition, the [baselines](./baselines/) directory contains the CUDA-based counterparts:
 - `[nqueens/pfsp]_c.c`: sequential version (C);
