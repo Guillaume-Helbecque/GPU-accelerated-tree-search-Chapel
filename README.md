@@ -100,6 +100,6 @@ Unstable command-line options:
 
 ## Related publications
 
-1. G. Helbecque, E. Krishnasamy, T. Carneiro, N. Melab, and P. Bouvry. A Chapel-based multi-GPU branch-and-bound algorithm. *Euro-Par 2024: Parallel Processing Workshops*, Madrid, Spain, 2024.
+1. G. Helbecque, E. Krishnasamy, T. Carneiro, N. Melab, and P. Bouvry. A Chapel-Based Multi-GPU Branch-and-Bound Algorithm. *Euro-Par 2024: Parallel Processing Workshops*, Madrid, Spain, 2025, pp. 463-474. DOI: [10.1007/978-3-031-90200-0_37](https://doi.org/10.1007/978-3-031-90200-0_37).
 2. G. Helbecque, E. Krishnasamy, N. Melab, P. Bouvry. GPU-Accelerated Tree-Search in Chapel versus CUDA and HIP. *2024 IEEE International Parallel and Distributed Processing Symposium Workshops (IPDPSW)*, San Francisco, USA, 2024, pp. 872-879. DOI: [10.1109/IPDPSW63119.2024.00156](https://doi.org/10.1109/IPDPSW63119.2024.00156).
 3. G. Helbecque, E. Krishnasamy, N. Melab, P. Bouvry. GPU Computing in Chapel: Application to Tree-Search Algorithms. *International Conference in Optimization and Learning (OLA 2024)*, Dubrovnik, Croatia, 2024.
