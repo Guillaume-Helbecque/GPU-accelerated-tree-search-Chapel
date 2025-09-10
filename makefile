@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 # Common settings
 CHPL_COMPILER := chpl
-CHPL_COMMON_OPTS := --fast -M lib/commons
+CHPL_COMMON_OPTS := --fast -M commons
 
 # Source files
 CHPL_NQUEENS_SOURCES := nqueens_chpl.chpl nqueens_gpu_chpl.chpl nqueens_multigpu_chpl.chpl nqueens_dist_multigpu_chpl.chpl
@@ -13,8 +13,8 @@ CHPL_NQUEENS_EXECUTABLES := $(CHPL_NQUEENS_SOURCES:.chpl=.out)
 CHPL_PFSP_EXECUTABLES := $(CHPL_PFSP_SOURCES:.chpl=.out)
 
 # Library paths
-CHPL_NQUEENS_LIBPATH := -M lib/nqueens
-CHPL_PFSP_LIBPATH := -M lib/pfsp
+CHPL_NQUEENS_LIBPATH := -M benchmarks/nqueens
+CHPL_PFSP_LIBPATH := -M benchmarks/pfsp
 
 # Build codes
 all: $(CHPL_NQUEENS_EXECUTABLES) $(CHPL_PFSP_EXECUTABLES)
