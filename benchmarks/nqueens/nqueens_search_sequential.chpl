@@ -1,4 +1,4 @@
-module nqueens_chpl
+module nqueens_search_sequential
 {
   /*
     Sequential backtracking to solve instances of the N-Queens problem in Chapel.

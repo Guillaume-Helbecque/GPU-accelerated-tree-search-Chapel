@@ -1,9 +1,9 @@
 module main_pfsp
 {
-  use pfsp_chpl;
-  use pfsp_gpu_chpl;
-  use pfsp_multigpu_chpl;
-  use pfsp_dist_multigpu_chpl;
+  use pfsp_search_sequential;
+  use pfsp_search_gpu;
+  use pfsp_search_multigpu;
+  use pfsp_search_distributed;
 
   config const mode: string = "multigpu";
 

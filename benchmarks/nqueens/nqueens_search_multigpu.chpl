@@ -1,4 +1,4 @@
-module nqueens_multigpu_chpl
+module nqueens_search_multigpu
 {
   /*
     Multi-GPU backtracking to solve instances of the N-Queens problem in Chapel.

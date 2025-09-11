@@ -1,9 +1,9 @@
 module main_nqueens
 {
-  use nqueens_chpl;
-  use nqueens_gpu_chpl;
-  use nqueens_multigpu_chpl;
-  use nqueens_dist_multigpu_chpl;
+  use nqueens_search_sequential;
+  use nqueens_search_gpu;
+  use nqueens_search_multigpu;
+  use nqueens_search_distributed;
 
   config const mode: string = "multigpu";
 

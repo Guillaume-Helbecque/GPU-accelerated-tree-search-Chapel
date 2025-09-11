@@ -1,4 +1,4 @@
-module pfsp_chpl
+module pfsp_search_sequential
 {
   /*
     Sequential B&B to solve Taillard instances of the PFSP in Chapel.

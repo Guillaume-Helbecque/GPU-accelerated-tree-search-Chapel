@@ -1,4 +1,4 @@
-module nqueens_dist_multigpu_chpl
+module nqueens_search_distributed
 {
   /*
     Distributed multi-GPU backtracking to solve instances of the N-Queens problem in Chapel.

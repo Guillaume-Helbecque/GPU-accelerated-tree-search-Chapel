@@ -1,4 +1,4 @@
-module nqueens_gpu_chpl
+module nqueens_search_gpu
 {
   /*
     Single-GPU backtracking to solve instances of the N-Queens problem in Chapel.
