@@ -1,5 +1,7 @@
 module main_nqueens
 {
+  use util;
+
   use nqueens_problem;
   use nqueens_search_sequential;
   use nqueens_search_gpu;

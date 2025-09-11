@@ -1,5 +1,7 @@
 module main_pfsp
 {
+  use util;
+
   use pfsp_problem;
   use pfsp_search_sequential;
   use pfsp_search_gpu;
