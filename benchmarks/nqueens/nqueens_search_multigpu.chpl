@@ -31,24 +31,6 @@ module nqueens_search_multigpu
     }
   }
 
-  proc print_settings()
-  {
-    writeln("\n=================================================");
-    writeln("Multi-GPU Chapel (", D, " GPUs)\n");
-    writeln("Resolution of the ", N, "-Queens instance");
-    writeln("  with ", g, " safety check(s) per evaluation");
-    writeln("=================================================");
-  }
-
-  proc print_results(const exploredTree: uint, const exploredSol: uint, const timer: real)
-  {
-    writeln("\n=================================================");
-    writeln("Size of the explored tree: ", exploredTree);
-    writeln("Number of explored solutions: ", exploredSol);
-    writeln("Elapsed time: ", timer, " [s]");
-    writeln("=================================================\n");
-  }
-
   // Check queen's safety.
   proc isSafe(const board, const queen_num, const row_pos): uint(8)
   {
@@ -359,7 +341,7 @@ module nqueens_search_multigpu
   proc search_multigpu()
   {
     check_parameters();
-    print_settings();
+    print_settings(N, g);
 
     var exploredTree: uint = 0;
     var exploredSol: uint = 0;
