@@ -92,6 +92,7 @@ module nqueens_search_sequential
   proc search_sequential()
   {
     check_parameters();
+    writeln("Sequential execution mode");
     print_settings(N, g);
 
     var exploredTree: uint = 0;

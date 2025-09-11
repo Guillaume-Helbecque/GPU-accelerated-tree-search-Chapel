@@ -315,6 +315,7 @@ module nqueens_search_distributed
   proc search_distributed()
   {
     check_parameters();
+    writeln("Distributed multi-GPU execution mode with ", numLocales, " locales and ", D, " GPUs each");
     print_settings(N, g);
 
     var exploredTree: uint = 0;

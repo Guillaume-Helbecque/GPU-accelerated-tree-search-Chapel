@@ -227,6 +227,7 @@ module nqueens_search_gpu
   proc search_gpu()
   {
     check_parameters();
+    writeln("Single-GPU execution mode");
     print_settings(N, g);
 
     var exploredTree: uint = 0;

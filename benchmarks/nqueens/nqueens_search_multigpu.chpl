@@ -341,6 +341,7 @@ module nqueens_search_multigpu
   proc search_multigpu()
   {
     check_parameters();
+    writeln("Multi-GPU execution mode with ", D, " GPUs");
     print_settings(N, g);
 
     var exploredTree: uint = 0;
