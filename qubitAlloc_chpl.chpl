@@ -33,7 +33,7 @@ var priority: [0..<sizeMax] int(32);
 
 var it_max: int(32) = itmax;
 
-const initUB: int(32);
+var initUB: int(32);
 
 var f = open("./lib/qubitAlloc/instances/dist/" + filenameDist + ".csv", ioMode.r);
 var channel = f.reader(locking=false);

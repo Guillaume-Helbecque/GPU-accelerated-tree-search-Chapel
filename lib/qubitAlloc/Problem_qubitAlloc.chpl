@@ -4,6 +4,8 @@ module Problem_qubitAlloc
 
   use Util_qubitAlloc;
 
+  config param sizeMax: int(32) = 27;
+
   proc Prioritization(ref priority, const ref F, n: int(32), N: int(32))
   {
     var sF: [0..<N] int(32);
@@ -102,14 +104,14 @@ module Problem_qubitAlloc
     var w, j_cur, j_next: int(32);
 
     // job[j] = worker assigned to job j, or -1 if unassigned
-    var job = allocate(int(32), n+1);
+    var job: sizeMax*int(32);//allocate(int(32), n+1);
     for i in 0..n do job[i] = -1:int(32);
 
     // yw[w] is the potential for worker w
     // yj[j] is the potential for job j
-    var yw = allocate(int(32), n);
+    var yw: (sizeMax+1)*int(32);//allocate(int(32), n);
     for i in 0..<n do yw[i] = 0:int(32);
-    var yj = allocate(int(32), n+1);
+    var yj: (sizeMax+1)*int(32);//allocate(int(32), n+1);
     for i in 0..n do yj[i] = 0:int(32);
 
     // main Hungarian algorithm
@@ -117,11 +119,11 @@ module Problem_qubitAlloc
       j_cur = n;
       job[j_cur] = w_cur:int(32);
 
-      var min_to = allocate(int(32), n+1);
+      var min_to: (sizeMax+1)*int(32);//allocate(int(32), n+1);
       for i in 0..n do min_to[i] = INFD2;
-      var prv = allocate(int(32), n+1);
+      var prv: (sizeMax+1)*int(32);//allocate(int(32), n+1);
       for i in 0..n do prv[i] = -1:int(32);
-      var in_Z = allocate(bool, n+1);
+      var in_Z: (sizeMax+1)*bool;//allocate(bool, n+1);
       for i in 0..n do in_Z[i] = false;
 
       while (job[j_cur] != -1) {
@@ -163,9 +165,9 @@ module Problem_qubitAlloc
         j_cur = j;
       }
 
-      deallocate(min_to);
+      /* deallocate(min_to);
       deallocate(prv);
-      deallocate(in_Z);
+      deallocate(in_Z); */
     }
 
     // compute total cost
@@ -188,9 +190,9 @@ module Problem_qubitAlloc
       }
     }
 
-    deallocate(job);
+    /* deallocate(job);
     deallocate(yw);
-    deallocate(yj);
+    deallocate(yj); */
 
     return total_cost;
   }
@@ -301,15 +303,23 @@ module Problem_qubitAlloc
 
   proc reduceNode(type Node, parent, i, j, k, l, lb_new)
   {
-    var child = new Node(parent);
-    child.depth += 1;
+    var child = new Node();
+    child.mapping = parent.mapping;
+    child.lower_bound = parent.lower_bound;
+    child.depth = parent.depth + 1;
+    child.available = parent.available;
+
+    child.domCost = parent.domCost;
+    child.costs = parent.costs;
+    child.domLeader = parent.domLeader;
+    child.leader = parent.leader;
+    child.size = parent.size - 1;
 
     // assign q_i to P_j
     child.mapping[i] = j;
 
     const n = parent.size;
     const m = n - 1;
-    child.size -= 1;
 
     /* assert(n > 0 && "Cannot reduce problem of size 0.");
     assert(std::min(i, j) >= 0 && std::max(i, j) < n && "Invalid reduction indices."); */

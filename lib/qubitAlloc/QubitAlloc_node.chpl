@@ -8,6 +8,7 @@ module QubitAlloc_node
 
   config param sizeMax: int(32) = 27;
 
+  // ISSUE: cannot use `noinit` with this node type.
   record Node
   {
     var mapping: sizeMax*int(32);
@@ -39,7 +40,7 @@ module QubitAlloc_node
     }
 
     // copy-initializer
-    proc init(other: Node)
+    /* proc init(other: Node)
     {
       this.mapping = other.mapping;
       this.lower_bound = other.lower_bound;
@@ -51,7 +52,7 @@ module QubitAlloc_node
       this.domLeader = other.domLeader;
       this.leader = other.leader;
       this.size = other.size;
-    }
+    } */
 
     proc deinit()
     {}
