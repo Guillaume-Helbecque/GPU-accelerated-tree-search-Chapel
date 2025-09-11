@@ -55,30 +55,6 @@ module pfsp_search_multigpu
       halt("Error: unsupported upper bound initialization");
   }
 
-  proc print_settings(): void
-  {
-    writeln("\n=================================================");
-    writeln("Resolution of PFSP Taillard's instance: ta", inst, " (m = ", machines, ", n = ", jobs, ")");
-    if (ub == 0) then writeln("Initial upper bound: inf");
-    else /* if (ub == 1) */ writeln("Initial upper bound: opt");
-    writeln("Lower bound function: ", lb);
-    writeln("Branching rule: fwd");
-    writeln("=================================================");
-  }
-
-  proc print_results(const optimum: int, const exploredTree: uint, const exploredSol: uint,
-    const timer: real)
-  {
-    writeln("\n=================================================");
-    writeln("Size of the explored tree: ", exploredTree);
-    writeln("Number of explored solutions: ", exploredSol);
-    const is_better = if (optimum < initUB) then " (improved)"
-                                            else " (not improved)";
-    writeln("Optimal makespan: ", optimum, is_better);
-    writeln("Elapsed time: ", timer, " [s]");
-    writeln("=================================================\n");
-  }
-
   // Evaluate and generate children nodes on CPU.
   proc decompose_lb1(const lb1_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     ref best: int, ref pool)
@@ -545,7 +521,7 @@ module pfsp_search_multigpu
   {
     check_parameters();
     writeln("Multi-GPU execution mode with ", D, " GPUs");
-    print_settings();
+    print_settings(jobs, machines, inst, ub, lb);
 
     var optimum: int;
     var exploredTree: uint = 0;
@@ -559,7 +535,7 @@ module pfsp_search_multigpu
 
     stopGpuDiagnostics();
 
-    print_results(optimum, exploredTree, exploredSol, elapsedTime);
+    print_results(optimum, exploredTree, exploredSol, elapsedTime, initUB);
 
     writeln("GPU diagnostics:");
     writeln("   kernel_launch: ", getGpuDiagnostics().kernel_launch);
