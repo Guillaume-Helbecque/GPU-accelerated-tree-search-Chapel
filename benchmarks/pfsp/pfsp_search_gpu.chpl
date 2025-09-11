@@ -78,14 +78,6 @@ module pfsp_search_gpu
     writeln("=================================================\n");
   }
 
-  proc help_message(): void
-  {
-    writeln("\n  PFSP Benchmark Parameters:\n");
-    writeln("   --inst   int   Taillard's instance to solve (between 001 and 120)");
-    writeln("   --lb     str   lower bound function (lb1, lb1_d, lb2)");
-    writeln("   --ub     int   initial upper bound (0, 1)\n");
-  }
-
   // Evaluate and generate children nodes on CPU.
   proc decompose_lb1(const lb1_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     ref best: int, ref pool)
@@ -432,18 +424,8 @@ module pfsp_search_gpu
     writeln("\nExploration terminated.");
   }
 
-  proc search_gpu(args: [] string)
+  proc search_gpu()
   {
-    // Helper
-    for a in args[1..] {
-      if (a == "-h" || a == "--help") {
-        common_help_message();
-        help_message();
-
-        return 1;
-      }
-    }
-
     check_parameters();
     print_settings();
 

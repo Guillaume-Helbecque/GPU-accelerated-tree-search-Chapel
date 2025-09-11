@@ -51,13 +51,6 @@ module nqueens_search_distributed
     writeln("=================================================\n");
   }
 
-  proc help_message(): void
-  {
-    writeln("\n  N-Queens Benchmark Parameters:\n");
-    writeln("   --N   int   number of queens");
-    writeln("   --g   int   number of safety check(s) per evaluation\n");
-  }
-
   // Check queen's safety.
   proc isSafe(const board, const queen_num, const row_pos): uint(8)
   {
@@ -337,18 +330,8 @@ module nqueens_search_distributed
     writeln("\nExploration terminated.");
   }
 
-  proc search_distributed(args: [] string)
+  proc search_distributed()
   {
-    // Helper
-    for a in args[1..] {
-      if (a == "-h" || a == "--help") {
-        common_help_message();
-        help_message();
-
-        return 1;
-      }
-    }
-
     check_parameters();
     print_settings();
 
