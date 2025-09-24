@@ -317,7 +317,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   var root = new Node(jobs);
 
   var pool = new SinglePool_par(Node);
-  pool.pushBack(root);
+  pool.pushBackFree(root);
 
   var timer: stopwatch;
 
@@ -446,6 +446,10 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
             if (taskState == IDLE) {
               taskState = BUSY;
               eachTaskState[gpuID].write(BUSY);
+            }
+            if (locState == IDLE) {
+              locState = BUSY;
+              eachLocaleState[locID].write(BUSY);
             }
 
             /*
@@ -622,7 +626,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
   while true {
     var hasWork = 0;
-    var parent = pool.popBack(hasWork);
+    var parent = pool.popBackFree(hasWork);
     if !hasWork then break;
 
     decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
