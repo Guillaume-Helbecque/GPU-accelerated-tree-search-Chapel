@@ -1,0 +1,17 @@
+preferred-citation:
+  type: conference-paper
+  authors:
+    - family-names: "Helbecque"
+      given-names: "Guillaume"
+    - family-names: "Krishnasamy"
+      given-names: "Ezhilmathi"
+    - family-names: "Melab"
+      given-names: "Nouredine"
+    - family-names: "Bouvry"
+      given-names: "Pascal"
+  title: "A Chapel-Based Multi-GPU Branch-and-Bound Algorithm"
+  collection-title: "Euro-Par 2024: Parallel Processing Workshops"
+  year: 2025
+  start: 463
+  end: 474
+  doi: "10.1007/978-3-031-90200-0_37"
