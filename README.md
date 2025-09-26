@@ -37,7 +37,7 @@ In order to compile and execute the CUDA-based code on AMD GPU architectures, we
 The [chpl_config](./chpl_config/) directory contains several Chapel environment configuration scripts.
 The latter can serve as templates and can be (and should be) adapted to the target system.
 
-**Note:** The code is implemented using Chapel 2.4.0 and might not compile and run with older or newer versions.
+**Note:** The code is implemented using Chapel 2.6.0 and might not compile and run with older or newer versions.
 By default, the target architecture for CUDA code generation is set to `sm_70`, and to `gfx906` for AMD.
 
 ### Compilation & execution
