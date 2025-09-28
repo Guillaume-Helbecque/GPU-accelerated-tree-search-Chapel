@@ -46,7 +46,7 @@ module Bound_simple
     }
   }
 
-  proc schedule_front(const data: lb1_bound_data, const permutation, const limit1: int(32), ref front): void
+  proc schedule_front(const ref data: lb1_bound_data, const permutation, const limit1: int(32), ref front): void
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -64,7 +64,7 @@ module Bound_simple
     }
   }
 
-  proc schedule_back(const data: lb1_bound_data, const permutation, const limit2: int(32), ref back): void
+  proc schedule_back(const ref data: lb1_bound_data, const permutation, const limit2: int(32), ref back): void
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -82,7 +82,7 @@ module Bound_simple
     }
   }
 
-  proc eval_solution(const data: lb1_bound_data, const permutation): int(32)
+  proc eval_solution(const ref data: lb1_bound_data, const permutation): int(32)
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -95,7 +95,7 @@ module Bound_simple
     return tmp[M-1];
   }
 
-  proc sum_unscheduled(const data: lb1_bound_data, const permutation, const limit1: int(32), const limit2: int(32), ref remain): void
+  proc sum_unscheduled(const ref data: lb1_bound_data, const permutation, const limit1: int(32), const limit2: int(32), ref remain): void
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -124,7 +124,7 @@ module Bound_simple
     return lb;
   }
 
-  proc lb1_bound(const data: lb1_bound_data, const permutation, const limit1: int(32), const limit2: int(32)): int(32)
+  proc lb1_bound(const ref data: lb1_bound_data, const permutation, const limit1: int(32), const limit2: int(32)): int(32)
   {
     /* const M = data.nb_machines; */
 
@@ -139,7 +139,7 @@ module Bound_simple
     return machine_bound_from_parts(front, back, remain, NUM_MACHINES);
   }
 
-  proc lb1_children_bounds(const data: lb1_bound_data, const permutation, const limit1: int(32), const limit2: int(32), ref lb_begin/*, ref lb_end, prio_begin, prio_end, const direction: int*/): void
+  proc lb1_children_bounds(const ref data: lb1_bound_data, const permutation, const limit1: int(32), const limit2: int(32), ref lb_begin/*, ref lb_end, prio_begin, prio_end, const direction: int*/): void
   {
     /* const N = data.nb_jobs;
     const M = data.nb_machines; */
@@ -198,7 +198,7 @@ module Bound_simple
   // NB2: front, remain and back need to be set before calling this
   // NB3: also compute total idle time added to partial schedule (can be used a criterion for job ordering)
   // nOps : m*(3 add+2 max)  ---> O(m)
-  proc add_front_and_bound(const data: lb1_bound_data, const job: int(32), const front, const back, const remain/*, delta_idle*/): int(32)
+  proc add_front_and_bound(const ref data: lb1_bound_data, const job: int(32), const front, const back, const remain/*, delta_idle*/): int(32)
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
@@ -226,7 +226,7 @@ module Bound_simple
   }
 
   // ... same for back
-  proc add_back_and_bound(const data: lb1_bound_data, const job: int(32), const front, const back, const remain/*, delta_idle*/): int(32)
+  proc add_back_and_bound(const ref data: lb1_bound_data, const job: int(32), const front, const back, const remain/*, delta_idle*/): int(32)
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
