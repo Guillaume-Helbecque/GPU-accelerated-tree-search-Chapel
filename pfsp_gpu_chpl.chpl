@@ -264,7 +264,7 @@ proc evaluate_gpu(const parents_d: [] Node, const size, const best, const lbound
       evaluate_gpu_lb1(parents_d, size, lbound1_d, bounds_d);
     }
     otherwise { // lb2
-      evaluate_gpu_lb2(parents_d, size, best, lbound1_d, lbound2_d, bounds_d);
+      /* evaluate_gpu_lb2(parents_d, size, best, lbound1_d, lbound2_d, bounds_d); */
     }
   }
 }
