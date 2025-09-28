@@ -413,7 +413,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     var parent = pool.popBack(hasWork);
     if !hasWork then break;
 
-    decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
+    decompose(lbound1, nil, parent, exploredTree, exploredSol, best, pool);
   }
 
   timer.stop();
