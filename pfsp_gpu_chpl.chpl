@@ -326,17 +326,17 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   taillard_get_processing_times(lbound1.p_times, inst);
   fill_min_heads_tails(lbound1);
 
-  var lbound2 = new lb2_bound_data(jobs, machines);
+  /* var lbound2 = new lb2_bound_data(jobs, machines);
   fill_machine_pairs(lbound2/*, LB2_FULL*/);
   fill_lags(lbound1.p_times, lbound2);
-  fill_johnson_schedules(lbound1.p_times, lbound2);
+  fill_johnson_schedules(lbound1.p_times, lbound2); */
 
   while (pool.size < m) {
     var hasWork = 0;
     var parent = pool.popFront(hasWork);
     if !hasWork then break;
 
-    decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
+    decompose(lbound1, nil, parent, exploredTree, exploredSol, best, pool);
   }
 
   timer.stop();
@@ -364,11 +364,11 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   lbound1_d.min_heads = lbound1.min_heads;
   lbound1_d.min_tails = lbound1.min_tails;
 
-  on device var lbound2_d = new lb2_bound_data(jobs, machines);
+  /* on device var lbound2_d = new lb2_bound_data(jobs, machines);
   lbound2_d.johnson_schedules  = lbound2.johnson_schedules;
   lbound2_d.lags               = lbound2.lags;
   lbound2_d.machine_pairs      = lbound2.machine_pairs;
-  lbound2_d.machine_pair_order = lbound2.machine_pair_order;
+  lbound2_d.machine_pair_order = lbound2.machine_pair_order; */
 
   while true {
     var poolSize = pool.popBackBulk(m, M, parents);
@@ -382,7 +382,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
       const numBounds = jobs * poolSize;
 
       parents_d = parents; // host-to-device
-      on device do evaluate_gpu(parents_d, numBounds, best, lbound1_d, lbound2_d, bounds_d); // GPU kernel
+      on device do evaluate_gpu(parents_d, numBounds, best, lbound1_d,  nil, bounds_d); // GPU kernel
       bounds = bounds_d; // device-to-host
 
       /*
