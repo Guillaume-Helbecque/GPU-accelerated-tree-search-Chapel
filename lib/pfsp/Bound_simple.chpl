@@ -1,5 +1,7 @@
 module Bound_simple
 {
+  use CTypes;
+
   param NUM_MACHINES = 20;
   param NUM_JOBS = 20;
 
@@ -26,7 +28,7 @@ module Bound_simple
     }
   }
 
-  inline proc add_forward(const job: int(32), const p_times: [] int(32), const nb_jobs: int(32), const nb_machines: int(32), ref front): void
+  inline proc add_forward(const job: int(32), const p_times, const nb_jobs: int(32), const nb_machines: int(32), ref front): void
   {
     front[0] += p_times[job];
     for j in 1..(nb_machines-1) {
@@ -34,7 +36,7 @@ module Bound_simple
     }
   }
 
-  inline proc add_backward(const job: int(32), const p_times: [] int(32), const nb_jobs: int(32), const nb_machines: int(32), ref back): void
+  inline proc add_backward(const job: int(32), const p_times, const nb_jobs: int(32), const nb_machines: int(32), ref back): void
   {
     var j = nb_machines - 1;
 
@@ -48,7 +50,8 @@ module Bound_simple
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
-    const ref p_times = data.p_times;
+    const lb1_pt = c_ptrToConst(data.p_times[0]);
+    /* const ref p_times = data.p_times; */
 
     if (limit1 == -1) {
       for i in 0..#M do
@@ -65,7 +68,8 @@ module Bound_simple
   {
     const N = data.nb_jobs;
     const M = data.nb_machines;
-    const ref p_times = data.p_times;
+    const lb1_pt = c_ptrToConst(data.p_times[0]);
+    /* const ref p_times = data.p_times; */
 
     if (limit2 == N) {
       for i in 0..#M do
