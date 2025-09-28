@@ -60,7 +60,7 @@ module Bound_simple
     }
 
     for i in 0..limit1 {
-      add_forward(permutation[i], p_times, N, M, front);
+      add_forward(permutation[i], lb1_pt, N, M, front);
     }
   }
 
@@ -78,7 +78,7 @@ module Bound_simple
     }
 
     for k in limit2..(N-1) by -1 {
-      add_backward(permutation[k], p_times, N, M, back);
+      add_backward(permutation[k], lb1_pt, N, M, back);
     }
   }
 
