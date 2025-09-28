@@ -183,7 +183,7 @@ proc decompose(const lb1_data, const lb2_data, const parent: Node, ref tree_loc:
       decompose_lb1(lb1_data, parent, tree_loc, num_sol, best, pool);
     }
     otherwise { // lb2
-      decompose_lb2(lb1_data, lb2_data, parent, tree_loc, num_sol, best, pool);
+      /* decompose_lb2(lb1_data, lb2_data, parent, tree_loc, num_sol, best, pool); */
     }
   }
 }
