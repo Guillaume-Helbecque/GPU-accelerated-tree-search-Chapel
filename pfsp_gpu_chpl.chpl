@@ -280,7 +280,6 @@ proc generate_children(const ref parents: [] Node, const size: int, const ref bo
   ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool: SinglePool(Node))
 {
   var sum = 0;
-  var childrenIndex = 0;
 
   for i in 0..#size {
     const parent = parents[i];
@@ -403,8 +402,8 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
 
       const numBounds = sum;
 
-      nodeIndex_d = nodeIndex;
-      sumOffSets_d = sumOffSets;
+      nodeIndex_d = nodeIndex; // host-to-device
+      sumOffSets_d = sumOffSets; // host-to-device
       parents_d = parents; // host-to-device
       on device do evaluate_gpu(parents_d, numBounds, best, lbound1_d, lbound2_d, bounds_d, sumOffSets_d, nodeIndex_d); // GPU kernel
       bounds = bounds_d; // device-to-host
