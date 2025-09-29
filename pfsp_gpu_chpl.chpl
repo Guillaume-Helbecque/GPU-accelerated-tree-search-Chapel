@@ -195,12 +195,12 @@ proc evaluate_gpu_lb1(const parents_d: [] Node, const size, const lbound1_d,
   @assertOnGpu
   foreach threadId in 0..#size {
     const parentId = nodeIndex_d[threadId];
-    const k = threadId + depth;
     var parent = parents_d[parentId];
     const depth = parent.depth;
+    var k = threadId + depth;
     var prmu = parent.prmu;
 
-    if (parentId != 0)
+    if (parentId != 0) then
       k -= sumOffSets_d[parentId - 1];
 
     prmu[depth] <=> prmu[k];
@@ -243,9 +243,9 @@ proc evaluate_gpu_lb2(const parents_d: [] Node, const size, const best, const lb
   @assertOnGpu
   foreach threadId in 0..#size {
     const parentId = nodeIndex_d[threadId];
-    const k = threadId + depth;
     var parent = parents_d[parentId];
     const depth = parent.depth;
+    var k = threadId + depth;
     var prmu = parent.prmu;
 
     if (parentId != 0) then
@@ -390,12 +390,12 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
     if (poolSize > 0) {
 
       // Compute optimal 'numBounds'
-      var sum = 0;
-      var diff: int;
+      var sum: int(32) = 0;
+      var diff: int(32);
       for i in 0..<poolSize {
         diff = jobs - parents[i].depth;
         for j in 0..<diff do
-          nodeIndex[j+sum] = i;
+          nodeIndex[j+sum] = i:int(32);
         sum += diff;
         sumOffSets[i] = sum;
       }
