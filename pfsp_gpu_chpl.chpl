@@ -189,8 +189,8 @@ proc decompose(const lb1_data, const lb2_data, const parent: Node, ref tree_loc:
 }
 
 // Evaluate a bulk of parent nodes on GPU using lb1.
-proc evaluate_gpu_lb1(const parents_d: [] Node, const size, const lbound1_d,
-  ref bounds_d, const sumOffSets_d, const nodeIndex_d)
+proc evaluate_gpu_lb1(const ref parents_d: [] Node, const size, const ref lbound1_d,
+  ref bounds_d, const ref sumOffSets_d, const ref nodeIndex_d)
 {
   @assertOnGpu
   foreach threadId in 0..#size {
@@ -215,7 +215,8 @@ proc evaluate_gpu_lb1(const parents_d: [] Node, const size, const lbound1_d,
   to the other lower bounds.
 */
 // Evaluate a bulk of parent nodes on GPU using lb1_d.
-proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size, const best, const lbound1_d, ref bounds_d)
+proc evaluate_gpu_lb1_d(const ref parents_d: [] Node, const size, const best,
+  const ref lbound1_d, ref bounds_d)
 {
   @assertOnGpu
   foreach parentId in 0..#(size/jobs) {
@@ -237,8 +238,8 @@ proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size, const best, const 
 }
 
 // Evaluate a bulk of parent nodes on GPU using lb2.
-proc evaluate_gpu_lb2(const parents_d: [] Node, const size, const best, const lbound1_d,
-  const lbound2_d, ref bounds_d, const sumOffSets_d, const nodeIndex_d)
+proc evaluate_gpu_lb2(const ref parents_d: [] Node, const size, const best, const ref lbound1_d,
+  const ref lbound2_d, ref bounds_d, const ref sumOffSets_d, const ref nodeIndex_d)
 {
   @assertOnGpu
   foreach threadId in 0..#size {
@@ -258,8 +259,8 @@ proc evaluate_gpu_lb2(const parents_d: [] Node, const size, const best, const lb
 }
 
 // Evaluate a bulk of parent nodes on GPU.
-proc evaluate_gpu(const parents_d: [] Node, const size, const best, const lbound1_d,
-  const lbound2_d, ref bounds_d, const sumOffSets_d, const nodeIndex_d)
+proc evaluate_gpu(const ref parents_d: [] Node, const size, const best, const ref lbound1_d,
+  const ref lbound2_d, ref bounds_d, const ref sumOffSets_d, const ref nodeIndex_d)
 {
   select lb {
     when "lb1_d" {

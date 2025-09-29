@@ -7,7 +7,7 @@ module PFSP_node
   config param MAX_JOBS = 20;
 
   record Node {
-    var depth: int(32);
+    var depth: uint(8);
     var limit1: int(32); // left limit
     var prmu: MAX_JOBS*int(32);
 
