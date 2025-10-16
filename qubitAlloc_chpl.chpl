@@ -11,6 +11,9 @@ use Util_qubitAlloc;
 use Problem_qubitAlloc;
 
 config param sizeMax: int(32) = 27;
+config param _lb: "hhb";
+
+type Node = if (_lb == "glb") then Node_GLB else Node_HHB;
 
 /*******************************************************************************
 Implementation of the sequential Qubit Allocation search.
@@ -35,28 +38,23 @@ var it_max: int(32) = itmax;
 
 var initUB: int(32);
 
-var f = open("./lib/qubitAlloc/instances/dist/" + filenameDist + ".csv", ioMode.r);
+var f = open("./lib/qubitAlloc/instances/inter/" + filenameInter + ".csv", ioMode.r);
 var channel = f.reader(locking=false);
 
-channel.read(N);
-dom = {0..<N, 0..<N};
-channel.read(D);
+channel.read(n);
+dom = {0..<n, 0..<n};
+channel.read(F);
 
 channel.close();
 f.close();
 
-f = open("./lib/qubitAlloc/instances/inter/" + filenameInter + ".csv", ioMode.r);
+f = open("./lib/qubitAlloc/instances/dist/" + filenameDist + ".csv", ioMode.r);
 channel = f.reader(locking=false);
 
-channel.read(n);
-// TODO: add an error message
-assert(n <= N);
-
-for i in 0..<n {
-  for j in 0..<n {
-    F[i, j] = channel.read(int(32));
-  }
-}
+channel.read(N);
+assert(n <= N, "More logical qubits than physical ones");
+dom = {0..<N, 0..<N};
+channel.read(D);
 
 channel.close();
 f.close();
@@ -85,9 +83,11 @@ proc print_settings(): void
   writeln("Device: ", filenameDist);
   writeln("Number of logical qubits: ", n);
   writeln("Number of physical qubits: ", N);
-  writeln("Max bounding iterations: ", it_max);
+  if _lb == "hhb" then
+    writeln("Max bounding iterations: ", it_max);
   const heuristic = if (ub == "heuristic") then " (heuristic)" else "";
   writeln("Initial upper bound: ", initUB, heuristic);
+  writeln("Lower bound function: ", _lb);
   writeln("=================================================");
 }
 

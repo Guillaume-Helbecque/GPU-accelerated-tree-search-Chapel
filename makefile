@@ -58,11 +58,13 @@ pfsp_dist_multigpu_chpl.out: pfsp_dist_multigpu_chpl.chpl
 
 CHPL_QUBIT_ALLOC_LIBPATH := -M lib/qubitAlloc
 
+QUBIT_ALLOC_BOUND ?= glb
+
 qubitAlloc_chpl.out: qubitAlloc_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QUBIT_ALLOC_LIBPATH) -snewRangeLiteralType $< -o $@
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QUBIT_ALLOC_LIBPATH) -s_lb='"$(QUBIT_ALLOC_BOUND)"' -snewRangeLiteralType $< -o $@
 
 qubitAlloc_gpu_chpl.out: qubitAlloc_gpu_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QUBIT_ALLOC_LIBPATH) -snewRangeLiteralType $< -o $@
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QUBIT_ALLOC_LIBPATH) -s_lb='"$(QUBIT_ALLOC_BOUND)"' -snewRangeLiteralType $< -o $@
 
 # qubitAlloc_multigpu_chpl.out: qubitAlloc_multigpu_chpl.chpl
 # 	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QUBIT_ALLOC_LIBPATH) -snewRangeLiteralType $< -o $@
