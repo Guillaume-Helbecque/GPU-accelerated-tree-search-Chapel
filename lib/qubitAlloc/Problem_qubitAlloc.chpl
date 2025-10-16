@@ -22,7 +22,7 @@ module Problem_qubitAlloc
       for j in 1..<N {
         if (sF[j] < min_inter) {
           min_inter = sF[j];
-          min_inter_index = j:int(32);
+          min_inter_index = j;
         }
       }
 
@@ -37,7 +37,7 @@ module Problem_qubitAlloc
     }
   }
 
-  proc GreedyAllocation(const ref D, const ref F, const ref priority, n, N, param sizeMax)
+  proc GreedyAllocation(const ref D, const ref F, const ref priority, n, N)
   {
     var route_cost = INF;
 
@@ -48,7 +48,7 @@ module Problem_qubitAlloc
       var alloc_temp: [0..<sizeMax] int(32) = -1;
       var available: [0..<N] bool = true;
 
-      alloc_temp[priority[0]] = j:int(32);
+      alloc_temp[priority[0]] = j;
       available[j] = false;
 
       // for each logical qubit (after the first one)
@@ -59,7 +59,7 @@ module Problem_qubitAlloc
 
         // find physical qubit with least increasing route cost
         for l in 0..<N {
-          if (available[l]) {
+          if available[l] {
             cost_incre = 0;
             for q in 0..<p {
               i = priority[q];
@@ -67,7 +67,7 @@ module Problem_qubitAlloc
             }
 
             if (cost_incre < min_cost_incre) {
-              l_min = l:int(32);
+              l_min = l;
               min_cost_incre = cost_incre;
             }
           }
@@ -91,38 +91,48 @@ module Problem_qubitAlloc
     var route_cost: int(32);
 
     for i in 0..<n {
-       for j in i..<n {
-          route_cost += F[i, j] * D[mapping[i], mapping[j]];
-       }
+      if (mapping[i] == -1) then
+        continue;
+
+      for j in i..<n {
+        if (mapping[j] == -1) then
+          continue;
+
+        route_cost += F[i, j] * D[mapping[i], mapping[j]];
+      }
     }
 
     return 2*route_cost;
   }
 
-  proc Hungarian(ref C, i0, j0, n)
+  /*******************************************************
+                      HIGHTOWER-HAHN BOUND
+    *******************************************************/
+
+  proc Hungarian_HHB(ref C, i0, j0, n)
   {
     var w, j_cur, j_next: int(32);
 
     // job[j] = worker assigned to job j, or -1 if unassigned
     var job: sizeMax*int(32);//allocate(int(32), n+1);
-    for i in 0..n do job[i] = -1:int(32);
+    for i in 0..n do job[i] = -1;
 
     // yw[w] is the potential for worker w
     // yj[j] is the potential for job j
     var yw: (sizeMax+1)*int(32);//allocate(int(32), n);
-    for i in 0..<n do yw[i] = 0:int(32);
+    for i in 0..<n do yw[i] = 0;
     var yj: (sizeMax+1)*int(32);//allocate(int(32), n+1);
-    for i in 0..n do yj[i] = 0:int(32);
+    for i in 0..n do yj[i] = 0;
 
     // main Hungarian algorithm
     for w_cur in 0..<n {
       j_cur = n;
-      job[j_cur] = w_cur:int(32);
+      job[j_cur] = w_cur;
 
       var min_to: (sizeMax+1)*int(32);//allocate(int(32), n+1);
       for i in 0..n do min_to[i] = INFD2;
       var prv: (sizeMax+1)*int(32);//allocate(int(32), n+1);
-      for i in 0..n do prv[i] = -1:int(32);
+      for i in 0..n do prv[i] = -1;
       var in_Z: (sizeMax+1)*bool;//allocate(bool, n+1);
       for i in 0..n do in_Z[i] = false;
 
@@ -133,20 +143,20 @@ module Problem_qubitAlloc
         j_next = 0;
 
         for j in 0..<n {
-          if (!in_Z[j]) {
+          if !in_Z[j] {
             // reduced cost = C[w][j] - yw[w] - yj[j]
             var cur_cost = C[idx4D(i0, j0, w, j, n)] - yw[w] - yj[j];
 
-            if (ckmin(min_to[j], cur_cost)) then
+            if ckmin(min_to[j], cur_cost) then
               prv[j] = j_cur;
-            if (ckmin(delta, min_to[j])) then
+            if ckmin(delta, min_to[j]) then
               j_next = j;
           }
         }
 
         // update potentials
         for j in 0..n {
-          if (in_Z[j]) {
+          if in_Z[j] {
             yw[job[j]] += delta;
             yj[j] -= delta;
           }
@@ -202,8 +212,8 @@ module Problem_qubitAlloc
     var leader_cost, leader_cost_div, leader_cost_rem, val: int(32);
 
     if (n == 1) {
-      C[0] = 0:int(32);
-      L[0] = 0:int(32);
+      C[0] = 0;
+      L[0] = 0;
 
       return;
     }
@@ -212,8 +222,8 @@ module Problem_qubitAlloc
       for j in 0..<n {
         leader_cost = L[i*n + j];
 
-        C[idx4D(i, j, i, j, n)] = 0:int(32);
-        L[i*n + j] = 0:int(32);
+        C[idx4D(i, j, i, j, n)] = 0;
+        L[i*n + j] = 0;
 
         if (leader_cost == 0) {
           continue;
@@ -263,7 +273,7 @@ module Problem_qubitAlloc
     }
   }
 
-  proc bound(ref node, best, it_max)
+  proc bound_HHB(ref node, best, it_max)
   {
     ref lb = node.lower_bound;
     ref C = node.costs;
@@ -283,14 +293,14 @@ module Problem_qubitAlloc
       // apply Hungarian algorithm to each sub-matrix
       for i in 0..<m {
         for j in 0..<m {
-          cost = Hungarian(C, i, j, m);
+          cost = Hungarian_HHB(C, i, j, m);
 
           L[i*m + j] += cost;
         }
       }
 
       // apply Hungarian algorithm to the leader matrix
-      incre = Hungarian(L, 0, 0, m);
+      incre = Hungarian_HHB(L, 0, 0, m);
 
       if (incre == 0) then
         break;
