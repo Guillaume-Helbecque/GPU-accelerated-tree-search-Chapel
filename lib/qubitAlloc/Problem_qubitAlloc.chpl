@@ -485,15 +485,16 @@ module Problem_qubitAlloc
     return total_cost;
   }
 
-  proc Assemble_LAP(const dp, const partial_mapping, const ref av)
+  proc Assemble_LAP(const dp, const partial_mapping, const ref av, const ref D,
+    const ref F, const n, const N)
   {
     var assigned_fac = allocate(int(32), dp);
-    var unassigned_fac = allocate(int(32), this.n-dp);
+    var unassigned_fac = allocate(int(32), n-dp);
     var assigned_loc = allocate(int(32), dp);
-    var unassigned_loc = allocate(int(32), this.N-dp);
+    var unassigned_loc = allocate(int(32), N-dp);
     var c1, c2, c3, c4: int(32) = 0;
 
-    for i in 0..<this.n {
+    for i in 0..<n {
       if (partial_mapping[i] != -1) {
         assigned_fac[c1] = i;
         c1 += 1;
@@ -506,15 +507,15 @@ module Problem_qubitAlloc
       }
     }
 
-    for i in 0..<this.N {
+    for i in 0..<N {
       if av[i] {
         unassigned_loc[c4] = i;
         c4 += 1;
       }
     }
 
-    var u = this.n - dp;
-    var r = this.N - dp;
+    var u = n - dp;
+    var r = N - dp;
 
     var L: [0..<(u*r)] int(32) = 0;
 
@@ -535,7 +536,7 @@ module Problem_qubitAlloc
           continue;
 
         var l = unassigned_loc[l_idx];
-        var dist = this.D[k, l];
+        var dist = D[k, l];
 
         if (dist < min1) {
           min2 = min1;
@@ -567,7 +568,7 @@ module Problem_qubitAlloc
           // Pick best or second-best distance if best is disallowed
           var d = if (best[k_idx].idx1 == k_idx) then best[k_idx].min2 else best[k_idx].min1;
 
-          cost += this.F[i, j] * d;
+          cost += F[i, j] * d;
         }
 
         // Interaction with assigned facilities
@@ -575,7 +576,7 @@ module Problem_qubitAlloc
           var j = assigned_fac[a_idx];
           var l = partial_mapping[j];
 
-          cost += this.F[i, j] * this.D[k, l];
+          cost += F[i, j] * D[k, l];
         }
 
         L[i_idx * r + k_idx] = cost;
@@ -591,20 +592,20 @@ module Problem_qubitAlloc
     return L;
   }
 
-  proc bound_GLB(const ref node)
+  proc bound_GLB(const ref node, const ref D, const ref F, const n, const N)
   {
     const partial_mapping = node.mapping;
-    const ref av = node.available;
+    const av = node.available;
     const dp = node.depth;
 
     var fixed_cost, remaining_lb: int;
 
     local {
-      ref L = Assemble_LAP(dp, partial_mapping, av);
+      ref L = Assemble_LAP(dp, partial_mapping, av, D, F, n, N);
 
-      fixed_cost = ObjectiveFunction(partial_mapping, this.D, this.F, this.n);
+      fixed_cost = ObjectiveFunction(partial_mapping, D, F, n);
 
-      remaining_lb = Hungarian_GLB(L, this.n - dp, this.N - dp);
+      remaining_lb = Hungarian_GLB(L, n - dp, N - dp);
     }
 
     return fixed_cost + remaining_lb;

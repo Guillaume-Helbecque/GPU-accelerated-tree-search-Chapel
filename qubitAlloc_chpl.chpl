@@ -11,7 +11,7 @@ use Util_qubitAlloc;
 use Problem_qubitAlloc;
 
 config param sizeMax: int(32) = 27;
-config param _lb: "hhb";
+config param _lb = "hhb";
 
 type Node = if (_lb == "glb") then Node_GLB else Node_HHB;
 
@@ -61,7 +61,7 @@ f.close();
 
 Prioritization(priority, F, n, N);
 
-if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N, sizeMax);
+if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N);
 else {
   try! initUB = ub:int(32);
 
@@ -114,7 +114,7 @@ proc help_message(): void
 }
 
 // Evaluate and generate children nodes on CPU.
-proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
+proc decompose_HHB(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   ref best: int, ref pool: SinglePool(Node))
 {
   var depth = parent.depth;
@@ -134,8 +134,8 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
     // local index of q_i in the cost matrix
     var k = localLogicalQubitIndex(parent.mapping, i);
 
-    for j in 0..(N - 1) by -1 {
-      if (!parent.available[j]) then continue; // skip if not available
+    for j in 0..<N by -1 {
+      if !parent.available[j] then continue; // skip if not available
 
       // next available physical qubit
       var l = localPhysicalQubitIndex(parent.available, j);
@@ -152,7 +152,7 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
       var child = reduceNode(Node, parent, i, j, k, l, lb_new);
 
       if (child.depth < n) {
-        var lb = bound(child, best, itmax);
+        var lb = bound_HHB(child, best, itmax);
         if (lb <= best) {
           pool.pushBack(child);
           tree_loc += 1;
@@ -166,12 +166,70 @@ proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
   }
 }
 
+proc decompose_GLB(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
+  ref best: int, ref pool: SinglePool(Node))
+{
+  var depth = parent.depth;
+
+  if (parent.depth == n) {
+    const eval = ObjectiveFunction(parent.mapping, D, F, n);
+
+    if (eval < best) {
+      best = eval;
+    }
+
+    num_sol += 1;
+  }
+  else {
+    var i = priority[depth];
+
+    for j in 0..<N by -1 {
+      if !parent.available[j] then continue; // skip if not available
+
+      var child = new Node();
+      child.mapping = parent.mapping;
+      child.depth = parent.depth + 1;
+      child.available = parent.available;
+      child.mapping[i] = j;
+      child.available[j] = false;
+
+      if (child.depth < n) {
+        var lb = bound_GLB(child, D, F, n, N);
+        if (lb <= best) {
+          pool.pushBack(child);
+          tree_loc += 1;
+        }
+      }
+      else {
+        pool.pushBack(child);
+        tree_loc += 1;
+      }
+    }
+  }
+}
+
+proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
+  ref best: int, ref pool: SinglePool(Node))
+{
+  select _lb {
+    when "hhb" {
+      decompose_HHB(parent, tree_loc, num_sol, best, pool);
+    }
+    when "glb" {
+      decompose_GLB(parent, tree_loc, num_sol, best, pool);
+    }
+    otherwise {
+      halt("DEADCODE");
+    }
+  }
+}
+
 // Sequential Qubit Allocation search.
 proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
   var best: int = initUB;
 
-  var root = new Node(n, N, D, F);
+  var root = if (_lb == "hhb") then new Node(n, N, D, F) else new Node(n);
 
   var pool = new SinglePool(Node);
   pool.pushBack(root);
