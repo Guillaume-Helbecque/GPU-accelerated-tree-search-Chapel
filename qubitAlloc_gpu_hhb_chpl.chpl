@@ -42,6 +42,7 @@ proc print_settings(): void
   writeln("Max bounding iterations: ", it_max);
   const heuristic = if (ub == "heuristic") then " (heuristic)" else "";
   writeln("Initial upper bound: ", initUB, heuristic);
+  writeln("Lower bound function: ", _lb);
   writeln("=================================================");
 }
 
@@ -68,8 +69,8 @@ proc help_message(): void
 }
 
 // Evaluate and generate children nodes on CPU.
-proc decompose(const n, const ref D, const ref F, const N, const ref priority,
-  const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool)
+proc decompose(const parent: Node_HHB, ref tree_loc: uint, ref num_sol: uint,
+  ref best: int, ref pool: SinglePool(Node_HHB))
 {
   var depth = parent.depth;
 
@@ -88,8 +89,8 @@ proc decompose(const n, const ref D, const ref F, const N, const ref priority,
     // local index of q_i in the cost matrix
     var k = localLogicalQubitIndex(parent.mapping, i);
 
-    for j in 0..(N - 1) by -1 {
-      if (!parent.available[j]) then continue; // skip if not available
+    for j in 0..<N by -1 {
+      if !parent.available[j] then continue; // skip if not available
 
       // next available physical qubit
       var l = localPhysicalQubitIndex(parent.available, j);
@@ -103,10 +104,10 @@ proc decompose(const n, const ref D, const ref F, const N, const ref priority,
         continue;
       }
 
-      var child = reduceNode(Node, parent, i, j, k, l, lb_new);
+      var child = reduceNode(Node_HHB, parent, i, j, k, l, lb_new);
 
       if (child.depth < n) {
-        var lb = bound(child, best, itmax);
+        var lb = bound_HHB(child, best, itmax);
         if (lb <= best) {
           pool.pushBack(child);
           tree_loc += 1;
@@ -120,9 +121,12 @@ proc decompose(const n, const ref D, const ref F, const N, const ref priority,
   }
 }
 
-proc prepareChildren(M, n, N, const ref D, const ref F, const ref priority,
-  ref children, ref pool, ref best, ref num_sol) {
+proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority,
+  ref children, ref pool, ref best, ref num_sol)
+{
   var size = 0;
+
+  if (pool.size < m) then return 0;
 
   while (size < M-N) {
     var hasWork = 0;
@@ -146,8 +150,8 @@ proc prepareChildren(M, n, N, const ref D, const ref F, const ref priority,
       // local index of q_i in the cost matrix
       var k = localLogicalQubitIndex(parent.mapping, i);
 
-      for j in 0..(N - 1) by -1 {
-        if (!parent.available[j]) then continue; // skip if not available
+      for j in 0..<N by -1 {
+        if !parent.available[j] then continue; // skip if not available
 
         // next available physical qubit
         var l = localPhysicalQubitIndex(parent.available, j);
@@ -161,7 +165,7 @@ proc prepareChildren(M, n, N, const ref D, const ref F, const ref priority,
           continue;
         }
 
-        var child = reduceNode(Node, parent, i, j, k, l, lb_new);
+        var child = reduceNode(Node_HHB, parent, i, j, k, l, lb_new);
 
         children[size] = child;
         size += 1;
@@ -173,17 +177,17 @@ proc prepareChildren(M, n, N, const ref D, const ref F, const ref priority,
 }
 
 // Evaluate a bulk of parent nodes on GPU.
-proc evaluate_gpu(ref children_d: [] Node, const size, const best, ref bounds_d)
+proc evaluate_gpu(ref children_d: [] Node_HHB, const size, const best, ref bounds_d)
 {
   @assertOnGpu
   foreach threadId in 0..#size {
-    bounds_d[threadId] = bound(children_d[threadId], best, it_max);
+    bounds_d[threadId] = bound_HHB(children_d[threadId], best, it_max);
   }
 }
 
 // Generate children nodes (evaluated by GPU) on CPU.
-proc generate_children(const ref children: [] Node, const size: int, const ref bounds: [] int(32),
-  ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool: SinglePool(Node))
+proc generate_children(const ref children: [] Node_HHB, const size: int, const ref bounds: [] int(32),
+  ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool: SinglePool(Node_HHB))
 {
   for i in 0..<size {
     ref child = children[i];
@@ -220,28 +224,23 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   var F: [dom] int(32);
   var priority: [0..<sizeMax] int(32);
 
-  var f = open("./lib/qubitAlloc/instances/dist/" + dist + ".csv", ioMode.r);
+  var f = open("./lib/qubitAlloc/instances/inter/" + filenameInter + ".csv", ioMode.r);
   var channel = f.reader(locking=false);
 
-  channel.read(N);
-  dom = {0..<N, 0..<N};
-  channel.read(D);
+  channel.read(n);
+  dom = {0..<n, 0..<n};
+  channel.read(F);
 
   channel.close();
   f.close();
 
-  f = open("./lib/qubitAlloc/instances/inter/" + inter + ".csv", ioMode.r);
+  f = open("./lib/qubitAlloc/instances/dist/" + filenameDist + ".csv", ioMode.r);
   channel = f.reader(locking=false);
 
-  channel.read(n);
-  // TODO: add an error message
-  assert(n <= N);
-
-  for i in 0..<n {
-    for j in 0..<n {
-      F[i, j] = channel.read(int(32));
-    }
-  }
+  channel.read(N);
+  assert(n <= N, "More logical qubits than physical ones");
+  dom = {0..<N, 0..<N};
+  channel.read(D);
 
   channel.close();
   f.close();
@@ -265,9 +264,9 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
 
   var best: int = initUB;
 
-  var root = new Node(n, N, D, F);
+  var root = new Node_HHB(n, N, D, F);
 
-  var pool = new SinglePool(Node);
+  var pool = new SinglePool(Node_HHB);
   pool.pushBack(root);
 
   while (pool.size < m) {
@@ -292,10 +291,10 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   */
   timer.start();
 
-  var children: [0..#M] Node;// = noinit;
+  var children: [0..#M] Node_HHB;// = noinit;
   var bounds: [0..#M] int(32);// = noinit;
 
-  on device var children_d: [0..#M] Node;
+  on device var children_d: [0..#M] Node_HHB;
   on device var bounds_d: [0..#M] int(32);
 
   // TODO: copy problem data on GPU
@@ -304,7 +303,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   on device const priority_d = priority; */
 
   while true {
-    var poolSize = prepareChildren(M, n, N, D, F, priority, children, pool, best, exploredSol);
+    var poolSize = prepareChildren(m, M, n, N, D, F, priority, children, pool, best, exploredSol);
     /* var poolSize = pool.popBackBulk(m, M, children); */
 
     if (poolSize > 0) {
