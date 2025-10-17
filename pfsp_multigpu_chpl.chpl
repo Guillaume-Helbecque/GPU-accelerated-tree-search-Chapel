@@ -316,7 +316,7 @@ proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint
   var root = new Node(jobs);
 
   var pool = new SinglePool_par(Node);
-  pool.pushBack(root);
+  pool.pushBackFree(root);
 
   var timer: stopwatch;
 
