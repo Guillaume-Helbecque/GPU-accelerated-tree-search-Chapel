@@ -42,7 +42,7 @@ proc print_settings(): void
   writeln("Max bounding iterations: ", it_max);
   const heuristic = if (ub == "heuristic") then " (heuristic)" else "";
   writeln("Initial upper bound: ", initUB, heuristic);
-  writeln("Lower bound function: ", _lb);
+  writeln("Lower bound function: hhb");
   writeln("=================================================");
 }
 
@@ -69,8 +69,8 @@ proc help_message(): void
 }
 
 // Evaluate and generate children nodes on CPU.
-proc decompose(const parent: Node_HHB, ref tree_loc: uint, ref num_sol: uint,
-  ref best: int, ref pool: SinglePool(Node_HHB))
+proc decompose(const parent: Node_HHB, const ref D, const ref F, const ref priority,
+  ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool(Node_HHB))
 {
   var depth = parent.depth;
 
@@ -224,7 +224,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   var F: [dom] int(32);
   var priority: [0..<sizeMax] int(32);
 
-  var f = open("./lib/qubitAlloc/instances/inter/" + filenameInter + ".csv", ioMode.r);
+  var f = open("./lib/qubitAlloc/instances/inter/" + inter + ".csv", ioMode.r);
   var channel = f.reader(locking=false);
 
   channel.read(n);
@@ -234,7 +234,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   channel.close();
   f.close();
 
-  f = open("./lib/qubitAlloc/instances/dist/" + filenameDist + ".csv", ioMode.r);
+  f = open("./lib/qubitAlloc/instances/dist/" + dist + ".csv", ioMode.r);
   channel = f.reader(locking=false);
 
   channel.read(N);
@@ -247,7 +247,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
 
   Prioritization(priority, F, n, N);
 
-  if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N, sizeMax);
+  if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N);
   else {
     try! initUB = ub:int(32);
 
@@ -274,7 +274,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
     var parent = pool.popFront(hasWork);
     if !hasWork then break;
 
-    decompose(n, D, F, N, priority, parent, exploredTree, exploredSol, best, pool);
+    decompose(parent, D, F, priority, exploredTree, exploredSol, best, pool);
   }
 
   timer.stop();
@@ -348,7 +348,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
     var parent = pool.popBack(hasWork);
     if !hasWork then break;
 
-    decompose(n, D, F, N, priority, parent, exploredTree, exploredSol, best, pool);
+    decompose(parent, D, F, priority, exploredTree, exploredSol, best, pool);
   }
 
   timer.stop();

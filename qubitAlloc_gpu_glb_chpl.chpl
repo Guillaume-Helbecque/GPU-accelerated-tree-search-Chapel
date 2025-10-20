@@ -41,7 +41,7 @@ proc print_settings(): void
   writeln("Number of physical qubits: ", N);
   const heuristic = if (ub == "heuristic") then " (heuristic)" else "";
   writeln("Initial upper bound: ", initUB, heuristic);
-  writeln("Lower bound function: ", _lb);
+  writeln("Lower bound function: glb");
   writeln("=================================================");
 }
 
@@ -66,8 +66,8 @@ proc help_message(): void
   writeln("   --ub      str/int   upper bound initialization ('heuristic' or any integer)\n");
 }
 
-proc decompose(const parent: Node_GLB, ref tree_loc: uint, ref num_sol: uint,
-  ref best: int, ref pool: SinglePool(Node_GLB))
+proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority,
+  ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool(Node_GLB))
 {
   var depth = parent.depth;
 
@@ -134,25 +134,16 @@ proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority,
     else {
       var i = priority[depth];
 
-      // local index of q_i in the cost matrix
-      var k = localLogicalQubitIndex(parent.mapping, i);
-
       for j in 0..<N by -1 {
         if !parent.available[j] then continue; // skip if not available
 
-        // next available physical qubit
-        var l = localPhysicalQubitIndex(parent.available, j);
+        var child = new Node_GLB();
+        child.mapping = parent.mapping;
+        child.depth = parent.depth + 1;
+        child.available = parent.available;
 
-        // increment lower bound
-        var incre = parent.leader[k*(N - depth) + l];
-        var lb_new = parent.lower_bound + incre;
-
-        // prune
-        if (lb_new > best) {
-          continue;
-        }
-
-        var child = reduceNode(Node_GLB, parent, i, j, k, l, lb_new);
+        child.mapping[i] = j;
+        child.available[j] = false;
 
         children[size] = child;
         size += 1;
@@ -164,11 +155,11 @@ proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority,
 }
 
 // Evaluate a bulk of parent nodes on GPU.
-proc evaluate_gpu(ref children_d: [] Node_GLB, const size, const best, ref bounds_d)
+proc evaluate_gpu(ref children_d: [] Node_GLB, const size, const ref D, const ref F, ref bounds_d)
 {
   @assertOnGpu
   foreach threadId in 0..#size {
-    bounds_d[threadId] = bound_GLB(children_d[threadId], best, it_max);
+    bounds_d[threadId] = bound_GLB(children_d[threadId], D, F, n, N);
   }
 }
 
@@ -211,7 +202,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   var F: [dom] int(32);
   var priority: [0..<sizeMax] int(32);
 
-  var f = open("./lib/qubitAlloc/instances/inter/" + filenameInter + ".csv", ioMode.r);
+  var f = open("./lib/qubitAlloc/instances/inter/" + inter + ".csv", ioMode.r);
   var channel = f.reader(locking=false);
 
   channel.read(n);
@@ -221,7 +212,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   channel.close();
   f.close();
 
-  f = open("./lib/qubitAlloc/instances/dist/" + filenameDist + ".csv", ioMode.r);
+  f = open("./lib/qubitAlloc/instances/dist/" + dist + ".csv", ioMode.r);
   channel = f.reader(locking=false);
 
   channel.read(N);
@@ -234,7 +225,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
 
   Prioritization(priority, F, n, N);
 
-  if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N, sizeMax);
+  if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N);
   else {
     try! initUB = ub:int(32);
 
@@ -261,7 +252,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
     var parent = pool.popFront(hasWork);
     if !hasWork then break;
 
-    decompose(n, D, F, N, priority, parent, exploredTree, exploredSol, best, pool);
+    decompose(parent, D, F, priority, exploredTree, exploredSol, best, pool);
   }
 
   timer.stop();
@@ -285,9 +276,9 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   on device var bounds_d: [0..#M] int(32);
 
   // TODO: copy problem data on GPU
-  /* on device const D_d = D;
+  on device const D_d = D;
   on device const F_d = F;
-  on device const priority_d = priority; */
+  /* on device const priority_d = priority; */
 
   while true {
     var poolSize = prepareChildren(m, M, n, N, D, F, priority, children, pool, best, exploredSol);
@@ -302,9 +293,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
       const numBounds = poolSize;
 
       children_d = children; // host-to-device
-      on device do evaluate_gpu(children_d, numBounds, best, bounds_d); // GPU kernel
-      // TODO: can we avoid this copy?
-      children = children_d;
+      on device do evaluate_gpu(children_d, numBounds, D_d, F_d, bounds_d); // GPU kernel
       bounds = bounds_d; // device-to-host
 
       /*
@@ -335,7 +324,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
     var parent = pool.popBack(hasWork);
     if !hasWork then break;
 
-    decompose(n, D, F, N, priority, parent, exploredTree, exploredSol, best, pool);
+    decompose(parent, D, F, priority, exploredTree, exploredSol, best, pool);
   }
 
   timer.stop();
