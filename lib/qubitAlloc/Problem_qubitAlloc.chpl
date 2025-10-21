@@ -10,8 +10,9 @@ module Problem_qubitAlloc
   {
     var sF: [0..<N] int(32);
 
-    for i in 0..<N do
-      sF[i] = (+ reduce F[i, 0..<n]);
+    for i in 0..<n do
+      for j in 0..<n do
+        sF[i] += F[i * n + j];
 
     var min_inter, min_inter_index: int(32);
 
@@ -32,7 +33,7 @@ module Problem_qubitAlloc
 
       for j in 0..<N {
         if (sF[j] != INF) then
-          sF[j] -= F[j, min_inter_index];
+          sF[j] -= F[j * n + min_inter_index];
       }
     }
   }
@@ -63,7 +64,7 @@ module Problem_qubitAlloc
             cost_incre = 0;
             for q in 0..<p {
               i = priority[q];
-              cost_incre += F[i, k] * D[alloc_temp[i], l];
+              cost_incre += F[i * n + k] * D[alloc_temp[i] * N + l];
             }
 
             if (cost_incre < min_cost_incre) {
@@ -77,7 +78,7 @@ module Problem_qubitAlloc
         available[l_min] = false;
       }
 
-      route_cost_temp = ObjectiveFunction(alloc_temp, D, F, n);
+      route_cost_temp = ObjectiveFunction(alloc_temp, D, F, n, N);
 
       if (route_cost_temp < route_cost) then
         route_cost = route_cost_temp;
@@ -86,7 +87,7 @@ module Problem_qubitAlloc
     return route_cost;
   }
 
-  proc ObjectiveFunction(const mapping, const ref D, const ref F, n)
+  proc ObjectiveFunction(const mapping, const ref D, const ref F, n, N)
   {
     var route_cost: int(32);
 
@@ -98,7 +99,7 @@ module Problem_qubitAlloc
         if (mapping[j] == -1) then
           continue;
 
-        route_cost += F[i, j] * D[mapping[i], mapping[j]];
+        route_cost += F[i * n + j] * D[mapping[i] * N + mapping[j]];
       }
     }
 
@@ -547,7 +548,7 @@ module Problem_qubitAlloc
           continue;
 
         var l = unassigned_loc[l_idx];
-        var dist = D[k, l];
+        var dist = D[k * N + l];
 
         if (dist < min1) {
           min2 = min1;
@@ -579,7 +580,7 @@ module Problem_qubitAlloc
           // Pick best or second-best distance if best is disallowed
           var d = if (best[k_idx].idx1 == k_idx) then best[k_idx].min2 else best[k_idx].min1;
 
-          cost += F[i, j] * d;
+          cost += F[i * n + j] * d;
         }
 
         // Interaction with assigned facilities
@@ -587,7 +588,7 @@ module Problem_qubitAlloc
           var j = assigned_fac[a_idx];
           var l = partial_mapping[j];
 
-          cost += F[i, j] * D[k, l];
+          cost += F[i * n + j] * D[k * N + l];
         }
 
         L[i_idx * r + k_idx] = cost;
@@ -605,6 +606,9 @@ module Problem_qubitAlloc
 
   proc bound_GLB(const ref node, const ref D, const ref F, const n, const N)
   {
+    use CTypes only c_ptrToConst;
+    const D_ = c_ptrToConst(D[0]);
+
     const partial_mapping = node.mapping;
     const av = node.available;
     const dp = node.depth;
@@ -612,9 +616,9 @@ module Problem_qubitAlloc
     var fixed_cost, remaining_lb: int(32);
 
     /* local { */
-      var L = Assemble_LAP(dp, partial_mapping, av, D, F, n, N);
+      var L = Assemble_LAP(dp, partial_mapping, av, D_, F, n, N);
 
-      fixed_cost = ObjectiveFunction(partial_mapping, D, F, n);
+      fixed_cost = ObjectiveFunction(partial_mapping, D_, F, n, N);
 
       remaining_lb = Hungarian_GLB(L, n - dp, N - dp);
     /* } */

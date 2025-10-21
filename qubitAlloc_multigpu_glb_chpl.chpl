@@ -75,7 +75,7 @@ proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref prior
   var depth = parent.depth;
 
   if (parent.depth == n) {
-    const eval = ObjectiveFunction(parent.mapping, D, F, n);
+    const eval = ObjectiveFunction(parent.mapping, D, F, n, N);
 
     if (eval < best) {
       best = eval;
@@ -93,7 +93,7 @@ proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref prior
       child.mapping = parent.mapping;
       child.depth = parent.depth + 1;
       child.available = parent.available;
-      child.mapping[i] = j;
+      child.mapping[i] = j:int(8);
       child.available[j] = false;
 
       if (child.depth < n) {
@@ -118,15 +118,17 @@ proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority,
 
   if (pool.size < m) then return 0;
 
+  pool.acquireLock();
+
   while (size < M-N) {
     var hasWork = 0;
-    var parent = pool.popBack(hasWork);
+    var parent = pool.popBackFree(hasWork);
     if !hasWork then break;
 
     var depth = parent.depth;
 
     if (parent.depth == n) {
-      const eval = ObjectiveFunction(parent.mapping, D, F, n);
+      const eval = ObjectiveFunction(parent.mapping, D, F, n, N);
 
       if (eval < best) {
         best = eval;
@@ -145,7 +147,7 @@ proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority,
         child.depth = parent.depth + 1;
         child.available = parent.available;
 
-        child.mapping[i] = j;
+        child.mapping[i] = j:int(8);
         child.available[j] = false;
 
         children[size] = child;
@@ -153,6 +155,8 @@ proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority,
       }
     }
   }
+
+  pool.releaseLock();
 
   return size;
 }
@@ -202,16 +206,14 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   */
   timer.start();
 
-  var dom: domain(2, idxType = int(32));
-  var DD: [dom] int(32);
-  var F: [dom] int(32);
+  /* var dom: domain(1, idxType = int(32)); */
   var priority: [0..<sizeMax] int(32);
 
   var ff = open("./lib/qubitAlloc/instances/inter/" + inter + ".csv", ioMode.r);
   var channel = ff.reader(locking=false);
 
   channel.read(n);
-  dom = {0..<n, 0..<n};
+  var F: [0..<(n**2)] int(32) = noinit;
   channel.read(F);
 
   channel.close();
@@ -222,7 +224,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
 
   channel.read(N);
   assert(n <= N, "More logical qubits than physical ones");
-  dom = {0..<N, 0..<N};
+  var DD: [0..<(N**2)] int(32) = noinit;
   channel.read(DD);
 
   channel.close();
@@ -279,6 +281,8 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
   var allTasksIdleFlag: atomic bool = false;
 
+  var eachTime: [1..6, 0..#D] real;
+
   const poolSize = pool.size;
   const c = poolSize / D;
   const l = poolSize - (D-1)*c;
@@ -290,7 +294,9 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   var multiPool: [0..#D] SinglePool_par(Node_GLB);
 
   coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol,
-    ref eachBest, ref eachTaskState, ref multiPool) {
+    ref eachBest, ref eachTaskState, ref multiPool, ref eachTime) {
+
+    var t1, t2, t3, t4, t5, t6: stopwatch;
 
     const device = here.gpus[gpuID];
 
@@ -319,7 +325,9 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
     on device const F_d = F;
 
     while true {
+      t6.start();
       var poolSize = prepareChildren(m, M, n, N, DD, F, priority, children, pool_loc, best_l, sol);
+      t6.stop();
       /* var poolSize = pool.popBackBulk(m, M, children); */
 
       if (poolSize > 0) {
@@ -335,16 +343,25 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
         */
         const numBounds = poolSize;
 
+        t1.start();
         children_d = children; // host-to-device
+        t1.stop();
+        t2.start();
         on device do evaluate_gpu(children_d, numBounds, D_d, F_d, bounds_d); // GPU kernel
+        t2.stop();
+        t3.start();
         bounds = bounds_d; // device-to-host
+        t3.stop();
 
         /*
           Each task generates and inserts its children nodes to the pool.
         */
+        t4.start();
         generate_children(children, poolSize, bounds, tree, sol, best_l, pool_loc);
+        t4.stop();
       }
       else {
+        t5.start();
         // work stealing attempts
         var tries = 0;
         var steal = false;
@@ -396,12 +413,16 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
           }
           if allIdle(eachTaskState, allTasksIdleFlag) {
             writeln("task ", gpuID, " exits normally");
+            t5.stop();
             break;
           }
+          t5.stop();
           continue;
         } else {
+          t5.stop();
           continue;
         }
+        t5.stop();
       }
     }
 
@@ -411,6 +432,19 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
       pool.pushBack(pool_loc.popBack(hasWork));
       if !hasWork then break;
     }
+
+    eachTime[1, gpuID] = t1.elapsed();
+    eachTime[2, gpuID] = t2.elapsed();
+    eachTime[3, gpuID] = t3.elapsed();
+    eachTime[4, gpuID] = t4.elapsed();
+    eachTime[5, gpuID] = t5.elapsed();
+    eachTime[6, gpuID] = t6.elapsed();
+    /* writeln("on GPU ", gpuID, " t1 = ", t1.elapsed());
+    writeln("on GPU ", gpuID, " t2 = ", t2.elapsed());
+    writeln("on GPU ", gpuID, " t3 = ", t3.elapsed());
+    writeln("on GPU ", gpuID, " t4 = ", t4.elapsed());
+    writeln("on GPU ", gpuID, " t5 = ", t5.elapsed());
+    writeln("on GPU ", gpuID, " t6 = ", t6.elapsed()); */
 
     eachExploredTree[gpuID] = tree;
     eachExploredSol[gpuID] = sol;
@@ -456,6 +490,13 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   optimum = best;
 
   writeln("\nExploration terminated.");
+
+  writeln("prepare children = ", (+ reduce eachTime[6, 0..<D])/D, " (", (+ reduce eachTime[6, 0..<D])/D/elapsedTime*100, "%)");
+  writeln("H2D              = ", (+ reduce eachTime[1, 0..<D])/D, " (", (+ reduce eachTime[1, 0..<D])/D/elapsedTime*100, "%)");
+  writeln("kernel           = ", (+ reduce eachTime[2, 0..<D])/D, " (", (+ reduce eachTime[2, 0..<D])/D/elapsedTime*100, "%)");
+  writeln("D2H              = ", (+ reduce eachTime[3, 0..<D])/D, " (", (+ reduce eachTime[3, 0..<D])/D/elapsedTime*100, "%)");
+  writeln("gen children     = ", (+ reduce eachTime[4, 0..<D])/D, " (", (+ reduce eachTime[4, 0..<D])/D/elapsedTime*100, "%)");
+  writeln("WS               = ", (+ reduce eachTime[5, 0..<D])/D, " (", (+ reduce eachTime[5, 0..<D])/D/elapsedTime*100, "%)");
 }
 
 proc main(args: [] string)

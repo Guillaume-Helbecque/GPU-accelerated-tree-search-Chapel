@@ -58,7 +58,7 @@ module QubitAlloc_node
 
   record Node_GLB
   {
-    var mapping: sizeMax*int(32);
+    var mapping: sizeMax*int(8);
     var depth: uint(8);
     var available: sizeMax*bool;
 
@@ -70,7 +70,7 @@ module QubitAlloc_node
     proc init(const n)
     {
       init this;
-      for i in 0..<n do this.mapping[i] = -1;
+      for i in 0..<n do this.mapping[i] = -1:int(8);
       for i in 0..<sizeMax do this.available[i] = true;
       /* this.available = true; */
     }
