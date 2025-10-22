@@ -53,25 +53,25 @@ pfsp_dist_multigpu_chpl.out: pfsp_dist_multigpu_chpl.chpl
 	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_LIBPATH) $< -o $@
 
 # ==================
-# Qubit allocation
+# QAP
 # ==================
 
-CHPL_QUBIT_ALLOC_LIBPATH := -M lib/qubitAlloc
+CHPL_QAP_LIBPATH := -M lib/qubitAlloc
 
-qubitAlloc_glb_chpl.out: qubitAlloc_glb_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QUBIT_ALLOC_LIBPATH) -snewRangeLiteralType $< -o $@
+qap_sequential_glb.out: qap_sequential_glb.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QAP_LIBPATH) -snewRangeLiteralType $< -o $@
 
-qubitAlloc_hhb_chpl.out: qubitAlloc_hhb_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QUBIT_ALLOC_LIBPATH) -snewRangeLiteralType $< -o $@
+qap_sequential_hhb.out: qap_sequential_hhb.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QAP_LIBPATH) -snewRangeLiteralType $< -o $@
 
-qubitAlloc_gpu_glb_chpl.out: qubitAlloc_gpu_glb_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QUBIT_ALLOC_LIBPATH) -snewRangeLiteralType $< -o $@
+qap_gpu_glb.out: qap_gpu_glb.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QAP_LIBPATH) -snewRangeLiteralType $< -o $@
 
-qubitAlloc_gpu_hhb_chpl.out: qubitAlloc_gpu_hhb_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QUBIT_ALLOC_LIBPATH) -snewRangeLiteralType $< -o $@
+qap_gpu_hhb.out: qap_gpu_hhb.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QAP_LIBPATH) -snewRangeLiteralType $< -o $@
 
-qubitAlloc_multigpu_glb_chpl.out: qubitAlloc_multigpu_glb_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QUBIT_ALLOC_LIBPATH) -snewRangeLiteralType $< -o $@
+qap_multigpu_glb.out: qap_multigpu_glb.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QAP_LIBPATH) -snewRangeLiteralType $< -o $@
 #
 # qubitAlloc_dist_multigpu_chpl.out: qubitAlloc_dist_multigpu_chpl.chpl
 # 	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QUBIT_ALLOC_LIBPATH) -snewRangeLiteralType $< -o $@

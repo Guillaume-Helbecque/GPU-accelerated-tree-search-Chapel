@@ -24,11 +24,9 @@ config const M = 50000;
 
 config const inter = "10_sqn";
 config const dist = "16_melbourne";
-config const itmax: int(32) = 10;
 config const ub: string = "heuristic"; // heuristic
 
 var n, N: int(32);
-const it_max: int(32) = itmax;
 
 var initUB: int(32);
 
@@ -72,7 +70,7 @@ proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref prior
   var depth = parent.depth;
 
   if (parent.depth == n) {
-    const eval = ObjectiveFunction(parent.mapping, D, F, n);
+    const eval = ObjectiveFunction(parent.mapping, D, F, n, N);
 
     if (eval < best) {
       best = eval;
@@ -90,7 +88,7 @@ proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref prior
       child.mapping = parent.mapping;
       child.depth = parent.depth + 1;
       child.available = parent.available;
-      child.mapping[i] = j;
+      child.mapping[i] = j:int(8);
       child.available[j] = false;
 
       if (child.depth < n) {
@@ -109,7 +107,7 @@ proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref prior
 }
 
 proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority,
-  ref children, ref pool, ref best, ref num_sol)
+  ref children, ref pool: SinglePool(Node_GLB), ref best, ref num_sol)
 {
   var size = 0;
 
@@ -123,7 +121,7 @@ proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority,
     var depth = parent.depth;
 
     if (parent.depth == n) {
-      const eval = ObjectiveFunction(parent.mapping, D, F, n);
+      const eval = ObjectiveFunction(parent.mapping, D, F, n, N);
 
       if (eval < best) {
         best = eval;
@@ -142,7 +140,7 @@ proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority,
         child.depth = parent.depth + 1;
         child.available = parent.available;
 
-        child.mapping[i] = j;
+        child.mapping[i] = j:int(8);
         child.available[j] = false;
 
         children[size] = child;
@@ -197,16 +195,13 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   */
   timer.start();
 
-  var dom: domain(2, idxType = int(32));
-  var D: [dom] int(32);
-  var F: [dom] int(32);
   var priority: [0..<sizeMax] int(32);
 
   var f = open("./lib/qubitAlloc/instances/inter/" + inter + ".csv", ioMode.r);
   var channel = f.reader(locking=false);
 
   channel.read(n);
-  dom = {0..<n, 0..<n};
+  var F: [0..<(n**2)] int(32) = noinit;
   channel.read(F);
 
   channel.close();
@@ -217,7 +212,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
 
   channel.read(N);
   assert(n <= N, "More logical qubits than physical ones");
-  dom = {0..<N, 0..<N};
+  var D: [0..<(N**2)] int(32) = noinit;
   channel.read(D);
 
   channel.close();
@@ -269,19 +264,22 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   */
   timer.start();
 
+  var t1, t2, t3, t4, t5: stopwatch;
+
   var children: [0..#M] Node_GLB;// = noinit;
   var bounds: [0..#M] int(32);// = noinit;
 
   on device var children_d: [0..#M] Node_GLB;
   on device var bounds_d: [0..#M] int(32);
 
-  // TODO: copy problem data on GPU
   on device const D_d = D;
   on device const F_d = F;
   /* on device const priority_d = priority; */
 
   while true {
+    t1.start();
     var poolSize = prepareChildren(m, M, n, N, D, F, priority, children, pool, best, exploredSol);
+    t1.stop();
     /* var poolSize = pool.popBackBulk(m, M, children); */
 
     if (poolSize > 0) {
@@ -292,14 +290,22 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
       */
       const numBounds = poolSize;
 
+      t2.start();
       children_d = children; // host-to-device
+      t2.stop();
+      t3.start();
       on device do evaluate_gpu(children_d, numBounds, D_d, F_d, bounds_d); // GPU kernel
+      t3.stop();
+      t4.start();
       bounds = bounds_d; // device-to-host
+      t4.stop();
 
       /*
         Each task generates and inserts its children nodes to the pool.
       */
+      t5.start();
       generate_children(children, poolSize, bounds, exploredTree, exploredSol, best, pool);
+      t5.stop();
     }
     else {
       break;
@@ -339,6 +345,12 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   optimum = best;
 
   writeln("\nExploration terminated.");
+
+  writeln("prepare children = ", t1.elapsed(), " (", t1.elapsed()/elapsedTime*100, "%)");
+  writeln("H2D              = ", t2.elapsed(), " (", t2.elapsed()/elapsedTime*100, "%)");
+  writeln("kernel           = ", t3.elapsed(), " (", t3.elapsed()/elapsedTime*100, "%)");
+  writeln("D2H              = ", t4.elapsed(), " (", t4.elapsed()/elapsedTime*100, "%)");
+  writeln("gen children     = ", t5.elapsed(), " (", t5.elapsed()/elapsedTime*100, "%)");
 }
 
 proc main(args: [] string)

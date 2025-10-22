@@ -219,16 +219,13 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   */
   timer.start();
 
-  var dom: domain(2, idxType = int(32));
-  var D: [dom] int(32);
-  var F: [dom] int(32);
   var priority: [0..<sizeMax] int(32);
 
   var f = open("./lib/qubitAlloc/instances/inter/" + inter + ".csv", ioMode.r);
   var channel = f.reader(locking=false);
 
   channel.read(n);
-  dom = {0..<n, 0..<n};
+  var F: [0..<(n**2)] int(32) = noinit;
   channel.read(F);
 
   channel.close();
@@ -239,7 +236,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
 
   channel.read(N);
   assert(n <= N, "More logical qubits than physical ones");
-  dom = {0..<N, 0..<N};
+  var D: [0..<(N**2)] int(32) = noinit;
   channel.read(D);
 
   channel.close();
@@ -296,11 +293,6 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
 
   on device var children_d: [0..#M] Node_HHB;
   on device var bounds_d: [0..#M] int(32);
-
-  // TODO: copy problem data on GPU
-  /* on device const D_d = D;
-  on device const F_d = F;
-  on device const priority_d = priority; */
 
   while true {
     var poolSize = prepareChildren(m, M, n, N, D, F, priority, children, pool, best, exploredSol);
