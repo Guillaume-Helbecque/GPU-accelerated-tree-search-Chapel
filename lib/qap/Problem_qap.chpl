@@ -8,7 +8,7 @@ module Problem_qap
 
   proc Prioritization(ref priority, const ref F, n: int(32), N: int(32))
   {
-    var sF: [0..<N] int(32);
+    var sF: [0..<n] int(32);
 
     for i in 0..<n do
       for j in 0..<n do
@@ -16,22 +16,22 @@ module Problem_qap
 
     var min_inter, min_inter_index: int(32);
 
-    for i in 0..<N {
+    for i in 0..<n {
       min_inter = sF[0];
       min_inter_index = 0;
 
-      for j in 1..<N {
+      for j in 1..<n {
         if (sF[j] < min_inter) {
           min_inter = sF[j];
           min_inter_index = j;
         }
       }
 
-      priority[N-1-i] = min_inter_index;
+      priority[n-1-i] = min_inter_index;
 
       sF[min_inter_index] = INF;
 
-      for j in 0..<N {
+      for j in 0..<n {
         if (sF[j] != INF) then
           sF[j] -= F[j * n + min_inter_index];
       }

@@ -1,5 +1,5 @@
 /*******************************************************************************
-Implementation of Qubit Allocation Nodes.
+Implementation of QAP Nodes.
 *******************************************************************************/
 
 module QAP_node
@@ -86,14 +86,16 @@ module QAP_node
 
   proc Assemble(ref costs, ref leader, const ref D, const ref F, const n, const N)
   {
-    for i in 0..<n {
+    for i in 0..<N {
       for j in 0..<N {
-        for k in 0..<n {
+        for k in 0..<N {
           for l in 0..<N {
             if ((k == i) ^ (l == j)) then
               costs[idx4D(i, j, k, l, N)] = INFD2;
-            else
+            else if (k < n) then
               costs[idx4D(i, j, k, l, N)] = F[i * n + k] * D[j * N + l];
+            else
+              costs[idx4D(i, j, k, l, N)] = 0;
           }
         }
         leader[i*N + j] = costs[idx4D(i, j, i, j, N)];

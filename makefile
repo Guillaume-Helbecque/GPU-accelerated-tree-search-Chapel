@@ -11,7 +11,7 @@ CHPL_COMMON_OPTS := --fast -M lib/commons
 # Build Chapel codes
 # ==========================
 
-MAIN_FILES = $(wildcard *_chpl.chpl)
+MAIN_FILES = $(wildcard *.chpl)
 EXECUTABLES = $(MAIN_FILES:.chpl=.out)
 
 all: $(EXECUTABLES)
