@@ -11,9 +11,9 @@ module QubitAlloc_node
   // ISSUE: cannot use `noinit` with this node type.
   record Node_HHB
   {
-    var mapping: sizeMax*int(32);
+    var mapping: sizeMax*int(8);
     var lower_bound: int(32);
-    var depth: int(32);
+    var depth: uint(8);
     var available: sizeMax*bool;
 
     var domCost: domain(1, idxType = int(32));
@@ -37,7 +37,7 @@ module QubitAlloc_node
       this.domCost = {0..<(N**4)};
       this.domLeader = {0..<(N**2)};
       this.size = N;
-      Assemble(this.costs, this.leader, D, F, N);
+      Assemble(this.costs, this.leader, D, F, n, N);
     }
 
     // copy-initializer
@@ -84,16 +84,16 @@ module QubitAlloc_node
     } */
   }
 
-  proc Assemble(ref costs, ref leader, const ref D, const ref F, const N)
+  proc Assemble(ref costs, ref leader, const ref D, const ref F, const n, const N)
   {
-    for i in 0..<N {
+    for i in 0..<n {
       for j in 0..<N {
-        for k in 0..<N {
+        for k in 0..<n {
           for l in 0..<N {
             if ((k == i) ^ (l == j)) then
               costs[idx4D(i, j, k, l, N)] = INFD2;
             else
-              costs[idx4D(i, j, k, l, N)] = F[i, k] * D[j, l];
+              costs[idx4D(i, j, k, l, N)] = F[i * n + k] * D[j * N + l];
           }
         }
         leader[i*N + j] = costs[idx4D(i, j, i, j, N)];

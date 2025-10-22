@@ -327,7 +327,7 @@ module Problem_qubitAlloc
     child.size = parent.size - 1;
 
     // assign q_i to P_j
-    child.mapping[i] = j;
+    child.mapping[i] = j:int(8);
 
     const n = parent.size;
     const m = n - 1;
