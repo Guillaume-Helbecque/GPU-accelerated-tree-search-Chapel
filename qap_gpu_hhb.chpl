@@ -1,5 +1,5 @@
 /*
-  Single-GPU B&B to solve instances of the Qubit Allocation problem in Chapel.
+  Single-GPU B&B to solve instances of the QAP in Chapel.
 */
 use IO;
 use Time;
@@ -7,16 +7,16 @@ use GpuDiagnostics;
 
 use util;
 use Pool;
-use QubitAlloc_node;
-use Util_qubitAlloc;
-use Problem_qubitAlloc;
+use QAP_node;
+use Util_qap;
+use Problem_qap;
 
 config param sizeMax: int(32) = 27;
 
 config const BLOCK_SIZE = 512;
 
 /*******************************************************************************
-Implementation of the single-GPU Qubit Allocation search.
+Implementation of the single-GPU QAP search.
 *******************************************************************************/
 
 config const m = 25;
@@ -61,7 +61,7 @@ proc print_results(const optimum: int, const exploredTree: uint, const exploredS
 
 proc help_message(): void
 {
-  writeln("\n  Qubit Allocation Problem Parameters:\n");
+  writeln("\n  Quadratic Assignment Problem Parameters:\n");
   writeln("   --inter   str       file containing the coupling distance matrix");
   writeln("   --dist    str       file containing the interaction frequency matrix");
   writeln("   --itmax   int       maximum number of bounding iterations");
@@ -206,7 +206,7 @@ proc generate_children(const ref children: [] Node_HHB, const size: int, const r
   }
 }
 
-// Single-GPU Qubit Allocation search.
+// Single-GPU QAP search.
 proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
   const device = here.gpus[0];

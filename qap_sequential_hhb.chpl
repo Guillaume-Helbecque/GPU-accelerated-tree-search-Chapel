@@ -1,19 +1,19 @@
 /*
-  Sequential B&B to solve instances of the Qubit Allocation problem in Chapel.
+  Sequential B&B to solve instances of the QAP in Chapel.
 */
 use IO;
 use Time;
 
 use util;
 use Pool;
-use QubitAlloc_node;
-use Util_qubitAlloc;
-use Problem_qubitAlloc;
+use QAP_node;
+use Util_qap;
+use Problem_qap;
 
 config param sizeMax: int(32) = 27;
 
 /*******************************************************************************
-Implementation of the sequential Qubit Allocation search.
+Implementation of the sequential QAP search.
 *******************************************************************************/
 
 config const inter = "10_sqn";
@@ -96,7 +96,7 @@ proc print_results(const optimum: int, const exploredTree: uint, const exploredS
 
 proc help_message(): void
 {
-  writeln("\n  Qubit Allocation Problem Parameters:\n");
+  writeln("\n  Quadratic Assignment Problem Parameters:\n");
   writeln("   --inter   str       file containing the coupling distance matrix");
   writeln("   --dist    str       file containing the interaction frequency matrix");
   writeln("   --itmax   int       maximum number of bounding iterations");
@@ -156,7 +156,7 @@ proc decompose(const parent: Node_HHB, ref tree_loc: uint, ref num_sol: uint,
   }
 }
 
-// Sequential Qubit Allocation search.
+// Sequential QAP search.
 proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
   var best: int = initUB;

@@ -1,4 +1,4 @@
-module Util_qubitAlloc
+module Util_qap
 {
   param INF: int(32) = max(int(32));
   param INFD2: int(32) = max(int(32)) / 2;

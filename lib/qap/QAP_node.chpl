@@ -2,9 +2,9 @@
 Implementation of Qubit Allocation Nodes.
 *******************************************************************************/
 
-module QubitAlloc_node
+module QAP_node
 {
-  use Util_qubitAlloc;
+  use Util_qap;
 
   config param sizeMax: int(32) = 27;
 

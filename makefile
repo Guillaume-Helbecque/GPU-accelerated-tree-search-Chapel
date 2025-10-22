@@ -17,7 +17,7 @@ EXECUTABLES = $(MAIN_FILES:.chpl=.out)
 all: $(EXECUTABLES)
 
 # ==================
-# NQueens
+# N-Queens
 # ==================
 
 CHPL_NQUEENS_LIBPATH := -M lib/nqueens

@@ -1,8 +1,8 @@
-module Problem_qubitAlloc
+module Problem_qap
 {
   use CTypes;
 
-  use Util_qubitAlloc;
+  use Util_qap;
 
   config param sizeMax: int(32) = 27;
 

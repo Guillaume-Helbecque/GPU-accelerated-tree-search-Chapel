@@ -1,5 +1,5 @@
 /*
-  Multi-GPU B&B to solve instances of the Qubit Allocation problem in Chapel.
+  Multi-GPU B&B to solve instances of the QAP in Chapel.
 */
 use IO;
 use Time;
@@ -8,16 +8,16 @@ use GpuDiagnostics;
 
 use util;
 use Pool_par;
-use QubitAlloc_node;
-use Util_qubitAlloc;
-use Problem_qubitAlloc;
+use QAP_node;
+use Util_qap;
+use Problem_qap;
 
 config param sizeMax: int(32) = 27;
 
 config const BLOCK_SIZE = 512;
 
 /*******************************************************************************
-Implementation of the multi-GPU Qubit Allocation search.
+Implementation of the multi-GPU QAP search.
 *******************************************************************************/
 
 config const m = 25;
@@ -26,11 +26,9 @@ config const D = 1;
 
 config const inter = "10_sqn";
 config const dist = "16_melbourne";
-config const itmax: int(32) = 10;
 config const ub: string = "heuristic"; // heuristic
 
 var n, N: int(32);
-const it_max: int(32) = itmax;
 
 var initUB: int(32);
 
@@ -63,7 +61,7 @@ proc print_results(const optimum: int, const exploredTree: uint, const exploredS
 
 proc help_message(): void
 {
-  writeln("\n  Qubit Allocation Problem Parameters:\n");
+  writeln("\n  Quadratic Assignment Problem Parameters:\n");
   writeln("   --inter   str       file containing the coupling distance matrix");
   writeln("   --dist    str       file containing the interaction frequency matrix");
   writeln("   --ub      str/int   upper bound initialization ('heuristic' or any integer)\n");
@@ -195,7 +193,7 @@ proc generate_children(const ref children: [] Node_GLB, const size: int, const r
   pool.releaseLock();
 }
 
-// Multi-GPU Qubit Allocation search.
+// Multi-GPU QAP search.
 proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
 {
   var timer: stopwatch;
