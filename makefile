@@ -56,7 +56,7 @@ pfsp_dist_multigpu_chpl.out: pfsp_dist_multigpu_chpl.chpl
 # QAP
 # ==================
 
-CHPL_QAP_LIBPATH := -M lib/qubitAlloc
+CHPL_QAP_LIBPATH := -M lib/qap
 
 qap_sequential_glb.out: qap_sequential_glb.chpl
 	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QAP_LIBPATH) -snewRangeLiteralType $< -o $@

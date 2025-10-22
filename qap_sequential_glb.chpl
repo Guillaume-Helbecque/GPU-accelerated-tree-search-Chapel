@@ -26,7 +26,7 @@ var priority: [0..<sizeMax] int(32);
 
 var initUB: int(32);
 
-var f = open("./lib/qubitAlloc/instances/inter/" + inter + ".csv", ioMode.r);
+var f = open("./lib/qap/instances/inter/" + inter + ".csv", ioMode.r);
 var channel = f.reader(locking=false);
 
 channel.read(n);
@@ -36,7 +36,7 @@ channel.read(F);
 channel.close();
 f.close();
 
-f = open("./lib/qubitAlloc/instances/dist/" + dist + ".csv", ioMode.r);
+f = open("./lib/qap/instances/dist/" + dist + ".csv", ioMode.r);
 channel = f.reader(locking=false);
 
 channel.read(N);

@@ -209,7 +209,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   /* var dom: domain(1, idxType = int(32)); */
   var priority: [0..<sizeMax] int(32);
 
-  var ff = open("./lib/qubitAlloc/instances/inter/" + inter + ".csv", ioMode.r);
+  var ff = open("./lib/qap/instances/inter/" + inter + ".csv", ioMode.r);
   var channel = ff.reader(locking=false);
 
   channel.read(n);
@@ -219,7 +219,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   channel.close();
   ff.close();
 
-  ff = open("./lib/qubitAlloc/instances/dist/" + dist + ".csv", ioMode.r);
+  ff = open("./lib/qap/instances/dist/" + dist + ".csv", ioMode.r);
   channel = ff.reader(locking=false);
 
   channel.read(N);
