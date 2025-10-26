@@ -33,6 +33,7 @@ var initUB: int(32);
 proc print_settings(): void
 {
   writeln("\n=================================================");
+  writeln("Single-GPU Chapel\n");
   writeln("Circuit: ", inter);
   writeln("Device: ", dist);
   writeln("Number of logical qubits: ", n);
@@ -264,7 +265,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   */
   timer.start();
 
-  var t1, t2, t3, t4, t5: stopwatch;
+  /* var t1, t2, t3, t4, t5: stopwatch; */
 
   var children: [0..#M] Node_GLB;// = noinit;
   var bounds: [0..#M] int(32);// = noinit;
@@ -274,12 +275,11 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
 
   on device const D_d = D;
   on device const F_d = F;
-  /* on device const priority_d = priority; */
 
   while true {
-    t1.start();
+    /* t1.start(); */
     var poolSize = prepareChildren(m, M, n, N, D, F, priority, children, pool, best, exploredSol);
-    t1.stop();
+    /* t1.stop(); */
     /* var poolSize = pool.popBackBulk(m, M, children); */
 
     if (poolSize > 0) {
@@ -290,22 +290,22 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
       */
       const numBounds = poolSize;
 
-      t2.start();
+      /* t2.start(); */
       children_d = children; // host-to-device
-      t2.stop();
-      t3.start();
+      /* t2.stop(); */
+      /* t3.start(); */
       on device do evaluate_gpu(children_d, numBounds, D_d, F_d, bounds_d); // GPU kernel
-      t3.stop();
-      t4.start();
+      /* t3.stop(); */
+      /* t4.start(); */
       bounds = bounds_d; // device-to-host
-      t4.stop();
+      /* t4.stop(); */
 
       /*
         Each task generates and inserts its children nodes to the pool.
       */
-      t5.start();
+      /* t5.start(); */
       generate_children(children, poolSize, bounds, exploredTree, exploredSol, best, pool);
-      t5.stop();
+      /* t5.stop(); */
     }
     else {
       break;
@@ -346,11 +346,11 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
 
   writeln("\nExploration terminated.");
 
-  writeln("prepare children = ", t1.elapsed(), " (", t1.elapsed()/elapsedTime*100, "%)");
+  /* writeln("prepare children = ", t1.elapsed(), " (", t1.elapsed()/elapsedTime*100, "%)");
   writeln("H2D              = ", t2.elapsed(), " (", t2.elapsed()/elapsedTime*100, "%)");
   writeln("kernel           = ", t3.elapsed(), " (", t3.elapsed()/elapsedTime*100, "%)");
   writeln("D2H              = ", t4.elapsed(), " (", t4.elapsed()/elapsedTime*100, "%)");
-  writeln("gen children     = ", t5.elapsed(), " (", t5.elapsed()/elapsedTime*100, "%)");
+  writeln("gen children     = ", t5.elapsed(), " (", t5.elapsed()/elapsedTime*100, "%)"); */
 }
 
 proc main(args: [] string)

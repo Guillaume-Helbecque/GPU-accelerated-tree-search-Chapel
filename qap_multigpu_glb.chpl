@@ -204,7 +204,6 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   */
   timer.start();
 
-  /* var dom: domain(1, idxType = int(32)); */
   var priority: [0..<sizeMax] int(32);
 
   var ff = open("./lib/qap/instances/inter/" + inter + ".csv", ioMode.r);
@@ -279,7 +278,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
   var allTasksIdleFlag: atomic bool = false;
 
-  var eachTime: [1..6, 0..#D] real;
+  /* var eachTime: [1..6, 0..#D] real; */
 
   const poolSize = pool.size;
   const c = poolSize / D;
@@ -292,13 +291,13 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
   var multiPool: [0..#D] SinglePool_par(Node_GLB);
 
   coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol,
-    ref eachBest, ref eachTaskState, ref multiPool, ref eachTime) {
+    ref eachBest, ref eachTaskState, ref multiPool/*, ref eachTime*/) {
 
-    var t1, t2, t3, t4, t5, t6: stopwatch;
+    /* var t1, t2, t3, t4, t5, t6: stopwatch; */
 
     const device = here.gpus[gpuID];
 
-    var nSteal, nSSteal: int;
+    /* var nSteal, nSSteal: int; */
 
     var tree, sol: uint;
     ref pool_loc = multiPool[gpuID];
@@ -323,9 +322,9 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
     on device const F_d = F;
 
     while true {
-      t6.start();
+      /* t6.start(); */
       var poolSize = prepareChildren(m, M, n, N, DD, F, priority, children, pool_loc, best_l, sol);
-      t6.stop();
+      /* t6.stop(); */
       /* var poolSize = pool.popBackBulk(m, M, children); */
 
       if (poolSize > 0) {
@@ -341,25 +340,25 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
         */
         const numBounds = poolSize;
 
-        t1.start();
+        /* t1.start(); */
         children_d = children; // host-to-device
-        t1.stop();
-        t2.start();
+        /* t1.stop(); */
+        /* t2.start(); */
         on device do evaluate_gpu(children_d, numBounds, D_d, F_d, bounds_d); // GPU kernel
-        t2.stop();
-        t3.start();
+        /* t2.stop(); */
+        /* t3.start(); */
         bounds = bounds_d; // device-to-host
-        t3.stop();
+        /* t3.stop(); */
 
         /*
           Each task generates and inserts its children nodes to the pool.
         */
-        t4.start();
+        /* t4.start(); */
         generate_children(children, poolSize, bounds, tree, sol, best_l, pool_loc);
-        t4.stop();
+        /* t4.stop(); */
       }
       else {
-        t5.start();
+        /* t5.start(); */
         // work stealing attempts
         var tries = 0;
         var steal = false;
@@ -370,7 +369,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
 
           if (victimID != gpuID) { // if not me
             ref victim = multiPool[victimID];
-            nSteal += 1;
+            /* nSteal += 1; */
             var nn = 0;
 
             label WS1 while (nn < 10) {
@@ -387,7 +386,7 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
                   pool_loc.pushBackBulk(p);
 
                   steal = true;
-                  nSSteal += 1;
+                  /* nSSteal += 1; */
                   victim.lock.write(false); // reset lock
                   break WS0;
                 }
@@ -411,16 +410,16 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
           }
           if allIdle(eachTaskState, allTasksIdleFlag) {
             writeln("task ", gpuID, " exits normally");
-            t5.stop();
+            /* t5.stop(); */
             break;
           }
-          t5.stop();
+          /* t5.stop(); */
           continue;
         } else {
-          t5.stop();
+          /* t5.stop(); */
           continue;
         }
-        t5.stop();
+        /* t5.stop(); */
       }
     }
 
@@ -431,18 +430,12 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
       if !hasWork then break;
     }
 
-    eachTime[1, gpuID] = t1.elapsed();
+    /* eachTime[1, gpuID] = t1.elapsed();
     eachTime[2, gpuID] = t2.elapsed();
     eachTime[3, gpuID] = t3.elapsed();
     eachTime[4, gpuID] = t4.elapsed();
     eachTime[5, gpuID] = t5.elapsed();
-    eachTime[6, gpuID] = t6.elapsed();
-    /* writeln("on GPU ", gpuID, " t1 = ", t1.elapsed());
-    writeln("on GPU ", gpuID, " t2 = ", t2.elapsed());
-    writeln("on GPU ", gpuID, " t3 = ", t3.elapsed());
-    writeln("on GPU ", gpuID, " t4 = ", t4.elapsed());
-    writeln("on GPU ", gpuID, " t5 = ", t5.elapsed());
-    writeln("on GPU ", gpuID, " t6 = ", t6.elapsed()); */
+    eachTime[6, gpuID] = t6.elapsed(); */
 
     eachExploredTree[gpuID] = tree;
     eachExploredSol[gpuID] = sol;
@@ -489,12 +482,12 @@ proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol
 
   writeln("\nExploration terminated.");
 
-  writeln("prepare children = ", (+ reduce eachTime[6, 0..<D])/D, " (", (+ reduce eachTime[6, 0..<D])/D/elapsedTime*100, "%)");
+  /* writeln("prepare children = ", (+ reduce eachTime[6, 0..<D])/D, " (", (+ reduce eachTime[6, 0..<D])/D/elapsedTime*100, "%)");
   writeln("H2D              = ", (+ reduce eachTime[1, 0..<D])/D, " (", (+ reduce eachTime[1, 0..<D])/D/elapsedTime*100, "%)");
   writeln("kernel           = ", (+ reduce eachTime[2, 0..<D])/D, " (", (+ reduce eachTime[2, 0..<D])/D/elapsedTime*100, "%)");
   writeln("D2H              = ", (+ reduce eachTime[3, 0..<D])/D, " (", (+ reduce eachTime[3, 0..<D])/D/elapsedTime*100, "%)");
   writeln("gen children     = ", (+ reduce eachTime[4, 0..<D])/D, " (", (+ reduce eachTime[4, 0..<D])/D/elapsedTime*100, "%)");
-  writeln("WS               = ", (+ reduce eachTime[5, 0..<D])/D, " (", (+ reduce eachTime[5, 0..<D])/D/elapsedTime*100, "%)");
+  writeln("WS               = ", (+ reduce eachTime[5, 0..<D])/D, " (", (+ reduce eachTime[5, 0..<D])/D/elapsedTime*100, "%)"); */
 }
 
 proc main(args: [] string)
