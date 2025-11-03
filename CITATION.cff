@@ -1,17 +1,19 @@
 preferred-citation:
-  type: conference-paper
+  type: article
   authors:
     - family-names: "Helbecque"
       given-names: "Guillaume"
     - family-names: "Krishnasamy"
       given-names: "Ezhilmathi"
+    - family-names: "Carneiro"
+      given-names: "Tiago"
     - family-names: "Melab"
       given-names: "Nouredine"
     - family-names: "Bouvry"
       given-names: "Pascal"
-  title: "A Chapel-Based Multi-GPU Branch-and-Bound Algorithm"
-  collection-title: "Euro-Par 2024: Parallel Processing Workshops"
+  title: "Portable PGAS-Based GPU-Accelerated Branch-And-Bound Algorithms at Scale"
+  journal: "Concurrency and Computation: Practice and Experience"
   year: 2025
-  start: 463
-  end: 474
-  doi: "10.1007/978-3-031-90200-0_37"
+  issue: 25-26
+  volume: 37
+  doi: "10.1002/cpe.70321"
