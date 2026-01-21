@@ -137,7 +137,7 @@ module nqueens_search_multigpu
     var root = new Node(N);
 
     var pool = new SinglePool_par(Node);
-    pool.pushBack(root);
+    pool.pushBackFree(root);
 
     var timer: stopwatch;
 

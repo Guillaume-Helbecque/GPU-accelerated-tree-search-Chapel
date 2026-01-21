@@ -285,7 +285,7 @@ module pfsp_search_multigpu
     var root = new Node(jobs);
 
     var pool = new SinglePool_par(Node);
-    pool.pushBack(root);
+    pool.pushBackFree(root);
 
     var timer: stopwatch;
 
