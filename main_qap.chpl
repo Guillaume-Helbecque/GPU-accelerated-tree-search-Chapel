@@ -1,7 +1,9 @@
 module main_qap
 {
+  // Common modules
   use util;
 
+  // Problem-specific modules
   use Problem_qap;
   use qap_search_sequential_glb;
   use qap_search_sequential_hhb;
@@ -9,7 +11,11 @@ module main_qap
   use qap_search_gpu_hhb;
   use qap_search_multigpu_glb;
 
+  // Common options
   config const mode: string = "multigpu";
+
+  // Problem-specific option
+  config const lb: string = "glb";
 
   proc main(args: [] string): int
   {

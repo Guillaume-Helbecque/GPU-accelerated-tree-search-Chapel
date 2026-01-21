@@ -42,22 +42,12 @@ main_nqueens.out: main_nqueens.chpl
 # QAP
 # ==================
 
-CHPL_QAP_LIBPATH := -M lib/qap
+CHPL_QAP_MODULES_DIR = ./benchmarks/qap
+CHPL_QAP_OPTS = -M $(CHPL_QAP_MODULES_DIR) -snewRangeLiteralType
 
-qap_sequential_glb.out: qap_sequential_glb.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QAP_LIBPATH) -snewRangeLiteralType $< -o $@
+main_qap.out: main_qap.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QAP_OPTS) $< -o $@
 
-qap_sequential_hhb.out: qap_sequential_hhb.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QAP_LIBPATH) -snewRangeLiteralType $< -o $@
-
-qap_gpu_glb.out: qap_gpu_glb.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QAP_LIBPATH) -snewRangeLiteralType $< -o $@
-
-qap_gpu_hhb.out: qap_gpu_hhb.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QAP_LIBPATH) -snewRangeLiteralType $< -o $@
-
-qap_multigpu_glb.out: qap_multigpu_glb.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QAP_LIBPATH) -snewRangeLiteralType $< -o $@
 #
 # qubitAlloc_dist_multigpu_chpl.out: qubitAlloc_dist_multigpu_chpl.chpl
 # 	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QUBIT_ALLOC_LIBPATH) -snewRangeLiteralType $< -o $@
