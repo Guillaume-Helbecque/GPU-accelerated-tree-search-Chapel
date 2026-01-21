@@ -1,89 +1,40 @@
-/*
-  Single-GPU B&B to solve instances of the QAP in Chapel.
-*/
-use IO;
-use Time;
-use GpuDiagnostics;
-
-use util;
-use Pool;
-use QAP_node;
-use Util_qap;
-use Problem_qap;
-
-config param sizeMax: int(32) = 27;
-
-config const BLOCK_SIZE = 512;
-
-/*******************************************************************************
-Implementation of the single-GPU QAP search.
-*******************************************************************************/
-
-config const m = 25;
-config const M = 50000;
-
-config const inter = "10_sqn";
-config const dist = "16_melbourne";
-config const ub: string = "heuristic"; // heuristic
-
-var n, N: int(32);
-
-var initUB: int(32);
-
-proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority,
-  ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool(Node_GLB))
+module qap_search_gpu_glb
 {
-  var depth = parent.depth;
+  /*
+    Single-GPU B&B to solve instances of the QAP in Chapel.
+  */
+  use IO;
+  use Time;
+  use GpuDiagnostics;
 
-  if (parent.depth == n) {
-    const eval = ObjectiveFunction(parent.mapping, D, F, n, N);
+  use util;
+  use Pool;
+  use QAP_node;
+  use Util_qap;
+  use Problem_qap;
 
-    if (eval < best) {
-      best = eval;
-    }
+  config param sizeMax: int(32) = 27;
 
-    num_sol += 1;
-  }
-  else {
-    var i = priority[depth];
+  config const BLOCK_SIZE = 512;
 
-    for j in 0..<N by -1 {
-      if !parent.available[j] then continue; // skip if not available
+  /*******************************************************************************
+  Implementation of the single-GPU QAP search.
+  *******************************************************************************/
 
-      var child = new Node_GLB();
-      child.mapping = parent.mapping;
-      child.depth = parent.depth + 1;
-      child.available = parent.available;
-      child.mapping[i] = j:int(8);
-      child.available[j] = false;
+  config const m = 25;
+  config const M = 50000;
 
-      if (child.depth < n) {
-        var lb = bound_GLB(child, D, F, n, N);
-        if (lb <= best) {
-          pool.pushBack(child);
-          tree_loc += 1;
-        }
-      }
-      else {
-        pool.pushBack(child);
-        tree_loc += 1;
-      }
-    }
-  }
-}
+  config const inter = "10_sqn";
+  config const dist = "16_melbourne";
+  config const ub: string = "heuristic"; // heuristic
 
-proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority,
-  ref children, ref pool: SinglePool(Node_GLB), ref best, ref num_sol)
-{
-  var size = 0;
+  var n, N: int(32);
 
-  if (pool.size < m) then return 0;
+  var initUB: int(32);
 
-  while (size < M-N) {
-    var hasWork = 0;
-    var parent = pool.popBack(hasWork);
-    if !hasWork then break;
-
+  proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority,
+    ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool(Node_GLB))
+  {
     var depth = parent.depth;
 
     if (parent.depth == n) {
@@ -105,253 +56,296 @@ proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority,
         child.mapping = parent.mapping;
         child.depth = parent.depth + 1;
         child.available = parent.available;
-
         child.mapping[i] = j:int(8);
         child.available[j] = false;
 
-        children[size] = child;
-        size += 1;
+        if (child.depth < n) {
+          var lb = bound_GLB(child, D, F, n, N);
+          if (lb <= best) {
+            pool.pushBack(child);
+            tree_loc += 1;
+          }
+        }
+        else {
+          pool.pushBack(child);
+          tree_loc += 1;
+        }
       }
     }
   }
 
-  return size;
-}
+  proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority,
+    ref children, ref pool: SinglePool(Node_GLB), ref best, ref num_sol)
+  {
+    var size = 0;
 
-// Evaluate a bulk of parent nodes on GPU.
-proc evaluate_gpu(ref children_d: [] Node_GLB, const size, const ref D, const ref F, ref bounds_d)
-{
-  @assertOnGpu
-  foreach threadId in 0..#size {
-    bounds_d[threadId] = bound_GLB(children_d[threadId], D, F, n, N);
+    if (pool.size < m) then return 0;
+
+    while (size < M-N) {
+      var hasWork = 0;
+      var parent = pool.popBack(hasWork);
+      if !hasWork then break;
+
+      var depth = parent.depth;
+
+      if (parent.depth == n) {
+        const eval = ObjectiveFunction(parent.mapping, D, F, n, N);
+
+        if (eval < best) {
+          best = eval;
+        }
+
+        num_sol += 1;
+      }
+      else {
+        var i = priority[depth];
+
+        for j in 0..<N by -1 {
+          if !parent.available[j] then continue; // skip if not available
+
+          var child = new Node_GLB();
+          child.mapping = parent.mapping;
+          child.depth = parent.depth + 1;
+          child.available = parent.available;
+
+          child.mapping[i] = j:int(8);
+          child.available[j] = false;
+
+          children[size] = child;
+          size += 1;
+        }
+      }
+    }
+
+    return size;
   }
-}
 
-// Generate children nodes (evaluated by GPU) on CPU.
-proc generate_children(const ref children: [] Node_GLB, const size: int, const ref bounds: [] int(32),
-  ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool: SinglePool(Node_GLB))
-{
-  for i in 0..<size {
-    ref child = children[i];
+  // Evaluate a bulk of parent nodes on GPU.
+  proc evaluate_gpu(ref children_d: [] Node_GLB, const size, const ref D, const ref F, ref bounds_d)
+  {
+    @assertOnGpu
+    foreach threadId in 0..#size {
+      bounds_d[threadId] = bound_GLB(children_d[threadId], D, F, n, N);
+    }
+  }
 
-    if (child.depth < n) {
-      var lb = bounds[i];
-      if (lb <= best) {
+  // Generate children nodes (evaluated by GPU) on CPU.
+  proc generate_children(const ref children: [] Node_GLB, const size: int, const ref bounds: [] int(32),
+    ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool: SinglePool(Node_GLB))
+  {
+    for i in 0..<size {
+      ref child = children[i];
+
+      if (child.depth < n) {
+        var lb = bounds[i];
+        if (lb <= best) {
+          pool.pushBack(child);
+          exploredTree += 1;
+        }
+      }
+      else {
         pool.pushBack(child);
         exploredTree += 1;
       }
     }
+  }
+
+  // Single-GPU QAP search.
+  proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
+  {
+    const device = here.gpus[0];
+
+    var timer: stopwatch;
+
+    /*
+      Step 1: We perform a partial breadth-first search on CPU in order to create
+      a sufficiently large amount of work for GPU computation.
+    */
+    timer.start();
+
+    var priority: [0..<sizeMax] int(32);
+
+    var f = open("./lib/qap/instances/inter/" + inter + ".csv", ioMode.r);
+    var channel = f.reader(locking=false);
+
+    channel.read(n);
+    var F: [0..<(n**2)] int(32) = noinit;
+    channel.read(F);
+
+    channel.close();
+    f.close();
+
+    f = open("./lib/qap/instances/dist/" + dist + ".csv", ioMode.r);
+    channel = f.reader(locking=false);
+
+    channel.read(N);
+    assert(n <= N, "More logical qubits than physical ones");
+    var D: [0..<(N**2)] int(32) = noinit;
+    channel.read(D);
+
+    channel.close();
+    f.close();
+
+    Prioritization(priority, F, n, N);
+
+    if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N);
     else {
-      pool.pushBack(child);
-      exploredTree += 1;
+      try! initUB = ub:int(32);
+
+      // NOTE: If `ub` cannot be cast into `int(32)`, an errow is thrown. For now, we cannot
+      // manage it as only catch-less try! statements are allowed in initializers.
+      // Ideally, we'd like to do this:
+
+      /* try {
+        this.initUB = ub:int(32);
+      } catch {
+        halt("Error - Unsupported initial upper bound");
+      } */
     }
-  }
-}
 
-// Single-GPU QAP search.
-proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
-{
-  const device = here.gpus[0];
+    var best: int = initUB;
 
-  var timer: stopwatch;
+    var root = new Node_GLB(n);
 
-  /*
-    Step 1: We perform a partial breadth-first search on CPU in order to create
-    a sufficiently large amount of work for GPU computation.
-  */
-  timer.start();
+    var pool = new SinglePool(Node_GLB);
+    pool.pushBack(root);
 
-  var priority: [0..<sizeMax] int(32);
+    while (pool.size < m) {
+      var hasWork = 0;
+      var parent = pool.popFront(hasWork);
+      if !hasWork then break;
 
-  var f = open("./lib/qap/instances/inter/" + inter + ".csv", ioMode.r);
-  var channel = f.reader(locking=false);
-
-  channel.read(n);
-  var F: [0..<(n**2)] int(32) = noinit;
-  channel.read(F);
-
-  channel.close();
-  f.close();
-
-  f = open("./lib/qap/instances/dist/" + dist + ".csv", ioMode.r);
-  channel = f.reader(locking=false);
-
-  channel.read(N);
-  assert(n <= N, "More logical qubits than physical ones");
-  var D: [0..<(N**2)] int(32) = noinit;
-  channel.read(D);
-
-  channel.close();
-  f.close();
-
-  Prioritization(priority, F, n, N);
-
-  if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N);
-  else {
-    try! initUB = ub:int(32);
-
-    // NOTE: If `ub` cannot be cast into `int(32)`, an errow is thrown. For now, we cannot
-    // manage it as only catch-less try! statements are allowed in initializers.
-    // Ideally, we'd like to do this:
-
-    /* try {
-      this.initUB = ub:int(32);
-    } catch {
-      halt("Error - Unsupported initial upper bound");
-    } */
-  }
-
-  var best: int = initUB;
-
-  var root = new Node_GLB(n);
-
-  var pool = new SinglePool(Node_GLB);
-  pool.pushBack(root);
-
-  while (pool.size < m) {
-    var hasWork = 0;
-    var parent = pool.popFront(hasWork);
-    if !hasWork then break;
-
-    decompose(parent, D, F, priority, exploredTree, exploredSol, best, pool);
-  }
-
-  timer.stop();
-  const res1 = (timer.elapsed(), exploredTree, exploredSol);
-
-  writeln("\nInitial search on CPU completed");
-  writeln("Size of the explored tree: ", res1[1]);
-  writeln("Number of explored solutions: ", res1[2]);
-  writeln("Elapsed time: ", res1[0], " [s]\n");
-
-  /*
-    Step 2: We continue the search on GPU in a depth-first manner until there
-    is not enough work.
-  */
-  timer.start();
-
-  /* var t1, t2, t3, t4, t5: stopwatch; */
-
-  var children: [0..#M] Node_GLB;// = noinit;
-  var bounds: [0..#M] int(32);// = noinit;
-
-  on device var children_d: [0..#M] Node_GLB;
-  on device var bounds_d: [0..#M] int(32);
-
-  on device const D_d = D;
-  on device const F_d = F;
-
-  while true {
-    /* t1.start(); */
-    var poolSize = prepareChildren(m, M, n, N, D, F, priority, children, pool, best, exploredSol);
-    /* t1.stop(); */
-    /* var poolSize = pool.popBackBulk(m, M, children); */
-
-    if (poolSize > 0) {
-      /*
-        TODO: Optimize 'numBounds' based on the fact that the maximum number of
-        generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
-        something like that.
-      */
-      const numBounds = poolSize;
-
-      /* t2.start(); */
-      children_d = children; // host-to-device
-      /* t2.stop(); */
-      /* t3.start(); */
-      on device do evaluate_gpu(children_d, numBounds, D_d, F_d, bounds_d); // GPU kernel
-      /* t3.stop(); */
-      /* t4.start(); */
-      bounds = bounds_d; // device-to-host
-      /* t4.stop(); */
-
-      /*
-        Each task generates and inserts its children nodes to the pool.
-      */
-      /* t5.start(); */
-      generate_children(children, poolSize, bounds, exploredTree, exploredSol, best, pool);
-      /* t5.stop(); */
+      decompose(parent, D, F, priority, exploredTree, exploredSol, best, pool);
     }
-    else {
-      break;
+
+    timer.stop();
+    const res1 = (timer.elapsed(), exploredTree, exploredSol);
+
+    writeln("\nInitial search on CPU completed");
+    writeln("Size of the explored tree: ", res1[1]);
+    writeln("Number of explored solutions: ", res1[2]);
+    writeln("Elapsed time: ", res1[0], " [s]\n");
+
+    /*
+      Step 2: We continue the search on GPU in a depth-first manner until there
+      is not enough work.
+    */
+    timer.start();
+
+    /* var t1, t2, t3, t4, t5: stopwatch; */
+
+    var children: [0..#M] Node_GLB;// = noinit;
+    var bounds: [0..#M] int(32);// = noinit;
+
+    on device var children_d: [0..#M] Node_GLB;
+    on device var bounds_d: [0..#M] int(32);
+
+    on device const D_d = D;
+    on device const F_d = F;
+
+    while true {
+      /* t1.start(); */
+      var poolSize = prepareChildren(m, M, n, N, D, F, priority, children, pool, best, exploredSol);
+      /* t1.stop(); */
+      /* var poolSize = pool.popBackBulk(m, M, children); */
+
+      if (poolSize > 0) {
+        /*
+          TODO: Optimize 'numBounds' based on the fact that the maximum number of
+          generated children for a parent is 'parent.limit2 - parent.limit1 + 1' or
+          something like that.
+        */
+        const numBounds = poolSize;
+
+        /* t2.start(); */
+        children_d = children; // host-to-device
+        /* t2.stop(); */
+        /* t3.start(); */
+        on device do evaluate_gpu(children_d, numBounds, D_d, F_d, bounds_d); // GPU kernel
+        /* t3.stop(); */
+        /* t4.start(); */
+        bounds = bounds_d; // device-to-host
+        /* t4.stop(); */
+
+        /*
+          Each task generates and inserts its children nodes to the pool.
+        */
+        /* t5.start(); */
+        generate_children(children, poolSize, bounds, exploredTree, exploredSol, best, pool);
+        /* t5.stop(); */
+      }
+      else {
+        break;
+      }
     }
-  }
 
-  timer.stop();
-  const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
+    timer.stop();
+    const res2 = (timer.elapsed(), exploredTree, exploredSol) - res1;
 
-  writeln("Search on GPU completed");
-  writeln("Size of the explored tree: ", res2[1]);
-  writeln("Number of explored solutions: ", res2[2]);
-  writeln("Elapsed time: ", res2[0], " [s]\n");
+    writeln("Search on GPU completed");
+    writeln("Size of the explored tree: ", res2[1]);
+    writeln("Number of explored solutions: ", res2[2]);
+    writeln("Elapsed time: ", res2[0], " [s]\n");
 
-  /*
-    Step 3: We complete the depth-first search on CPU.
-  */
-  timer.start();
+    /*
+      Step 3: We complete the depth-first search on CPU.
+    */
+    timer.start();
 
-  while true {
-    var hasWork = 0;
-    var parent = pool.popBack(hasWork);
-    if !hasWork then break;
+    while true {
+      var hasWork = 0;
+      var parent = pool.popBack(hasWork);
+      if !hasWork then break;
 
-    decompose(parent, D, F, priority, exploredTree, exploredSol, best, pool);
-  }
-
-  timer.stop();
-  elapsedTime = timer.elapsed();
-  const res3 = (elapsedTime, exploredTree, exploredSol) - res1 - res2;
-
-  writeln("Search on CPU completed");
-  writeln("Size of the explored tree: ", res3[1]);
-  writeln("Number of explored solutions: ", res3[2]);
-  writeln("Elapsed time: ", res3[0], " [s]");
-
-  optimum = best;
-
-  writeln("\nExploration terminated.");
-
-  /* writeln("prepare children = ", t1.elapsed(), " (", t1.elapsed()/elapsedTime*100, "%)");
-  writeln("H2D              = ", t2.elapsed(), " (", t2.elapsed()/elapsedTime*100, "%)");
-  writeln("kernel           = ", t3.elapsed(), " (", t3.elapsed()/elapsedTime*100, "%)");
-  writeln("D2H              = ", t4.elapsed(), " (", t4.elapsed()/elapsedTime*100, "%)");
-  writeln("gen children     = ", t5.elapsed(), " (", t5.elapsed()/elapsedTime*100, "%)"); */
-}
-
-proc main(args: [] string)
-{
-  // Helper
-  for a in args[1..] {
-    if (a == "-h" || a == "--help") {
-      common_help_message();
-      help_message();
-
-      return 1;
+      decompose(parent, D, F, priority, exploredTree, exploredSol, best, pool);
     }
+
+    timer.stop();
+    elapsedTime = timer.elapsed();
+    const res3 = (elapsedTime, exploredTree, exploredSol) - res1 - res2;
+
+    writeln("Search on CPU completed");
+    writeln("Size of the explored tree: ", res3[1]);
+    writeln("Number of explored solutions: ", res3[2]);
+    writeln("Elapsed time: ", res3[0], " [s]");
+
+    optimum = best;
+
+    writeln("\nExploration terminated.");
+
+    /* writeln("prepare children = ", t1.elapsed(), " (", t1.elapsed()/elapsedTime*100, "%)");
+    writeln("H2D              = ", t2.elapsed(), " (", t2.elapsed()/elapsedTime*100, "%)");
+    writeln("kernel           = ", t3.elapsed(), " (", t3.elapsed()/elapsedTime*100, "%)");
+    writeln("D2H              = ", t4.elapsed(), " (", t4.elapsed()/elapsedTime*100, "%)");
+    writeln("gen children     = ", t5.elapsed(), " (", t5.elapsed()/elapsedTime*100, "%)"); */
   }
 
-  // TODO: n, N, and ub are still at 0 here
-  print_settings(inter, dist, n, N, ub, initUB);
+  proc search_gpu_glb()
+  {
+    writeln("Single-GPU execution mode using GLB");
+    // TODO: n, N, and ub are still at 0 here
+    print_settings(inter, dist, n, N, ub, initUB);
 
-  var optimum: int;
-  var exploredTree: uint = 0;
-  var exploredSol: uint = 0;
+    var optimum: int;
+    var exploredTree: uint = 0;
+    var exploredSol: uint = 0;
 
-  var elapsedTime: real;
+    var elapsedTime: real;
 
-  startGpuDiagnostics();
+    startGpuDiagnostics();
 
-  qubitAlloc_search(optimum, exploredTree, exploredSol, elapsedTime);
+    qubitAlloc_search(optimum, exploredTree, exploredSol, elapsedTime);
 
-  stopGpuDiagnostics();
+    stopGpuDiagnostics();
 
-  print_results(optimum, exploredTree, exploredSol, elapsedTime, initUB);
+    print_results(optimum, exploredTree, exploredSol, elapsedTime, initUB);
 
-  writeln("GPU diagnostics:");
-  writeln("   kernel_launch: ", getGpuDiagnostics().kernel_launch);
-  writeln("   host_to_device: ", getGpuDiagnostics().host_to_device);
-  writeln("   device_to_host: ", getGpuDiagnostics().device_to_host);
-  writeln("   device_to_device: ", getGpuDiagnostics().device_to_device);
+    writeln("GPU diagnostics:");
+    writeln("   kernel_launch: ", getGpuDiagnostics().kernel_launch);
+    writeln("   host_to_device: ", getGpuDiagnostics().host_to_device);
+    writeln("   device_to_host: ", getGpuDiagnostics().device_to_host);
+    writeln("   device_to_device: ", getGpuDiagnostics().device_to_device);
 
-  return 0;
+    return 0;
+  }
 }
