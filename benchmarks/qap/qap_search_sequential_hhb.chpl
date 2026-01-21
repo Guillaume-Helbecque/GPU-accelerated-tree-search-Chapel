@@ -83,15 +83,6 @@ module qap_search_sequential_hhb
     writeln("=================================================");
   }
 
-  proc help_message(): void
-  {
-    writeln("\n  Quadratic Assignment Problem Parameters:\n");
-    writeln("   --inter   str       file containing the coupling distance matrix");
-    writeln("   --dist    str       file containing the interaction frequency matrix");
-    writeln("   --itmax   int       maximum number of bounding iterations");
-    writeln("   --ub      str/int   upper bound initialization ('heuristic' or any integer)\n");
-  }
-
   // Evaluate and generate children nodes on CPU.
   proc decompose(const parent: Node_HHB, ref tree_loc: uint, ref num_sol: uint,
     ref best: int, ref pool: SinglePool(Node_HHB))

@@ -1,13 +1,16 @@
 module main_pfsp
 {
+  // Common modules
   use util;
 
+  // Problem-specific modules
   use pfsp_problem;
   use pfsp_search_sequential;
   use pfsp_search_gpu;
   use pfsp_search_multigpu;
   use pfsp_search_distributed;
 
+  // Common options
   config const mode: string = "multigpu";
 
   proc main(args: [] string): int

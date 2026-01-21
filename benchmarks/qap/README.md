@@ -18,28 +18,21 @@ locations.
 ```
 
 where the available options are:
-- **`--inst`**: file(s) containing the instance data
-  - `filename`: QAP instance where `filename` contains the flow and distance
-  matrices formatted as follows:
-  ```
-  size
-
-  flow matrix (delimited with spaces)
-
-  distance matrix (delimited with spaces)
-  ```
-  File must be placed in `./instances/data_QAP` folder.
-
-  - `filename1,filename2`: Qubit allocation instance where `filename1` and `filename2`
-  contain the interaction frequency matrix and the coupling distance matrix,
-  respectively, both formatted as follows:
+- **`--inter`**: file containing the interaction frequency matrix
+  - must be placed in the `./instances/inter` folder and formatted as follows:
   ```
   size
 
   matrix (delimited with spaces)
   ```
-  Files must be placed in `./instances/data_QubitAlloc/inter` and
-  `./instances/data_QubitAlloc/dist` folders, respectively.
+
+- **`--dist`**: file containing the coupling distance matrix
+  - must be placed in the `./instances/dist` folder and formatted as follows:
+  ```
+  size
+
+  matrix (delimited with spaces)
+  ```
 
 - **`--itmax`**: maximum number of bounding iterations (only for `hhb` bound)
   - any positive integer (`10` by default)
