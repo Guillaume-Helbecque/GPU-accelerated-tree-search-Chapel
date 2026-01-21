@@ -59,29 +59,6 @@ Common command-line options:
 
 - **`--help`** or **`-h`**: help message
 
-Problem-specific command-line options:
-- N-Queens:
-  - **`--N`**: number of queens
-    - any positive integer (`14` by default)
-
-  - **`--g`**: number of safety check(s) per evaluation
-    - any positive integer (`1` by default)
-
-- PFSP:
-  - **`--inst`**: Taillard's instance to solve
-    - any positive integer between `001` and `120` (`014` by default)
-
-  <!-- TODO: give references -->
-  - **`--lb`**: lower bound function
-    - `lb1`: one-machine bound which can be computed in $\mathcal{O}(mn)$ steps per subproblem (default)
-    - `lb1_d`: fast implementation of `lb1`, which can be compute in $\mathcal{O}(m)$ steps per subproblem
-    - `lb2`: two-machine bound which can be computed in $\mathcal{O}(m^2n)$ steps per subproblem
-    <!-- a two-machine bound which relies on the exact resolution of two-machine problems obtained by relaxing capacity constraints on all machines, with the exception of a pair of machines \(M<sub>u</sub>,M<sub>v</sub>\)<sub>1<=u<v<=m</sub>, and taking the maximum over all $\frac{m(m-1)}{2}$ machine-pairs. It can be computed in $\mathcal{O}(m^2n)$ steps per subproblem. -->
-
-  - **`--ub`**: initial upper bound (UB)
-    - `0`: initialize the UB to $+\infty$, leading to a search from scratch
-    - `1`: initialize the UB to the best solution known (default)
-
 Unstable command-line options:
 - **`--perc`**: percentage of the total size of the victim's pool to steal in WS (only in CUDA-based multi-GPU implementation)
   - any real number between `0.0` and `1.0` (`0.5` by default)
