@@ -625,4 +625,38 @@ module Problem_qap
 
     return fixed_cost + remaining_lb;
   }
+
+  proc print_settings(const inter, const dist, const n, const N, const ub, const initUB): void
+  {
+    writeln("\n=================================================");
+    writeln("Circuit: ", inter);
+    writeln("Device: ", dist);
+    writeln("Number of logical qubits: ", n);
+    writeln("Number of physical qubits: ", N);
+    const heuristic = if (ub == "heuristic") then " (heuristic)" else "";
+    writeln("Initial upper bound: ", initUB, heuristic);
+    writeln("Lower bound function: glb");
+    writeln("=================================================");
+  }
+
+  proc print_results(const optimum: int, const exploredTree: uint, const exploredSol: uint,
+    const timer: real, const initUB)
+  {
+    writeln("\n=================================================");
+    writeln("Size of the explored tree: ", exploredTree);
+    writeln("Number of explored solutions: ", exploredSol);
+    const is_better = if (optimum < initUB) then " (improved)"
+                                            else " (not improved)";
+    writeln("Optimal allocation: ", optimum, is_better);
+    writeln("Elapsed time: ", timer, " [s]");
+    writeln("=================================================\n");
+  }
+
+  proc help_message(): void
+  {
+    writeln("\n  Quadratic Assignment Problem Parameters:\n");
+    writeln("   --inter   str       file containing the coupling distance matrix");
+    writeln("   --dist    str       file containing the interaction frequency matrix");
+    writeln("   --ub      str/int   upper bound initialization ('heuristic' or any integer)\n");
+  }
 }

@@ -30,41 +30,6 @@ var n, N: int(32);
 
 var initUB: int(32);
 
-proc print_settings(): void
-{
-  writeln("\n=================================================");
-  writeln("Single-GPU Chapel\n");
-  writeln("Circuit: ", inter);
-  writeln("Device: ", dist);
-  writeln("Number of logical qubits: ", n);
-  writeln("Number of physical qubits: ", N);
-  const heuristic = if (ub == "heuristic") then " (heuristic)" else "";
-  writeln("Initial upper bound: ", initUB, heuristic);
-  writeln("Lower bound function: glb");
-  writeln("=================================================");
-}
-
-proc print_results(const optimum: int, const exploredTree: uint, const exploredSol: uint,
-  const timer: real)
-{
-  writeln("\n=================================================");
-  writeln("Size of the explored tree: ", exploredTree);
-  writeln("Number of explored solutions: ", exploredSol);
-  const is_better = if (optimum < initUB) then " (improved)"
-                                          else " (not improved)";
-  writeln("Optimal allocation: ", optimum, is_better);
-  writeln("Elapsed time: ", timer, " [s]");
-  writeln("=================================================\n");
-}
-
-proc help_message(): void
-{
-  writeln("\n  Quadratic Assignment Problem Parameters:\n");
-  writeln("   --inter   str       file containing the coupling distance matrix");
-  writeln("   --dist    str       file containing the interaction frequency matrix");
-  writeln("   --ub      str/int   upper bound initialization ('heuristic' or any integer)\n");
-}
-
 proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority,
   ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool(Node_GLB))
 {
@@ -366,7 +331,7 @@ proc main(args: [] string)
   }
 
   // TODO: n, N, and ub are still at 0 here
-  print_settings();
+  print_settings(inter, dist, n, N, ub, initUB);
 
   var optimum: int;
   var exploredTree: uint = 0;
@@ -380,7 +345,7 @@ proc main(args: [] string)
 
   stopGpuDiagnostics();
 
-  print_results(optimum, exploredTree, exploredSol, elapsedTime);
+  print_results(optimum, exploredTree, exploredSol, elapsedTime, initUB);
 
   writeln("GPU diagnostics:");
   writeln("   kernel_launch: ", getGpuDiagnostics().kernel_launch);

@@ -46,19 +46,6 @@ proc print_settings(): void
   writeln("=================================================");
 }
 
-proc print_results(const optimum: int, const exploredTree: uint, const exploredSol: uint,
-  const timer: real)
-{
-  writeln("\n=================================================");
-  writeln("Size of the explored tree: ", exploredTree);
-  writeln("Number of explored solutions: ", exploredSol);
-  const is_better = if (optimum < initUB) then " (improved)"
-                                          else " (not improved)";
-  writeln("Optimal allocation: ", optimum, is_better);
-  writeln("Elapsed time: ", timer, " [s]");
-  writeln("=================================================\n");
-}
-
 proc help_message(): void
 {
   writeln("\n  Quadratic Assignment Problem Parameters:\n");
@@ -384,7 +371,7 @@ proc main(args: [] string)
 
   stopGpuDiagnostics();
 
-  print_results(optimum, exploredTree, exploredSol, elapsedTime);
+  print_results(optimum, exploredTree, exploredSol, elapsedTime, initUB);
 
   writeln("GPU diagnostics:");
   writeln("   kernel_launch: ", getGpuDiagnostics().kernel_launch);
