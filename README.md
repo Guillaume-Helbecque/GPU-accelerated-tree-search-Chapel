@@ -10,7 +10,7 @@ The framework supports multiple execution modes, including sequential, single-GP
 
 ### Prerequisites
 
-[Chapel](https://chapel-lang.org/) 2.4.0
+[Chapel](https://chapel-lang.org/) 2.6.0
 
 The [chpl_config](./chpl_config/) directory contains predefined shell scripts for downloading, configuring, and building the Chapel compiler from source.
 
@@ -55,6 +55,7 @@ Other problem-specific options are supported; see next section.
 
 The B&B skeletons have already been tested on the following benchmark problems:
 - [The Permutation Flowshop Scheduling problem](./benchmarks/pfsp) (PFSP)
+- [The Quadratic Assignment problem](./benchmarks/qap) (QAP)
 - [The N-Queens problem](./benchmarks/nqueens)
 
 Supported execution modes:
@@ -62,6 +63,7 @@ Supported execution modes:
 | benchmark | sequential         | single-GPU         | multi-GPU          | distributed multi-GPU |
 |-----------|--------------------|--------------------|--------------------|-----------------------|
 | PFSP      | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:    |
+| QAP       | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |                       |
 | N-Queens  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:    |
 
 In addition, the [baselines](./baselines/) directory contains some CUDA-based counterpart implementations for comparison purposes.
