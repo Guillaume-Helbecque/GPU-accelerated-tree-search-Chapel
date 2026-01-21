@@ -1,36 +1,49 @@
 SHELL := /bin/bash
 
-# Common settings
+# ==========================
+# Compiler & common options
+# ==========================
+
 CHPL_COMPILER := chpl
-CHPL_COMMON_OPTS := --fast -M commons
+CHPL_COMMONS_DIR = ./commons
 
-# Source files
-CHPL_NQUEENS_SOURCES := main_nqueens.chpl
-CHPL_PFSP_SOURCES := main_pfsp.chpl
+CHPL_COMMON_OPTS := --fast -M $(CHPL_COMMONS_DIR)
 
-# Executable files
-CHPL_NQUEENS_EXECUTABLES := $(CHPL_NQUEENS_SOURCES:.chpl=.out)
-CHPL_PFSP_EXECUTABLES := $(CHPL_PFSP_SOURCES:.chpl=.out)
+# ==========================
+# Build Chapel codes
+# ==========================
 
-# Library paths
-CHPL_NQUEENS_LIBPATH := -M benchmarks/nqueens
-CHPL_PFSP_LIBPATH := -M benchmarks/pfsp
+MAIN_FILES = $(wildcard main_*.chpl)
+EXECUTABLES = $(MAIN_FILES:.chpl=.out)
 
-# Build codes
-all: $(CHPL_NQUEENS_EXECUTABLES) $(CHPL_PFSP_EXECUTABLES)
+all: $(EXECUTABLES)
 
-# N-Queens
-
-main_nqueens.out: main_nqueens.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_NQUEENS_LIBPATH) $< -o $@
-
+# ==================
 # PFSP
+# ==================
+
+CHPL_PFSP_MODULES_DIR = ./benchmarks/pfsp
+CHPL_PFSP_OPTS = -M $(CHPL_PFSP_MODULES_DIR)
 
 main_pfsp.out: main_pfsp.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_LIBPATH) $< -o $@
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_OPTS) $< -o $@
 
+# ==================
+# NQueens
+# ==================
+
+CHPL_NQUEENS_MODULES_DIR = ./benchmarks/nqueens
+CHPL_NQUEENS_OPTS = -M $(CHPL_NQUEENS_MODULES_DIR)
+
+main_nqueens.out: main_nqueens.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_NQUEENS_OPTS) $< -o $@
+
+# ==========================
 # Utilities
+# ==========================
+
 .PHONY: clean
 
 clean:
-	rm -f $(CHPL_NQUEENS_EXECUTABLES) $(CHPL_PFSP_EXECUTABLES) *_real
+	rm -f $(EXECUTABLES)
+	rm -f $(EXECUTABLES:=_real)
