@@ -5,52 +5,38 @@ SHELL := /bin/bash
 # ==========================
 
 CHPL_COMPILER := chpl
-CHPL_COMMON_OPTS := --fast -M lib/commons
+CHPL_COMMONS_DIR = ./commons
+
+CHPL_COMMON_OPTS := --fast -M $(CHPL_COMMONS_DIR)
 
 # ==========================
 # Build Chapel codes
 # ==========================
 
-MAIN_FILES = $(wildcard *.chpl)
+MAIN_FILES = $(wildcard main_*.chpl)
 EXECUTABLES = $(MAIN_FILES:.chpl=.out)
 
 all: $(EXECUTABLES)
 
 # ==================
-# N-Queens
-# ==================
-
-CHPL_NQUEENS_LIBPATH := -M lib/nqueens
-
-nqueens_chpl.out: nqueens_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_NQUEENS_LIBPATH) $< -o $@
-
-nqueens_gpu_chpl.out: nqueens_gpu_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_NQUEENS_LIBPATH) $< -o $@
-
-nqueens_multigpu_chpl.out: nqueens_multigpu_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_NQUEENS_LIBPATH) $< -o $@
-
-nqueens_dist_multigpu_chpl.out: nqueens_dist_multigpu_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_NQUEENS_LIBPATH) $< -o $@
-
-# ==================
 # PFSP
 # ==================
 
-CHPL_PFSP_LIBPATH := -M lib/pfsp
+CHPL_PFSP_MODULES_DIR = ./benchmarks/pfsp
+CHPL_PFSP_OPTS = -M $(CHPL_PFSP_MODULES_DIR)
 
-pfsp_chpl.out: pfsp_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_LIBPATH) $< -o $@
+main_pfsp.out: main_pfsp.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_OPTS) $< -o $@
 
-pfsp_gpu_chpl.out: pfsp_gpu_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_LIBPATH) $< -o $@
+# ==================
+# NQueens
+# ==================
 
-pfsp_multigpu_chpl.out: pfsp_multigpu_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_LIBPATH) $< -o $@
+CHPL_NQUEENS_MODULES_DIR = ./benchmarks/nqueens
+CHPL_NQUEENS_OPTS = -M $(CHPL_NQUEENS_MODULES_DIR)
 
-pfsp_dist_multigpu_chpl.out: pfsp_dist_multigpu_chpl.chpl
-	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_PFSP_LIBPATH) $< -o $@
+main_nqueens.out: main_nqueens.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_NQUEENS_OPTS) $< -o $@
 
 # ==================
 # QAP
