@@ -2,56 +2,42 @@
 
 # GPU-accelerated tree search in Chapel
 
-This repository contains the implementation of a GPU-accelerated tree search algorithm in Chapel.
-The latter is instantiated on the backtracking method to solve instances of the N-Queens problem (proof-of-concept) and on the Branch-and-Bound method to solve Taillard's instances of the Permutation Flowshop Scheduling Problem (PFSP).
-For comparison purpose, CUDA-based counterpart implementations are also provided.
+This repository presents a generic, problem-independent GPU-accelerated tree search framework implemented in Chapel.
+The approach relies on a general multi-pool design with static load balancing, where each CPU manages its own work pool and is associated with one GPU.
+Tree exploration begins on the CPU: nodes are taken from the pool, evaluated, potentially pruned, and branched.
+When the pool grows large enough, a chunk of nodes is offloaded to the GPU, where they are evaluated in parallel and the results are returned to the CPU to guide pruning and branching.
+The framework supports multiple execution modes, including sequential, single-GPU, multi-GPU, and distributed multi-GPU configurations.
 
-## Design
+### Prerequisites
 
-The algorithm is based on a general multi-pool approach equipped with a static load balancing mechanism.
-Each CPU manages its own pool of work, and we assume that one GPU is assigned per CPU.
-The tree exploration starts on the CPU, and each node taken from the work pool is evaluated, potentially pruned, and branched.
-In order to exploit GPU-acceleration, we offload a chunk of nodes on the GPU when the pool size is sufficiently large.
-When the GPU retrieves the nodes, the latter are evaluated in parallel and the results are sent back to the CPU, which uses them to prune or branch the nodes.
-This process is repeated until the pool is empty.
+[Chapel](https://chapel-lang.org/) 2.4.0
 
-## Implementations
+The [chpl_config](./chpl_config/) directory contains predefined shell scripts for downloading, configuring, and building the Chapel compiler from source.
 
-The following Chapel implementations are available:
-- `[nqueens/pfsp]_chpl.chpl`: sequential version;
-- `[nqueens/pfsp]_gpu_chpl.chpl`: single-GPU version;
-- `[nqueens/pfsp]_multigpu_chpl.chpl`: multi-GPU version;
-- `[nqueens/pfsp]_dist_multigpu_chpl.chpl`: distributed multi-GPU version (unstable).
+**Note:** The code might not compile and run with older or newer versions of Chapel.
 
-In addition, the [baselines](./baselines/) directory contains the CUDA-based counterparts:
-- `[nqueens/pfsp]_c.c`: sequential version (C);
-- `[nqueens/pfsp]_gpu_cuda.cu`: single-GPU version (C+CUDA);
-- `[nqueens/pfsp]_multigpu_cuda.cu`: multi-GPU version (C+OpenMP+CUDA) (unstable).
+### Compilation and configuration options
 
-In order to compile and execute the CUDA-based code on AMD GPU architectures, we use the `hipify-perl` tool which translates it into portable HIP C++ automatically.
+Compile with `make` and execute with:
 
-## Getting started
+```
+./main.out {...}
+```
 
-### Setting the environment configuration
+where the available options are:
+- **`--mode`**: parallel execution mode
+  - `sequential`: single-core execution, without parallel feature
+  - `gpu`: single-node single-GPU execution
+  - `multigpu`: single-node multi-GPU execution (default)
+  - `distributed`: multi-node multi-GPU execution
 
-The [chpl_config](./chpl_config/) directory contains several Chapel environment configuration scripts.
-The latter can serve as templates and can be (and should be) adapted to the target system.
-
-**Note:** The code is implemented using Chapel 2.4.0 and might not compile and run with older or newer versions.
-By default, the target architecture for CUDA code generation is set to `sm_70`, and to `gfx906` for AMD.
-
-### Compilation & execution
-
-All the code is compiled using the provided makefiles.
-
-Common command-line options:
 - **`--m`**: minimum number of elements to offload on a GPU device
   - any positive integer (`25` by default)
 
 - **`--M`**: maximum number of elements to offload on a GPU device
   - any positive integer greater than `--m` (`50,000` by default)
 
-- **`--D`**: number of GPU device(s) (only in multi-GPU setting)
+- **`--D`**: number of GPU device(s) (only in multi-GPU settings)
   - any positive integer, typically the number of GPU devices (`1` by default)
 
 - **`-nl`**: number of Chapel's locales (only in distributed setting)
@@ -63,17 +49,24 @@ Unstable command-line options:
 - **`--perc`**: percentage of the total size of the victim's pool to steal in WS (only in CUDA-based multi-GPU implementation)
   - any real number between `0.0` and `1.0` (`0.5` by default)
 
-### Examples
+Other problem-specific options are supported; see next section.
 
-- Chapel single-GPU launch to solve the 15-Queens instance:
-```
-./nqueens_gpu_chpl.out --N 15
-```
+### Supported problems
 
-- CUDA multi-GPU launch to solve the 17-Queens instance using 4 GPU devices:
-```
-./nqueens_multigpu_cuda.out -N 17 -D 4
-```
+The B&B skeletons have already been tested on the following benchmark problems:
+- [The Permutation Flowshop Scheduling problem](./benchmarks/pfsp) (PFSP)
+- [The N-Queens problem](./benchmarks/nqueens)
+
+Supported execution modes:
+
+| benchmark | sequential         | single-GPU         | multi-GPU          | distributed multi-GPU |
+|-----------|--------------------|--------------------|--------------------|-----------------------|
+| PFSP      | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:    |
+| N-Queens  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:    |
+
+In addition, the [baselines](./baselines/) directory contains some CUDA-based counterpart implementations for comparison purposes.
+
+**Note:** In order to compile and execute the CUDA-based codes on AMD GPU architectures, we use the `hipify-perl` tool which translates it into portable HIP C++ automatically.
 
 ## Related publications
 
