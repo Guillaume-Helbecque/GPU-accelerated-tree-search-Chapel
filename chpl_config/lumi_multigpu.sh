@@ -4,9 +4,9 @@
 # LUMI pre-exascale supercomputer (https://docs.lumi-supercomputer.eu/).
 
 # Load modules
-module load LUMI/24.03
+module load LUMI/25.03
 module load partition/G
-module load rocm/6.0.3
+module load rocm/6.2.2
 
 export HERE=$(pwd)
 

@@ -10,7 +10,7 @@ The framework supports multiple execution modes, including sequential, single-GP
 
 ### Prerequisites
 
-[Chapel](https://chapel-lang.org/) 2.6.0
+[Chapel](https://chapel-lang.org/) 2.7.0
 
 The [chpl_config](./chpl_config/) directory contains predefined shell scripts for downloading, configuring, and building the Chapel compiler from source.
 
