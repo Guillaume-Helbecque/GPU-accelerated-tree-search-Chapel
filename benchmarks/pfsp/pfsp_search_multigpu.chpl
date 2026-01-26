@@ -16,6 +16,14 @@ module pfsp_search_multigpu
   use Taillard;
   use pfsp_problem;
 
+  import main_pfsp.m as m;
+  import main_pfsp.M as M;
+  import main_pfsp.D as D;
+
+  import main_pfsp.inst as inst;
+  import main_pfsp.lb as lb;
+  import main_pfsp.ub as ub;
+
   const allowedLowerBounds = ["lb1", "lb1_d", "lb2"];
 
   config const BLOCK_SIZE = 512;
@@ -23,18 +31,6 @@ module pfsp_search_multigpu
   /*******************************************************************************
   Implementation of the multi-GPU PFSP search.
   *******************************************************************************/
-
-  config const m = 25;
-  config const M = 50000;
-  config const D = 1;
-
-  config const inst: int = 14; // instance
-  config const lb: string = "lb1"; // lower bound function
-  config const ub: int = 1; // initial upper bound
-  /*
-    NOTE: Only forward branching is considered because other strategies increase a
-    lot the implementation complexity and do not add much contribution.
-  */
 
   const jobs = taillard_get_nb_jobs(inst);
   const machines = taillard_get_nb_machines(inst);

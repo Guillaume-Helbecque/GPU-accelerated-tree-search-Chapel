@@ -14,19 +14,15 @@ module pfsp_search_sequential
   use Taillard;
   use pfsp_problem;
 
+  import main_pfsp.inst as inst;
+  import main_pfsp.lb as lb;
+  import main_pfsp.ub as ub;
+
   const allowedLowerBounds = ["lb1", "lb1_d", "lb2"];
 
   /*******************************************************************************
   Implementation of the sequential PFSP search.
   *******************************************************************************/
-
-  config const inst: int = 14; // instance
-  config const lb: string = "lb1"; // lower bound function
-  config const ub: int = 1; // initial upper bound
-  /*
-    NOTE: Only forward branching is considered because other strategies increase a
-    lot the implementation complexity and do not add much contribution.
-  */
 
   const jobs = taillard_get_nb_jobs(inst);
   const machines = taillard_get_nb_machines(inst);

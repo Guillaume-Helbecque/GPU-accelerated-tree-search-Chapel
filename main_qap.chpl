@@ -13,9 +13,15 @@ module main_qap
 
   // Common options
   config const mode: string = "multigpu";
+  config const m = 25;
+  config const M = 50000;
+  config const D = 1;
 
   // Problem-specific option
+  config const inst = "10_sqn,16_melbourne";
+  config const itmax: int(32) = 10;
   config const lb: string = "glb";
+  config const ub: string = "heuristic"; // heuristic
 
   proc main(args: [] string): int
   {

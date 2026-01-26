@@ -11,12 +11,12 @@ module nqueens_search_sequential
   use NQueens_node;
   use nqueens_problem;
 
+  import main_nqueens.N as N;
+  import main_nqueens.g as g;
+
   /*******************************************************************************
   Implementation of the sequential N-Queens search.
   *******************************************************************************/
-
-  config const N = 14;
-  config const g = 1;
 
   proc check_parameters()
   {

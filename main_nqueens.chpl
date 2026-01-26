@@ -12,6 +12,13 @@ module main_nqueens
 
   // Common options
   config const mode: string = "multigpu";
+  config const m = 25;
+  config const M = 50000;
+  config const D = 1;
+
+  // Problem-specific option
+  config const N = 14;
+  config const g = 1;
 
   proc main(args: [] string): int
   {

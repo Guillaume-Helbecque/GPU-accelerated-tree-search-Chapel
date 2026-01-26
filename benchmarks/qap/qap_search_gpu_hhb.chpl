@@ -14,7 +14,13 @@
   use Util_qap;
   use Problem_qap;
 
+  import main_qap.m as m;
+  import main_qap.M as M;
+
+  import main_qap.inst as inst;
+  import main_qap.itmax as itmax;
   import main_qap.lb as lb;
+  import main_qap.ub as ub;
 
   config param sizeMax: int(32) = 27;
 
@@ -23,13 +29,6 @@
   /*******************************************************************************
   Implementation of the single-GPU QAP search.
   *******************************************************************************/
-
-  config const m = 25;
-  config const M = 50000;
-
-  config const inst = "10_sqn,16_melbourne";
-  config const itmax: int(32) = 10;
-  config const ub: string = "heuristic"; // heuristic
 
   var benchmark: string = "qubitAlloc";
 
