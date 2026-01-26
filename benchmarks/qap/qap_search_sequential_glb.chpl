@@ -26,56 +26,12 @@
 
   var benchmark: string = "qubitAlloc";
 
-  const getFilenames = inst.split(",");
-  const inter = getFilenames[0];
-  const dist = getFilenames[1];
-
   var n, N: int(32);
-
-  var priority: [0..<sizeMax] int(32);
 
   var initUB: int(32);
 
-  var f = open("./benchmarks/qap/instances/data_QubitAlloc/inter/" + inter + ".csv", ioMode.r);
-  var channel = f.reader(locking=false);
-
-  channel.read(n);
-  var F: [0..<(n**2)] int(32) = noinit;
-  channel.read(F);
-
-  channel.close();
-  f.close();
-
-  f = open("./benchmarks/qap/instances/data_QubitAlloc/dist/" + dist + ".csv", ioMode.r);
-  channel = f.reader(locking=false);
-
-  channel.read(N);
-  assert(n <= N, "More logical qubits than physical ones");
-  var D: [0..<(N**2)] int(32) = noinit;
-  channel.read(D);
-
-  channel.close();
-  f.close();
-
-  Prioritization(priority, F, n, N);
-
-  if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N);
-  else {
-    try! initUB = ub:int(32);
-
-    // NOTE: If `ub` cannot be cast into `int(32)`, an errow is thrown. For now, we cannot
-    // manage it as only catch-less try! statements are allowed in initializers.
-    // Ideally, we'd like to do this:
-
-    /* try {
-      this.initUB = ub:int(32);
-    } catch {
-      halt("Error - Unsupported initial upper bound");
-    } */
-  }
-
-  proc decompose(const parent: Node_GLB, ref tree_loc: uint, ref num_sol: uint,
-    ref best: int, ref pool: SinglePool(Node_GLB))
+  proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority,
+    ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool(Node_GLB))
   {
     var depth = parent.depth;
 
@@ -119,6 +75,54 @@
   // Sequential QAP search.
   proc qap_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
   {
+    var timer: stopwatch;
+
+    const getFilenames = inst.split(",");
+    const inter = getFilenames[0];
+    const dist = getFilenames[1];
+
+    timer.start();
+
+    var priority: [0..<sizeMax] int(32);
+
+    var f = open("./benchmarks/qap/instances/data_QubitAlloc/inter/" + inter + ".csv", ioMode.r);
+    var channel = f.reader(locking=false);
+
+    channel.read(n);
+    var F: [0..<(n**2)] int(32) = noinit;
+    channel.read(F);
+
+    channel.close();
+    f.close();
+
+    f = open("./benchmarks/qap/instances/data_QubitAlloc/dist/" + dist + ".csv", ioMode.r);
+    channel = f.reader(locking=false);
+
+    channel.read(N);
+    assert(n <= N, "More logical qubits than physical ones");
+    var D: [0..<(N**2)] int(32) = noinit;
+    channel.read(D);
+
+    channel.close();
+    f.close();
+
+    Prioritization(priority, F, n, N);
+
+    if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N);
+    else {
+      try! initUB = ub:int(32);
+
+      // NOTE: If `ub` cannot be cast into `int(32)`, an errow is thrown. For now, we cannot
+      // manage it as only catch-less try! statements are allowed in initializers.
+      // Ideally, we'd like to do this:
+
+      /* try {
+        this.initUB = ub:int(32);
+      } catch {
+        halt("Error - Unsupported initial upper bound");
+      } */
+    }
+
     var best: int = initUB;
 
     var root = new Node_GLB(n);
@@ -126,14 +130,11 @@
     var pool = new SinglePool(Node_GLB);
     pool.pushBack(root);
 
-    var timer: stopwatch;
-    timer.start();
-
     while true {
       var hasWork = 0;
       var parent = pool.popBack(hasWork);
       if !hasWork then break;
-      decompose(parent, exploredTree, exploredSol, best, pool);
+      decompose(parent, D, F, priority, exploredTree, exploredSol, best, pool);
     }
 
     timer.stop();

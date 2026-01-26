@@ -32,10 +32,6 @@
 
   var benchmark: string = "qubitAlloc";
 
-  const getFilenames = inst.split(",");
-  const inter = getFilenames[0];
-  const dist = getFilenames[1];
-
   var n, N: int(32);
 
   var initUB: int(32);
@@ -164,6 +160,10 @@
     const device = here.gpus[0];
 
     var timer: stopwatch;
+
+    const getFilenames = inst.split(",");
+    const inter = getFilenames[0];
+    const dist = getFilenames[1];
 
     /*
       Step 1: We perform a partial breadth-first search on CPU in order to create
