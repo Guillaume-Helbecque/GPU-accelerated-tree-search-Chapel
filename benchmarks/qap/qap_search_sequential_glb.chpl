@@ -13,15 +13,23 @@
   use Util_qap;
   use Problem_qap;
 
+  import main_qap.lb as lb;
+
   config param sizeMax: int(32) = 27;
 
   /*******************************************************************************
   Implementation of the sequential QAP search.
   *******************************************************************************/
 
-  config const inter = "10_sqn";
-  config const dist = "16_melbourne";
+  config const inst = "10_sqn,16_melbourne";
+  config const itmax: int(32) = 10;
   config const ub: string = "heuristic"; // heuristic
+
+  var benchmark: string = "qubitAlloc";
+
+  const getFilenames = inst.split(",");
+  const inter = getFilenames[0];
+  const dist = getFilenames[1];
 
   var n, N: int(32);
 
@@ -139,7 +147,7 @@
   proc search_sequential_glb()
   {
     writeln("Sequential execution mode using GLB");
-    print_settings(inter, dist, n, N, ub, initUB);
+    print_settings(benchmark, inst, n, N, itmax, lb, ub, initUB);
 
     var optimum: int;
     var exploredTree: uint = 0;

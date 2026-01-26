@@ -14,6 +14,8 @@
   use Util_qap;
   use Problem_qap;
 
+  import main_qap.lb as lb;
+
   config param sizeMax: int(32) = 27;
 
   config const BLOCK_SIZE = 512;
@@ -25,9 +27,15 @@
   config const m = 25;
   config const M = 50000;
 
-  config const inter = "10_sqn";
-  config const dist = "16_melbourne";
+  config const inst = "10_sqn,16_melbourne";
+  config const itmax: int(32) = 10;
   config const ub: string = "heuristic"; // heuristic
+
+  var benchmark: string = "qubitAlloc";
+
+  const getFilenames = inst.split(",");
+  const inter = getFilenames[0];
+  const dist = getFilenames[1];
 
   var n, N: int(32);
 
@@ -325,7 +333,7 @@
   {
     writeln("Single-GPU execution mode using GLB");
     // TODO: n, N, and ub are still at 0 here
-    print_settings(inter, dist, n, N, ub, initUB);
+    print_settings(benchmark, inst, n, N, itmax, lb, ub, initUB);
 
     var optimum: int;
     var exploredTree: uint = 0;

@@ -14,6 +14,8 @@
   use Util_qap;
   use Problem_qap;
 
+  import main_qap.lb as lb;
+
   config param sizeMax: int(32) = 27;
 
   config const BLOCK_SIZE = 512;
@@ -25,29 +27,19 @@
   config const m = 25;
   config const M = 50000;
 
-  config const inter = "10_sqn";
-  config const dist = "16_melbourne";
+  config const inst = "10_sqn,16_melbourne";
   config const itmax: int(32) = 10;
   config const ub: string = "heuristic"; // heuristic
 
+  var benchmark: string = "qubitAlloc";
+
+  const getFilenames = inst.split(",");
+  const inter = getFilenames[0];
+  const dist = getFilenames[1];
+
   var n, N: int(32);
-  const it_max: int(32) = itmax;
 
   var initUB: int(32);
-
-  proc print_settings(): void
-  {
-    writeln("\n=================================================");
-    writeln("Circuit: ", inter);
-    writeln("Device: ", dist);
-    writeln("Number of logical qubits: ", n);
-    writeln("Number of physical qubits: ", N);
-    writeln("Max bounding iterations: ", it_max);
-    const heuristic = if (ub == "heuristic") then " (heuristic)" else "";
-    writeln("Initial upper bound: ", initUB, heuristic);
-    writeln("Lower bound function: hhb");
-    writeln("=================================================");
-  }
 
   // Evaluate and generate children nodes on CPU.
   proc decompose(const parent: Node_HHB, const ref D, const ref F, const ref priority,
@@ -162,7 +154,7 @@
   {
     @assertOnGpu
     foreach threadId in 0..#size {
-      bounds_d[threadId] = bound_HHB(children_d[threadId], best, it_max);
+      bounds_d[threadId] = bound_HHB(children_d[threadId], best, itmax);
     }
   }
 
@@ -342,7 +334,7 @@
   {
     writeln("Single-GPU execution mode using HHB");
     // TODO: n, N, and ub are still at 0 here
-    print_settings();
+    print_settings(benchmark, inst, n, N, itmax, lb, ub, initUB);
 
     var optimum: int;
     var exploredTree: uint = 0;

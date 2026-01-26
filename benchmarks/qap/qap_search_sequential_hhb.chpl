@@ -13,22 +13,27 @@
   use Util_qap;
   use Problem_qap;
 
+  import main_qap.lb as lb;
+
   config param sizeMax: int(32) = 27;
 
   /*******************************************************************************
   Implementation of the sequential QAP search.
   *******************************************************************************/
 
-  config const inter = "10_sqn";
-  config const dist = "16_melbourne";
+  config const inst = "10_sqn,16_melbourne";
   config const itmax: int(32) = 10;
   config const ub: string = "heuristic"; // heuristic
+
+  var benchmark: string = "qubitAlloc";
+
+  const getFilenames = inst.split(",");
+  const inter = getFilenames[0];
+  const dist = getFilenames[1];
 
   var n, N: int(32);
 
   var priority: [0..<sizeMax] int(32);
-
-  var it_max: int(32) = itmax;
 
   var initUB: int(32);
 
@@ -68,20 +73,6 @@
     } catch {
       halt("Error - Unsupported initial upper bound");
     } */
-  }
-
-  proc print_settings(): void
-  {
-    writeln("\n=================================================");
-    writeln("Circuit: ", inter);
-    writeln("Device: ", dist);
-    writeln("Number of logical qubits: ", n);
-    writeln("Number of physical qubits: ", N);
-    writeln("Max bounding iterations: ", it_max);
-    const heuristic = if (ub == "heuristic") then " (heuristic)" else "";
-    writeln("Initial upper bound: ", initUB, heuristic);
-    writeln("Lower bound function: hhb");
-    writeln("=================================================");
   }
 
   // Evaluate and generate children nodes on CPU.
@@ -167,7 +158,7 @@
   proc search_sequential_hhb()
   {
     writeln("Sequential execution mode using HHB");
-    print_settings();
+    print_settings(benchmark, inst, n, N, itmax, lb, ub, initUB);
 
     var optimum: int;
     var exploredTree: uint = 0;

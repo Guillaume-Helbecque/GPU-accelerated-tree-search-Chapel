@@ -18,21 +18,17 @@ locations.
 ```
 
 where the available options are:
-- **`--inter`**: file containing the interaction frequency matrix
-  - must be placed in the `./instances/inter` folder and formatted as follows:
+- **`--inst`**: file(s) containing the instance data
+  - `filename1,filename2`: Qubit allocation instance where `filename1` and `filename2`
+  contain the interaction frequency matrix and the coupling distance matrix,
+  respectively, both formatted as follows:
   ```
   size
 
   matrix (delimited with spaces)
   ```
-
-- **`--dist`**: file containing the coupling distance matrix
-  - must be placed in the `./instances/dist` folder and formatted as follows:
-  ```
-  size
-
-  matrix (delimited with spaces)
-  ```
+  Files must be placed in `./instances/data_QubitAlloc/inter` and
+  `./instances/data_QubitAlloc/dist` folders, respectively.
 
 - **`--itmax`**: maximum number of bounding iterations (only for `hhb` bound)
   - any positive integer (`10` by default)

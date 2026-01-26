@@ -626,16 +626,26 @@ module Problem_qap
     return fixed_cost + remaining_lb;
   }
 
-  proc print_settings(const inter, const dist, const n, const N, const ub, const initUB): void
+  proc print_settings(const benchmark, const inst, const n, const N, const it_max,
+    const lb, const ub, const initUB): void
   {
     writeln("\n=================================================");
-    writeln("Circuit: ", inter);
-    writeln("Device: ", dist);
-    writeln("Number of logical qubits: ", n);
-    writeln("Number of physical qubits: ", N);
+    if (benchmark == "qap") {
+      writeln("QAP instance: ", inst);
+      writeln("Number of locations: ", N);
+    }
+    else if (benchmark == "qubitAlloc") {
+      var getFilenames = inst.split(",");
+      writeln("Circuit: ", getFilenames[0]);
+      writeln("Device: ", getFilenames[1]);
+      writeln("Number of logical qubits: ", n);
+      writeln("Number of physical qubits: ", N);
+    }
+    if (lb == "hhb") then
+      writeln("Max bounding iterations: ", it_max);
     const heuristic = if (ub == "heuristic") then " (heuristic)" else "";
     writeln("Initial upper bound: ", initUB, heuristic);
-    writeln("Lower bound function: glb");
+    writeln("Lower bound function: ", lb);
     writeln("=================================================");
   }
 
@@ -655,8 +665,7 @@ module Problem_qap
   proc qap_help_message(): void
   {
     writeln("\n  Quadratic Assignment Problem Parameters:\n");
-    writeln("   --inter   str       file containing the coupling distance matrix");
-    writeln("   --dist    str       file containing the interaction frequency matrix");
+    writeln("   --inst    str       file(s) containing the instance data");
     writeln("   --itmax   int       maximum number of bounding iterations");
     writeln("   --lb      str       lower bound function (glb or hhb)");
     writeln("   --ub      str/int   upper bound initialization ('heuristic' or any integer)\n");
