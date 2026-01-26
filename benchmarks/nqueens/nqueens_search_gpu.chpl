@@ -10,6 +10,7 @@ module nqueens_search_gpu
   use util;
   use Pool;
   use NQueens_node;
+  use nqueens_problem;
 
   config const BLOCK_SIZE = 512;
 

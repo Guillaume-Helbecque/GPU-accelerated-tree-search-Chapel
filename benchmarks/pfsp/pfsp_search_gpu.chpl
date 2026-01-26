@@ -13,6 +13,7 @@ module pfsp_search_gpu
   use Bound_johnson;
   use Bound_simple;
   use Taillard;
+  use pfsp_problem;
 
   const allowedLowerBounds = ["lb1", "lb1_d", "lb2"];
 

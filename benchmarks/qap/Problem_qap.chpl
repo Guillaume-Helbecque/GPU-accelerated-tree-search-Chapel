@@ -652,7 +652,7 @@ module Problem_qap
     writeln("=================================================\n");
   }
 
-  proc help_message(): void
+  proc qap_help_message(): void
   {
     writeln("\n  Quadratic Assignment Problem Parameters:\n");
     writeln("   --inter   str       file containing the coupling distance matrix");

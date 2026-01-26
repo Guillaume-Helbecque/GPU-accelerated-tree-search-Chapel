@@ -1,5 +1,6 @@
-module qap_search_multigpu_glb
-{
+/* NOTE: implement a proper way to handke throwing functions */
+/* module qap_search_multigpu_glb
+{ */
   /*
     Multi-GPU B&B to solve instances of the QAP in Chapel.
   */
@@ -161,7 +162,7 @@ module qap_search_multigpu_glb
   }
 
   // Multi-GPU QAP search.
-  proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
+  proc qap_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
   {
     var timer: stopwatch;
 
@@ -173,7 +174,7 @@ module qap_search_multigpu_glb
 
     var priority: [0..<sizeMax] int(32);
 
-    var ff = open("./lib/qap/instances/inter/" + inter + ".csv", ioMode.r);
+    var ff = open("./benchmarks/qap/instances/inter/" + inter + ".csv", ioMode.r);
     var channel = ff.reader(locking=false);
 
     channel.read(n);
@@ -183,7 +184,7 @@ module qap_search_multigpu_glb
     channel.close();
     ff.close();
 
-    ff = open("./lib/qap/instances/dist/" + dist + ".csv", ioMode.r);
+    ff = open("./benchmarks/qap/instances/dist/" + dist + ".csv", ioMode.r);
     channel = ff.reader(locking=false);
 
     channel.read(N);
@@ -471,7 +472,7 @@ module qap_search_multigpu_glb
 
     startGpuDiagnostics();
 
-    qubitAlloc_search(optimum, exploredTree, exploredSol, elapsedTime);
+    qap_search(optimum, exploredTree, exploredSol, elapsedTime);
 
     stopGpuDiagnostics();
 
@@ -485,4 +486,4 @@ module qap_search_multigpu_glb
 
     return 0;
   }
-}
+/* } */

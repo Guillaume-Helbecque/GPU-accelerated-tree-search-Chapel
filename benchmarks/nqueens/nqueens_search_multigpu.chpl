@@ -11,6 +11,7 @@ module nqueens_search_multigpu
   use util;
   use Pool_par;
   use NQueens_node;
+  use nqueens_problem;
 
   config const BLOCK_SIZE = 512;
 

@@ -1,5 +1,6 @@
-module qap_search_gpu_hhb
-{
+/* NOTE: implement a proper way to handke throwing functions */
+/* module qap_search_gpu_hhb
+{ */
   /*
     Single-GPU B&B to solve instances of the QAP in Chapel.
   */
@@ -55,7 +56,7 @@ module qap_search_gpu_hhb
     var depth = parent.depth;
 
     if (parent.depth == n) {
-      const eval = ObjectiveFunction(parent.mapping, D, F, n);
+      const eval = ObjectiveFunction(parent.mapping, D, F, n, N);
 
       if (eval < best) {
         best = eval;
@@ -116,7 +117,7 @@ module qap_search_gpu_hhb
       var depth = parent.depth;
 
       if (parent.depth == n) {
-        const eval = ObjectiveFunction(parent.mapping, D, F, n);
+        const eval = ObjectiveFunction(parent.mapping, D, F, n, N);
 
         if (eval < best) {
           best = eval;
@@ -187,7 +188,7 @@ module qap_search_gpu_hhb
   }
 
   // Single-GPU QAP search.
-  proc qubitAlloc_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
+  proc qap_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
   {
     const device = here.gpus[0];
 
@@ -201,7 +202,7 @@ module qap_search_gpu_hhb
 
     var priority: [0..<sizeMax] int(32);
 
-    var f = open("./lib/qap/instances/inter/" + inter + ".csv", ioMode.r);
+    var f = open("./benchmarks/qap/instances/inter/" + inter + ".csv", ioMode.r);
     var channel = f.reader(locking=false);
 
     channel.read(n);
@@ -211,7 +212,7 @@ module qap_search_gpu_hhb
     channel.close();
     f.close();
 
-    f = open("./lib/qap/instances/dist/" + dist + ".csv", ioMode.r);
+    f = open("./benchmarks/qap/instances/dist/" + dist + ".csv", ioMode.r);
     channel = f.reader(locking=false);
 
     channel.read(N);
@@ -351,7 +352,7 @@ module qap_search_gpu_hhb
 
     startGpuDiagnostics();
 
-    qubitAlloc_search(optimum, exploredTree, exploredSol, elapsedTime);
+    qap_search(optimum, exploredTree, exploredSol, elapsedTime);
 
     stopGpuDiagnostics();
 
@@ -365,4 +366,4 @@ module qap_search_gpu_hhb
 
     return 0;
   }
-}
+/* } */

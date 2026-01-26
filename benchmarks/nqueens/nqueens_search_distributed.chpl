@@ -13,6 +13,7 @@ module nqueens_search_distributed
   use Pool;
   use Pool_par;
   use NQueens_node;
+  use nqueens_problem;
 
   config const BLOCK_SIZE = 512;
 

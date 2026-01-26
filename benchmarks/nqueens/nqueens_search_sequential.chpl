@@ -9,6 +9,7 @@ module nqueens_search_sequential
   use util;
   use Pool;
   use NQueens_node;
+  use nqueens_problem;
 
   /*******************************************************************************
   Implementation of the sequential N-Queens search.

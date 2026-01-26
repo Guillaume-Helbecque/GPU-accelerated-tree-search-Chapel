@@ -4,9 +4,9 @@
 # on the LUMI pre-exascale supercomputer (https://docs.lumi-supercomputer.eu/).
 
 # Load modules
-module load LUMI/25.03
+module load LUMI/24.03
 module load partition/G
-module load rocm/6.2.2
+module load rocm/6.2.2 # not compatible with LUMI/25.03
 module load cray-pmi/6.1.16
 
 export HERE=$(pwd)
