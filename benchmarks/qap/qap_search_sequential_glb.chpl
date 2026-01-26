@@ -29,7 +29,7 @@
 
   var initUB: int(32);
 
-  var f = open("./benchmarks/qap/instances/inter/" + inter + ".csv", ioMode.r);
+  var f = open("./benchmarks/qap/instances/data_QubitAlloc/inter/" + inter + ".csv", ioMode.r);
   var channel = f.reader(locking=false);
 
   channel.read(n);
@@ -39,7 +39,7 @@
   channel.close();
   f.close();
 
-  f = open("./benchmarks/qap/instances/dist/" + dist + ".csv", ioMode.r);
+  f = open("./benchmarks/qap/instances/data_QubitAlloc/dist/" + dist + ".csv", ioMode.r);
   channel = f.reader(locking=false);
 
   channel.read(N);
