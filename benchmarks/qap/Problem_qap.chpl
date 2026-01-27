@@ -95,7 +95,7 @@ module Problem_qap
       if (mapping[i] == -1) then
         continue;
 
-      for j in i..<n {
+      for j in 0..<n {
         if (mapping[j] == -1) then
           continue;
 
@@ -103,7 +103,7 @@ module Problem_qap
       }
     }
 
-    return 2*route_cost;
+    return route_cost;
   }
 
   /*******************************************************
@@ -617,6 +617,218 @@ module Problem_qap
 
     /* local { */
       var L = Assemble_LAP(dp, partial_mapping, av, D_, F, n, N);
+
+      fixed_cost = ObjectiveFunction(partial_mapping, D_, F, n, N);
+
+      remaining_lb = Hungarian_GLB(L, n - dp, N - dp);
+    /* } */
+
+    return fixed_cost + remaining_lb;
+  }
+
+  /*******************************************************
+                 IMPROVED GILMORE-LAWLER
+  *******************************************************/
+
+  proc insertion_sort_keys_device(ref tmp, const n, const ascend)
+  {
+    // Sort pairs (key[i], val[i]) by key, keeping val aligned.
+    // ascend=true  -> increasing keys
+    // ascend=false -> decreasing keys
+
+    if (n <= 1) then
+      return;
+
+    for i in 1..<n {
+      const k = tmp[i](0);
+      const v = tmp[i](1);
+      var j = i - 1;
+
+      if ascend {
+        while (j >= 0 && tmp[j](0) > k) {
+          tmp[j + 1](0) = tmp[j](0);
+          tmp[j + 1](1) = tmp[j](1);
+          j -= 1;
+        }
+      }
+      else {
+        while (j >= 0 && tmp[j](0) < k) {
+          tmp[j + 1](0) = tmp[j](0);
+          tmp[j + 1](1) = tmp[j](1);
+          j -= 1;
+        }
+      }
+
+      tmp[j + 1](0) = k;
+      tmp[j + 1](1) = v;
+    }
+  }
+
+  proc insertion_sort_device(ref arr, const n, const ascend)
+  {
+    // ascend=true  -> increasing
+    // ascend=false -> decreasing
+
+    if (n <= 1) then
+      return;
+
+    for i in 1..<n {
+      const x = arr[i];
+      var j = i - 1;
+
+      if ascend {
+        while (j >= 0 && arr[j] > x) {
+          arr[j + 1] = arr[j];
+          j -= 1;
+        }
+      }
+      else {
+        while (j >= 0 && arr[j] < x) {
+          arr[j + 1] = arr[j];
+          j -= 1;
+        }
+      }
+
+      arr[j + 1] = x;
+    }
+  }
+
+  proc Assemble_LAP_IGLB(const dp, const partial_mapping, const ref av, const ref D,
+    const ref F, const n, const N)
+  {
+    /* var assigned_fac = allocate(int(32), dp);
+    var unassigned_fac = allocate(int(32), n-dp);
+    var assigned_loc = allocate(int(32), dp);
+    var unassigned_loc = allocate(int(32), N-dp); */
+
+    var assigned_fac: sizeMax*int(32);
+    var unassigned_fac: sizeMax*int(32);
+    var assigned_loc: sizeMax*int(32);
+    var unassigned_loc: sizeMax*int(32);
+
+    var c1, c2, c3, c4: int(32) = 0;
+
+    for i in 0..<n {
+      if (partial_mapping[i] != -1) {
+        assigned_fac[c1] = i;
+        c1 += 1;
+        assigned_loc[c3] = partial_mapping[i];
+        c3 += 1;
+      }
+      else {
+        unassigned_fac[c2] = i;
+        c2 += 1;
+      }
+    }
+
+    for i in 0..<N {
+      if av[i] {
+        unassigned_loc[c4] = i;
+        c4 += 1;
+      }
+    }
+
+    var u = n - dp;
+    var r = N - dp;
+
+    var L: (sizeMax**2)*int(32);
+    /* var L: [0..<(u*r)] int(32) = 0; */
+
+    // Precompute sorted distances from each location k to other free locations
+    var sortedDidx: (sizeMax**2)*int(32);
+
+    for k_idx in 0..<r {
+      var k = unassigned_loc[k_idx];
+
+      // create temporary vector of {dist, l_idx} pairs
+      var tmp: sizeMax*(int(32), int(32));
+      var c5: int(32) = 0;
+
+      for l_idx in 0..<r {
+        if (k_idx == l_idx) then
+          continue;
+
+        var l = unassigned_loc[l_idx];
+        tmp[c5] = (D[k * N + l], l_idx);
+        c5 += 1;
+      }
+
+      // sort by distance (ascending)
+      insertion_sort_keys_device(tmp, r-1, true);
+
+      for t in 0..<(r-1) do
+        sortedDidx[k_idx * r + t] = tmp[t](0);
+    }
+
+    // Loop over unassigned facilities
+    for i_idx in 0..<u {
+      var i = unassigned_fac[i_idx];
+
+      // extract flows from i to other unassigned facilities
+      var flows: sizeMax*int(32);
+      var c6: int(32) = 0;
+
+      for j_idx in 0..<u {
+        var j = unassigned_fac[j_idx];
+
+        if (i == j) then
+          continue;
+
+        flows[c6] = F[i * n + j];
+        c6 += 1;
+      }
+
+      // sort extracted flows (descending)
+      insertion_sort_device(flows, u-1, false);
+
+      // compute L[i_idx, k_idx] for each location k
+      for k_idx in 0..<r {
+        var k = unassigned_loc[k_idx];
+        var cost: int(32) = 0;
+
+        // unassigned–unassigned part: GLB pairing
+        var pairs = min(u-1, r-1);
+        for t in 0..<pairs {
+          cost += flows[t]:int(32) * sortedDidx[k_idx * r + t]:int(32);
+        }
+
+        // assigned–unassigned part (both directions)
+        for a_idx in 0..<dp {
+          var j = assigned_fac[a_idx];
+          var l = partial_mapping[j];
+
+          cost += F[i * n + j]:int(32) * D[k * N + l]:int(32);
+          cost += F[j * n + i]:int(32) * D[l * N + k]:int(32);
+        }
+
+        L[i_idx * r + k_idx] = cost;
+      }
+    }
+
+    /* deallocate(best); */
+    /* deallocate(assigned_fac);
+    deallocate(unassigned_fac);
+    deallocate(assigned_loc);
+    deallocate(unassigned_loc); */
+
+    return L;
+  }
+
+  proc bound_IGLB(const ref node, const ref D, const ref F, const n, const N)
+  {
+    use CTypes only c_ptrToConst;
+    const D_ = c_ptrToConst(D[0]);
+
+    const partial_mapping = node.mapping;
+    const av = node.available;
+    const dp = node.depth;
+
+    var fixed_cost, remaining_lb: int(32);
+
+    /* NOTE: copy ptr F as well */
+
+    /* local { */
+      var L = Assemble_LAP_IGLB(dp, partial_mapping, av, D_, F, n, N);
 
       fixed_cost = ObjectiveFunction(partial_mapping, D_, F, n, N);
 

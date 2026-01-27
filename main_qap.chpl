@@ -8,6 +8,7 @@ module main_qap
   use qap_search_sequential_glb;
   use qap_search_sequential_hhb;
   use qap_search_gpu_glb;
+  use qap_search_gpu_iglb;
   use qap_search_gpu_hhb;
   use qap_search_multigpu_glb;
 
@@ -44,6 +45,7 @@ module main_qap
       }
       when "gpu" {
         if lb == "glb" then search_gpu_glb();
+        else if lb == "iglb" then search_gpu_iglb();
         else if lb == "hhb" then search_gpu_hhb();
         else halt("unknown bounding function");
       }
