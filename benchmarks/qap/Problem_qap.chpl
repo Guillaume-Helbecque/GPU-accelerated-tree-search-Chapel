@@ -1,10 +1,73 @@
 module Problem_qap
 {
+  use IO;
   use CTypes;
 
   use Util_qap;
 
   config param sizeMax: int(32) = 27;
+
+  proc readInstance(const filename, ref n, ref N, ref domF, ref domD, ref F, ref D, ref benchmark)
+  {
+    const getFilenames = filename.split(",");
+
+    if (getFilenames.size == 1) {
+      benchmark = "qap";
+
+      try! {
+        var f = open("./benchmarks/qap/instances/data_QAP/" + getFilenames[0] + ".dat", ioMode.r);
+        var channel = f.reader(locking=false);
+
+        channel.read(n);
+        N = n;
+        domF = {0..<(n*n)};
+        domD = {0..<(N*N)};
+        channel.read(F);
+        channel.read(D);
+
+        channel.close();
+        f.close();
+      }
+      catch e:FileNotFoundError {
+        halt("caught a file not found error");
+      }
+    }
+    else if (getFilenames.size == 2) {
+      benchmark = "qubitAlloc";
+
+      try! {
+        var f = open("./benchmarks/qap/instances/data_QubitAlloc/inter/" + getFilenames[0] + ".csv", ioMode.r);
+        var channel = f.reader(locking=false);
+
+        channel.read(n);
+        domF = {0..<(n*n)};
+        channel.read(F);
+
+        channel.close();
+        f.close();
+      }
+      catch e:FileNotFoundError {
+        halt("caught a file not found error");
+      }
+
+      try! {
+        var f = open("./benchmarks/qap/instances/data_QubitAlloc/dist/" + getFilenames[1] + ".csv", ioMode.r);
+        var channel = f.reader(locking=false);
+
+        channel.read(N);
+        assert(n <= N, "More logical qubits than physical ones");
+        domD = {0..<(N*N)};
+        channel.read(D);
+
+        channel.close();
+        f.close();
+      }
+      catch e:FileNotFoundError {
+        halt("caught a file not found error");
+      }
+    }
+    else halt("Error - Unknown instance");
+  }
 
   proc Prioritization(ref priority, const ref F, n: int(32), N: int(32))
   {

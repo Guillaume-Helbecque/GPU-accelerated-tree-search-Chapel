@@ -1,10 +1,8 @@
-/* NOTE: implement a proper way to handke throwing functions */
-/* module qap_search_multigpu_iglb
-{ */
+module qap_search_multigpu_iglb
+{
   /*
     Multi-GPU B&B to solve instances of the QAP in Chapel.
   */
-  use IO;
   use Time;
   use Random;
   use GpuDiagnostics;
@@ -169,10 +167,6 @@
   {
     var timer: stopwatch;
 
-    const getFilenames = inst.split(",");
-    const inter = getFilenames[0];
-    const dist = getFilenames[1];
-
     /*
       Step 1: We perform a partial breadth-first search on CPU in order to create
       a sufficiently large amount of work for GPU computation.
@@ -181,26 +175,11 @@
 
     var priority: [0..<sizeMax] int(32);
 
-    var ff = open("./benchmarks/qap/instances/data_QubitAlloc/inter/" + inter + ".csv", ioMode.r);
-    var channel = ff.reader(locking=false);
+    var domF, domD: domain(1, idxType = int(32));
+    var F: [domF] int(32);
+    var DD: [domD] int(32);
 
-    channel.read(n);
-    var F: [0..<(n**2)] int(32) = noinit;
-    channel.read(F);
-
-    channel.close();
-    ff.close();
-
-    ff = open("./benchmarks/qap/instances/data_QubitAlloc/dist/" + dist + ".csv", ioMode.r);
-    channel = ff.reader(locking=false);
-
-    channel.read(N);
-    assert(n <= N, "More logical qubits than physical ones");
-    var DD: [0..<(N**2)] int(32) = noinit;
-    channel.read(DD);
-
-    channel.close();
-    ff.close();
+    readInstance(inst, n, N, domF, domD, F, DD, benchmark);
 
     Prioritization(priority, F, n, N);
 
@@ -493,4 +472,4 @@
 
     return 0;
   }
-/* } */
+}
