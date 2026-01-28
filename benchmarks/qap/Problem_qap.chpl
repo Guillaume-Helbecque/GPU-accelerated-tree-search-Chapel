@@ -29,10 +29,10 @@ module Problem_qap
 
       priority[n-1-i] = min_inter_index;
 
-      sF[min_inter_index] = INF;
+      sF[min_inter_index] = INF32;
 
       for j in 0..<n {
-        if (sF[j] != INF) then
+        if (sF[j] != INF32) then
           sF[j] -= F[j * n + min_inter_index];
       }
     }
@@ -43,7 +43,7 @@ module Problem_qap
     var route_cost = INF;
 
     var l_min, k, i: int(32);
-    var route_cost_temp, cost_incre, min_cost_incre: int(32);
+    var route_cost_temp, cost_incre, min_cost_incre: int;
 
     for j in 0..<N {
       var alloc_temp: [0..<sizeMax] int(32) = -1;
@@ -89,7 +89,7 @@ module Problem_qap
 
   proc ObjectiveFunction(const mapping, const ref D, const ref F, n, N)
   {
-    var route_cost: int(32);
+    var route_cost: int;
 
     for i in 0..<n {
       if (mapping[i] == -1) then
@@ -120,9 +120,9 @@ module Problem_qap
 
     // yw[w] is the potential for worker w
     // yj[j] is the potential for job j
-    var yw: (sizeMax+1)*int(32);//allocate(int(32), n);
+    var yw: (sizeMax+1)*int;//allocate(int(32), n);
     for i in 0..<n do yw[i] = 0;
-    var yj: (sizeMax+1)*int(32);//allocate(int(32), n+1);
+    var yj: (sizeMax+1)*int;//allocate(int(32), n+1);
     for i in 0..n do yj[i] = 0;
 
     // main Hungarian algorithm
@@ -130,7 +130,7 @@ module Problem_qap
       j_cur = n;
       job[j_cur] = w_cur;
 
-      var min_to: (sizeMax+1)*int(32);//allocate(int(32), n+1);
+      var min_to: (sizeMax+1)*int;//allocate(int(32), n+1);
       for i in 0..n do min_to[i] = INFD2;
       var prv: (sizeMax+1)*int(32);//allocate(int(32), n+1);
       for i in 0..n do prv[i] = -1;
@@ -182,7 +182,7 @@ module Problem_qap
     }
 
     // compute total cost
-    var total_cost: int(32);
+    var total_cost: int;
 
     // for j in [0..n-1], job[j] is the worker assigned to job j
     for j in 0..<n {
@@ -210,7 +210,7 @@ module Problem_qap
 
   proc distributeLeader(ref C, ref L, n)
   {
-    var leader_cost, leader_cost_div, leader_cost_rem, val: int(32);
+    var leader_cost, leader_cost_div, leader_cost_rem, val: int;
 
     if (n == 1) {
       C[0] = 0;
@@ -250,7 +250,7 @@ module Problem_qap
 
   proc halveComplementary(ref C, n)
   {
-    var cost_sum: int(32);
+    var cost_sum: int;
 
     for i in 0..<n {
       for j in 0..<n {
@@ -281,7 +281,7 @@ module Problem_qap
     ref L = node.leader;
     const m = node.size;
 
-    var cost, incre: int(32);
+    var cost, incre: int;
 
     var it = 0;
 
@@ -409,9 +409,9 @@ module Problem_qap
 
     // yw[w] is the potential for worker w
     // yj[j] is the potential for job j
-    var yw: sizeMax*int(32);// = allocate(int(32), n);
+    var yw: sizeMax*int;// = allocate(int(32), n);
     for i in 0..<n do yw[i] = 0;
-    var yj: (sizeMax+1)*int(32);// = allocate(int(32), m+1);
+    var yj: (sizeMax+1)*int;// = allocate(int(32), m+1);
     for i in 0..m do yj[i] = 0;
 
     // main Hungarian algorithm
@@ -419,7 +419,7 @@ module Problem_qap
       j_cur = m;                       // dummy job index
       job[j_cur] = w_cur;
 
-      var min_to: (sizeMax+1)*int(32);// = allocate(int(32), m+1);
+      var min_to: (sizeMax+1)*int;// = allocate(int(32), m+1);
       for i in 0..m do min_to[i] = INFD2;
       var prv: (sizeMax+1)*int(32);// = allocate(int(32), m+1);
       for i in 0..m do prv[i] = -1;
@@ -471,7 +471,7 @@ module Problem_qap
     }
 
     // compute total cost
-    var total_cost: int(32) = 0;
+    var total_cost: int = 0;
 
     // for j in [0..m-1], job[j] is the worker assigned to job j
     for j in 0..<m {
@@ -528,7 +528,7 @@ module Problem_qap
     var u = n - dp;
     var r = N - dp;
 
-    var L: (sizeMax**2)*int(32);
+    var L: (sizeMax**2)*int;
     /* var L: [0..<(u*r)] int(32) = 0; */
 
     /* record MinPair {
@@ -539,9 +539,9 @@ module Problem_qap
 
     for k_idx in 0..<r {
       var k = unassigned_loc[k_idx];
-      var min1 = INF;
+      var min1 = INF32;
       var idx1: int(32) = -1;
-      var min2 = INF;
+      var min2 = INF32;
 
       for l_idx in 0..<r {
         if (k_idx == l_idx) then
@@ -568,7 +568,7 @@ module Problem_qap
 
       for k_idx in 0..<r {
         var k = unassigned_loc[k_idx];
-        var cost: int(32) = 0;
+        var cost: int = 0;
 
         // Interaction with other unassigned facilities
         for j_idx in 0..<u {
@@ -613,7 +613,7 @@ module Problem_qap
     const av = node.available;
     const dp = node.depth;
 
-    var fixed_cost, remaining_lb: int(32);
+    var fixed_cost, remaining_lb: int;
 
     /* local { */
       var L = Assemble_LAP(dp, partial_mapping, av, D_, F, n, N);
@@ -731,7 +731,7 @@ module Problem_qap
     var u = n - dp;
     var r = N - dp;
 
-    var L: (sizeMax**2)*int(32);
+    var L: (sizeMax**2)*int;
     /* var L: [0..<(u*r)] int(32) = 0; */
 
     // Precompute sorted distances from each location k to other free locations
@@ -784,7 +784,7 @@ module Problem_qap
       // compute L[i_idx, k_idx] for each location k
       for k_idx in 0..<r {
         var k = unassigned_loc[k_idx];
-        var cost: int(32) = 0;
+        var cost: int = 0;
 
         // unassigned–unassigned part: GLB pairing
         var pairs = min(u-1, r-1);
@@ -823,7 +823,7 @@ module Problem_qap
     const av = node.available;
     const dp = node.depth;
 
-    var fixed_cost, remaining_lb: int(32);
+    var fixed_cost, remaining_lb: int;
 
     /* NOTE: copy ptr F as well */
 

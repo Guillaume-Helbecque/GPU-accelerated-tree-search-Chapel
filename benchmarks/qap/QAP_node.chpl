@@ -12,14 +12,14 @@ module QAP_node
   record Node_HHB
   {
     var mapping: sizeMax*int(8);
-    var lower_bound: int(32);
+    var lower_bound: int;
     var depth: uint(8);
     var available: sizeMax*bool;
 
     var domCost: domain(1, idxType = int(32));
-    var costs: [domCost] int(32);
+    var costs: [domCost] int;
     var domLeader: domain(1, idxType = int(32));
-    var leader: [domLeader] int(32);
+    var leader: [domLeader] int;
     var size: int(32);
 
     // default-initializer
@@ -30,7 +30,7 @@ module QAP_node
     proc init(const n, const N, const ref D, const ref F)
     {
       init this;
-      for i in 0..<n do this.mapping[i] = -1:int(32);
+      for i in 0..<n do this.mapping[i] = -1:int(8);
       for i in 0..<sizeMax do this.available[i] = true;
       /* this.available = true; */
 

@@ -36,7 +36,7 @@
 
   var n, N: int(32);
 
-  var initUB: int(32);
+  var initUB: int;
 
   proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority,
     ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool_par(Node_GLB))
@@ -140,7 +140,7 @@
   }
 
   // Generate children nodes (evaluated by GPU) on CPU.
-  proc generate_children(const ref children: [] Node_GLB, const size: int, const ref bounds: [] int(32),
+  proc generate_children(const ref children: [] Node_GLB, const size: int, const ref bounds: [] int,
     ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool: SinglePool_par(Node_GLB))
   {
     pool.acquireLock();
@@ -206,7 +206,7 @@
 
     if (ub == "heuristic") then initUB = GreedyAllocation(DD, F, priority, n, N);
     else {
-      try! initUB = ub:int(32);
+      try! initUB = ub:int;
 
       // NOTE: If `ub` cannot be cast into `int(32)`, an errow is thrown. For now, we cannot
       // manage it as only catch-less try! statements are allowed in initializers.
@@ -288,10 +288,10 @@
       }
 
       var children: [0..#M] Node_GLB;// = noinit;
-      var bounds: [0..#M] int(32);// = noinit;
+      var bounds: [0..#M] int;// = noinit;
 
       on device var children_d: [0..#M] Node_GLB;
-      on device var bounds_d: [0..#M] int(32);
+      on device var bounds_d: [0..#M] int;
 
       on device const D_d = DD;
       on device const F_d = F;

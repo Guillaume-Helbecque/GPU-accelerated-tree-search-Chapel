@@ -28,7 +28,7 @@
 
   var n, N: int(32);
 
-  var initUB: int(32);
+  var initUB: int;
 
   // Evaluate and generate children nodes on CPU.
   proc decompose(const parent: Node_HHB, const ref D, const ref F, const ref priority,
@@ -121,7 +121,7 @@
 
     if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N);
     else {
-      try! initUB = ub:int(32);
+      try! initUB = ub:int;
 
       // NOTE: If `ub` cannot be cast into `int(32)`, an errow is thrown. For now, we cannot
       // manage it as only catch-less try! statements are allowed in initializers.
