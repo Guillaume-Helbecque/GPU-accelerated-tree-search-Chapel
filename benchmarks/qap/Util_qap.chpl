@@ -22,8 +22,7 @@ module Util_qap
   {
     var j, k: int(32);
 
-    while (j < i)
-    {
+    while (j < i) {
       if (mapping[j] == -1) then
         k += 1;
 
@@ -38,7 +37,7 @@ module Util_qap
     var l: int(32);
 
     for i in 0..<j {
-      if (av[i]) then
+      if av[i] then
         l += 1;
     }
 

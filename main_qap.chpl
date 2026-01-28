@@ -11,6 +11,7 @@ module main_qap
   use qap_search_gpu_iglb;
   use qap_search_gpu_hhb;
   use qap_search_multigpu_glb;
+  use qap_search_multigpu_iglb;
 
   // Common options
   config const mode: string = "multigpu";
@@ -40,6 +41,7 @@ module main_qap
     select mode {
       when "sequential" {
         if lb == "glb" then search_sequential_glb();
+        else if lb == "iglb" then halt("'sequential' execution mode with IGLB not yet implemented");
         else if lb == "hhb" then search_sequential_hhb();
         else halt("unknown bounding function");
       }
@@ -51,6 +53,7 @@ module main_qap
       }
       when "multigpu" {
         if lb == "glb" then search_multigpu_glb();
+        else if lb == "iglb" then search_multigpu_iglb();
         else if lb == "hhb" then halt("'multigpu' execution mode with HHB not yet implemented");
         else halt("unknown bounding function");
       }

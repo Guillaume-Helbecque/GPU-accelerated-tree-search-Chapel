@@ -64,7 +64,7 @@
         child.available[j] = false;
 
         if (child.depth < n) {
-          var lb = bound_GLB(child, D, F, n, N);
+          var lb = bound_IGLB(child, D, F, n, N);
           if (lb <= best) {
             pool.pushBack(child);
             tree_loc += 1;

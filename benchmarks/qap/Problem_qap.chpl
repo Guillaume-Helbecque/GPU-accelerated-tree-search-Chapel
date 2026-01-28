@@ -879,7 +879,7 @@ module Problem_qap
     writeln("\n  Quadratic Assignment Problem Parameters:\n");
     writeln("   --inst    str       file(s) containing the instance data");
     writeln("   --itmax   int       maximum number of bounding iterations");
-    writeln("   --lb      str       lower bound function (glb or hhb)");
+    writeln("   --lb      str       lower bound function (glb, iglb, or hhb)");
     writeln("   --ub      str/int   upper bound initialization ('heuristic' or any integer)\n");
   }
 }

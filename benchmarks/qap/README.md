@@ -35,6 +35,7 @@ where the available options are:
 
 - **`--lb`**: lower bound function
   - `glb`: Gilmore-Lawler bound [1] (default)
+  - `iglb`: improved Gilmore-Lawler bound
   - `hhb`: Hightower-Hahn bound [2]
 
 - **`--ub`**: initial upper bound (UB)
