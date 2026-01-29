@@ -69,7 +69,7 @@ module Problem_qap
     else halt("Error - Unknown instance");
   }
 
-  proc Prioritization(ref priority, const ref F, n: int(32), N: int(32))
+  proc Prioritization(ref priority, const ref F, n: int(32))
   {
     var sF: [0..<n] int(32);
 
@@ -558,22 +558,18 @@ module Problem_qap
   {
     /* var assigned_fac = allocate(int(32), dp);
     var unassigned_fac = allocate(int(32), n-dp);
-    var assigned_loc = allocate(int(32), dp);
     var unassigned_loc = allocate(int(32), N-dp); */
 
     var assigned_fac: sizeMax*int(32);
     var unassigned_fac: sizeMax*int(32);
-    var assigned_loc: sizeMax*int(32);
     var unassigned_loc: sizeMax*int(32);
 
-    var c1, c2, c3, c4: int(32) = 0;
+    var c1, c2, c4: int(32) = 0;
 
     for i in 0..<n {
       if (partial_mapping[i] != -1) {
         assigned_fac[c1] = i;
         c1 += 1;
-        assigned_loc[c3] = partial_mapping[i];
-        c3 += 1;
       }
       else {
         unassigned_fac[c2] = i;
@@ -661,7 +657,6 @@ module Problem_qap
     /* deallocate(best); */
     /* deallocate(assigned_fac);
     deallocate(unassigned_fac);
-    deallocate(assigned_loc);
     deallocate(unassigned_loc); */
 
     return L;
@@ -692,40 +687,6 @@ module Problem_qap
   /*******************************************************
                  IMPROVED GILMORE-LAWLER
   *******************************************************/
-
-  proc insertion_sort_keys_device(ref tmp, const n, const ascend)
-  {
-    // Sort pairs (key[i], val[i]) by key, keeping val aligned.
-    // ascend=true  -> increasing keys
-    // ascend=false -> decreasing keys
-
-    if (n <= 1) then
-      return;
-
-    for i in 1..<n {
-      const k = tmp[i](0);
-      const v = tmp[i](1);
-      var j = i - 1;
-
-      if ascend {
-        while (j >= 0 && tmp[j](0) > k) {
-          tmp[j + 1](0) = tmp[j](0);
-          tmp[j + 1](1) = tmp[j](1);
-          j -= 1;
-        }
-      }
-      else {
-        while (j >= 0 && tmp[j](0) < k) {
-          tmp[j + 1](0) = tmp[j](0);
-          tmp[j + 1](1) = tmp[j](1);
-          j -= 1;
-        }
-      }
-
-      tmp[j + 1](0) = k;
-      tmp[j + 1](1) = v;
-    }
-  }
 
   proc insertion_sort_device(ref arr, const n, const ascend)
   {
@@ -761,22 +722,18 @@ module Problem_qap
   {
     /* var assigned_fac = allocate(int(32), dp);
     var unassigned_fac = allocate(int(32), n-dp);
-    var assigned_loc = allocate(int(32), dp);
     var unassigned_loc = allocate(int(32), N-dp); */
 
     var assigned_fac: sizeMax*int(32);
     var unassigned_fac: sizeMax*int(32);
-    var assigned_loc: sizeMax*int(32);
     var unassigned_loc: sizeMax*int(32);
 
-    var c1, c2, c3, c4: int(32) = 0;
+    var c1, c2, c4: int(32) = 0;
 
     for i in 0..<n {
       if (partial_mapping[i] != -1) {
         assigned_fac[c1] = i;
         c1 += 1;
-        assigned_loc[c3] = partial_mapping[i];
-        c3 += 1;
       }
       else {
         unassigned_fac[c2] = i;
@@ -804,7 +761,7 @@ module Problem_qap
       var k = unassigned_loc[k_idx];
 
       // create temporary vector of {dist, l_idx} pairs
-      var tmp: sizeMax*(int(32), int(32));
+      var tmp: sizeMax*int(32);
       var c5: int(32) = 0;
 
       for l_idx in 0..<r {
@@ -812,15 +769,15 @@ module Problem_qap
           continue;
 
         var l = unassigned_loc[l_idx];
-        tmp[c5] = (D[k * N + l], l_idx);
+        tmp[c5] = D[k * N + l];
         c5 += 1;
       }
 
       // sort by distance (ascending)
-      insertion_sort_keys_device(tmp, r-1, true);
+      insertion_sort_device(tmp, r-1, true);
 
       for t in 0..<(r-1) do
-        sortedDidx[k_idx * r + t] = tmp[t](0);
+        sortedDidx[k_idx * r + t] = tmp[t];
     }
 
     // Loop over unassigned facilities
@@ -871,7 +828,6 @@ module Problem_qap
     /* deallocate(best); */
     /* deallocate(assigned_fac);
     deallocate(unassigned_fac);
-    deallocate(assigned_loc);
     deallocate(unassigned_loc); */
 
     return L;

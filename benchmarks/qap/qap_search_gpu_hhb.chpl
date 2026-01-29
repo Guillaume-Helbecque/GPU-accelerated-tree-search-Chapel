@@ -38,9 +38,9 @@ module qap_search_gpu_hhb
   proc decompose(const parent: Node_HHB, const ref D, const ref F, const ref priority,
     ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool(Node_HHB))
   {
-    var depth = parent.depth;
+    const depth = parent.depth;
 
-    if (parent.depth == n) {
+    if (depth == n) {
       const eval = ObjectiveFunction(parent.mapping, D, F, n, N);
 
       if (eval < best) {
@@ -99,9 +99,9 @@ module qap_search_gpu_hhb
       var parent = pool.popBack(hasWork);
       if !hasWork then break;
 
-      var depth = parent.depth;
+      const depth = parent.depth;
 
-      if (parent.depth == n) {
+      if (depth == n) {
         const eval = ObjectiveFunction(parent.mapping, D, F, n, N);
 
         if (eval < best) {
@@ -193,7 +193,7 @@ module qap_search_gpu_hhb
 
     readInstance(inst, n, N, domF, domD, F, D, benchmark);
 
-    Prioritization(priority, F, n, N);
+    Prioritization(priority, F, n);
 
     if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N);
     else {

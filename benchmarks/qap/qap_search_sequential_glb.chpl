@@ -31,9 +31,9 @@ module qap_search_sequential_glb
   proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority,
     ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool(Node_GLB))
   {
-    var depth = parent.depth;
+    const depth = parent.depth;
 
-    if (parent.depth == n) {
+    if (depth == n) {
       const eval = ObjectiveFunction(parent.mapping, D, F, n, N);
 
       if (eval < best) {
@@ -50,7 +50,7 @@ module qap_search_sequential_glb
 
         var child = new Node_GLB();
         child.mapping = parent.mapping;
-        child.depth = parent.depth + 1;
+        child.depth = depth + 1;
         child.available = parent.available;
         child.mapping[i] = j:int(8);
         child.available[j] = false;
@@ -85,7 +85,7 @@ module qap_search_sequential_glb
 
     readInstance(inst, n, N, domF, domD, F, D, benchmark);
 
-    Prioritization(priority, F, n, N);
+    Prioritization(priority, F, n);
 
     if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N);
     else {
