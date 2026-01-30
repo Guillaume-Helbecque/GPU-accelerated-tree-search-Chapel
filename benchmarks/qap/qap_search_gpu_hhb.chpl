@@ -321,7 +321,7 @@ module qap_search_gpu_hhb
 
   proc search_gpu_hhb()
   {
-    writeln("Single-GPU execution mode using HHB");
+    writeln("Single-GPU execution mode");
 
     var optimum: int;
     var exploredTree: uint = 0;

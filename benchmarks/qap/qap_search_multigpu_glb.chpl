@@ -425,7 +425,7 @@ module qap_search_multigpu_glb
 
   proc search_multigpu_glb()
   {
-    writeln("Multi-GPU execution mode using GLB with ", D, " GPUs");
+    writeln("Multi-GPU execution mode with ", D, " GPUs");
 
     var optimum: int;
     var exploredTree: uint = 0;

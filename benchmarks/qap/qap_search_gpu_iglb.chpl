@@ -302,7 +302,7 @@ module qap_search_gpu_iglb
 
   proc search_gpu_iglb()
   {
-    writeln("Single-GPU execution mode using IGLB");
+    writeln("Single-GPU execution mode");
 
     var optimum: int;
     var exploredTree: uint = 0;

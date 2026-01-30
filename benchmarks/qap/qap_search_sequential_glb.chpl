@@ -144,7 +144,7 @@ module qap_search_sequential_glb
 
   proc search_sequential_glb()
   {
-    writeln("Sequential execution mode using GLB");
+    writeln("Sequential execution mode");
 
     var optimum: int;
     var exploredTree: uint = 0;

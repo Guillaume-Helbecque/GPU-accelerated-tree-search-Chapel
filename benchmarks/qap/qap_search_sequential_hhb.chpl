@@ -155,7 +155,7 @@ module qap_search_sequential_hhb
 
   proc search_sequential_hhb()
   {
-    writeln("Sequential execution mode using HHB");
+    writeln("Sequential execution mode");
 
     var optimum: int;
     var exploredTree: uint = 0;
