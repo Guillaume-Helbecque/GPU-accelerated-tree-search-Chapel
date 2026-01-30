@@ -178,14 +178,14 @@ module Problem_qap
     var w, j_cur, j_next: int(32);
 
     // job[j] = worker assigned to job j, or -1 if unassigned
-    var job: sizeMax*int(32);//allocate(int(32), n+1);
+    var job: (sizeMax+1)*int(32);
     for i in 0..n do job[i] = -1;
 
     // yw[w] is the potential for worker w
     // yj[j] is the potential for job j
-    var yw: (sizeMax+1)*int;//allocate(int(32), n);
+    var yw: sizeMax*int;
     for i in 0..<n do yw[i] = 0;
-    var yj: (sizeMax+1)*int;//allocate(int(32), n+1);
+    var yj: (sizeMax+1)*int;
     for i in 0..n do yj[i] = 0;
 
     // main Hungarian algorithm
@@ -193,11 +193,11 @@ module Problem_qap
       j_cur = n;
       job[j_cur] = w_cur;
 
-      var min_to: (sizeMax+1)*int;//allocate(int(32), n+1);
+      var min_to: (sizeMax+1)*int;
       for i in 0..n do min_to[i] = INFD2;
-      var prv: (sizeMax+1)*int(32);//allocate(int(32), n+1);
+      var prv: (sizeMax+1)*int(32);
       for i in 0..n do prv[i] = -1;
-      var in_Z: (sizeMax+1)*bool;//allocate(bool, n+1);
+      var in_Z: (sizeMax+1)*bool;
       for i in 0..n do in_Z[i] = false;
 
       while (job[j_cur] != -1) {
@@ -238,10 +238,6 @@ module Problem_qap
         job[j_cur] = job[j];
         j_cur = j;
       }
-
-      /* deallocate(min_to);
-      deallocate(prv);
-      deallocate(in_Z); */
     }
 
     // compute total cost
@@ -263,10 +259,6 @@ module Problem_qap
         }
       }
     }
-
-    /* deallocate(job);
-    deallocate(yw);
-    deallocate(yj); */
 
     return total_cost;
   }
@@ -467,26 +459,26 @@ module Problem_qap
     var w, j_cur, j_next: int(32);
 
     // job[j] = worker assigned to job j, or -1 if unassigned
-    var job: (sizeMax+1)*int(32);// = allocate(int(32), m+1);
+    var job: (sizeMax+1)*int(32);
     for i in 0..m do job[i] = -1;
 
     // yw[w] is the potential for worker w
     // yj[j] is the potential for job j
-    var yw: sizeMax*int;// = allocate(int(32), n);
+    var yw: sizeMax*int;
     for i in 0..<n do yw[i] = 0;
-    var yj: (sizeMax+1)*int;// = allocate(int(32), m+1);
+    var yj: (sizeMax+1)*int;
     for i in 0..m do yj[i] = 0;
 
     // main Hungarian algorithm
     for w_cur in 0..<n {
-      j_cur = m;                       // dummy job index
+      j_cur = m; // dummy job index
       job[j_cur] = w_cur;
 
-      var min_to: (sizeMax+1)*int;// = allocate(int(32), m+1);
+      var min_to: (sizeMax+1)*int;
       for i in 0..m do min_to[i] = INFD2;
-      var prv: (sizeMax+1)*int(32);// = allocate(int(32), m+1);
+      var prv: (sizeMax+1)*int(32);
       for i in 0..m do prv[i] = -1;
-      var in_Z: (sizeMax+1)*int(32);// = allocate(bool, m+1);
+      var in_Z: (sizeMax+1)*bool;
       for i in 0..m do in_Z[i] = false;
 
       while (job[j_cur] != -1) {
@@ -527,10 +519,6 @@ module Problem_qap
         job[j_cur] = job[j];
         j_cur = j;
       }
-
-      /* deallocate(min_to);
-      deallocate(prv);
-      deallocate(in_Z); */
     }
 
     // compute total cost
@@ -542,10 +530,6 @@ module Problem_qap
         total_cost += C[job[j]*m + j];
     }
 
-    /* deallocate(job);
-    deallocate(yw);
-    deallocate(yj); */
-
     return total_cost;
   }
 
@@ -556,10 +540,6 @@ module Problem_qap
   proc Assemble_LAP(const dp, const partial_mapping, const ref av, const ref D,
     const ref F, const n, const N)
   {
-    /* var assigned_fac = allocate(int(32), dp);
-    var unassigned_fac = allocate(int(32), n-dp);
-    var unassigned_loc = allocate(int(32), N-dp); */
-
     var assigned_fac: sizeMax*int(32);
     var unassigned_fac: sizeMax*int(32);
     var unassigned_loc: sizeMax*int(32);
@@ -588,13 +568,12 @@ module Problem_qap
     var r = N - dp;
 
     var L: (sizeMax**2)*int;
-    /* var L: [0..<(u*r)] int(32) = 0; */
 
     /* record MinPair {
       var min1, min2, idx1: int(32);
     } */
 
-    var best: sizeMax*MinPair; //allocate(MinPair, r);
+    var best: sizeMax*MinPair;
 
     for k_idx in 0..<r {
       var k = unassigned_loc[k_idx];
@@ -653,11 +632,6 @@ module Problem_qap
         L[i_idx * r + k_idx] = cost;
       }
     }
-
-    /* deallocate(best); */
-    /* deallocate(assigned_fac);
-    deallocate(unassigned_fac);
-    deallocate(unassigned_loc); */
 
     return L;
   }
@@ -720,10 +694,6 @@ module Problem_qap
   proc Assemble_LAP_IGLB(const dp, const partial_mapping, const ref av, const ref D,
     const ref F, const n, const N)
   {
-    /* var assigned_fac = allocate(int(32), dp);
-    var unassigned_fac = allocate(int(32), n-dp);
-    var unassigned_loc = allocate(int(32), N-dp); */
-
     var assigned_fac: sizeMax*int(32);
     var unassigned_fac: sizeMax*int(32);
     var unassigned_loc: sizeMax*int(32);
@@ -752,7 +722,6 @@ module Problem_qap
     var r = N - dp;
 
     var L: (sizeMax**2)*int;
-    /* var L: [0..<(u*r)] int(32) = 0; */
 
     // Precompute sorted distances from each location k to other free locations
     var sortedDidx: (sizeMax**2)*int(32);
@@ -824,11 +793,6 @@ module Problem_qap
         L[i_idx * r + k_idx] = cost;
       }
     }
-
-    /* deallocate(best); */
-    /* deallocate(assigned_fac);
-    deallocate(unassigned_fac);
-    deallocate(unassigned_loc); */
 
     return L;
   }

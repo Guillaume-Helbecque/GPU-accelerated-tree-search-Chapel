@@ -19,6 +19,17 @@ locations.
 
 where the available options are:
 - **`--inst`**: file(s) containing the instance data
+  - `filename`: QAP instance where `filename` contains the flow and distance
+  matrices formatted as follows:
+  ```
+  size
+
+  flow matrix (delimited with spaces)
+
+  distance matrix (delimited with spaces)
+  ```
+  File must be placed in `./instances/data_QAP` folder.
+
   - `filename1,filename2`: Qubit allocation instance where `filename1` and `filename2`
   contain the interaction frequency matrix and the coupling distance matrix,
   respectively, both formatted as follows:

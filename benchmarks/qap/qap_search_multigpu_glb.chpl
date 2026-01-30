@@ -187,12 +187,12 @@ module qap_search_multigpu_glb
     else {
       try! initUB = ub:int;
 
-      // NOTE: If `ub` cannot be cast into `int(32)`, an errow is thrown. For now, we cannot
+      // NOTE: If `ub` cannot be cast into `int`, an errow is thrown. For now, we cannot
       // manage it as only catch-less try! statements are allowed in initializers.
       // Ideally, we'd like to do this:
 
       /* try {
-        this.initUB = ub:int(32);
+        this.initUB = ub:int;
       } catch {
         halt("Error - Unsupported initial upper bound");
       } */
@@ -232,8 +232,6 @@ module qap_search_multigpu_glb
     var eachTaskState: [0..#D] atomic bool = BUSY; // one task per GPU
     var allTasksIdleFlag: atomic bool = false;
 
-    /* var eachTime: [1..6, 0..#D] real; */
-
     const poolSize = pool.size;
     const c = poolSize / D;
     const l = poolSize - (D-1)*c;
@@ -245,9 +243,7 @@ module qap_search_multigpu_glb
     var multiPool: [0..#D] SinglePool_par(Node_GLB);
 
     coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol,
-      ref eachBest, ref eachTaskState, ref multiPool/*, ref eachTime*/) {
-
-      /* var t1, t2, t3, t4, t5, t6: stopwatch; */
+      ref eachBest, ref eachTaskState, ref multiPool) {
 
       const device = here.gpus[gpuID];
 
@@ -276,10 +272,7 @@ module qap_search_multigpu_glb
       on device const F_d = F;
 
       while true {
-        /* t6.start(); */
         var poolSize = prepareChildren(m, M, n, N, DD, F, priority, children, pool_loc, best_l, sol);
-        /* t6.stop(); */
-        /* var poolSize = pool.popBackBulk(m, M, children); */
 
         if (poolSize > 0) {
           if (taskState == IDLE) {
@@ -294,25 +287,16 @@ module qap_search_multigpu_glb
           */
           const numBounds = poolSize;
 
-          /* t1.start(); */
           children_d = children; // host-to-device
-          /* t1.stop(); */
-          /* t2.start(); */
           on device do evaluate_gpu(children_d, numBounds, D_d, F_d, bounds_d); // GPU kernel
-          /* t2.stop(); */
-          /* t3.start(); */
           bounds = bounds_d; // device-to-host
-          /* t3.stop(); */
 
           /*
             Each task generates and inserts its children nodes to the pool.
           */
-          /* t4.start(); */
           generate_children(children, poolSize, bounds, tree, sol, best_l, pool_loc);
-          /* t4.stop(); */
         }
         else {
-          /* t5.start(); */
           // work stealing attempts
           var tries = 0;
           var steal = false;
@@ -364,16 +348,12 @@ module qap_search_multigpu_glb
             }
             if allIdle(eachTaskState, allTasksIdleFlag) {
               writeln("task ", gpuID, " exits normally");
-              /* t5.stop(); */
               break;
             }
-            /* t5.stop(); */
             continue;
           } else {
-            /* t5.stop(); */
             continue;
           }
-          /* t5.stop(); */
         }
       }
 
@@ -383,13 +363,6 @@ module qap_search_multigpu_glb
         pool.pushBack(pool_loc.popBack(hasWork));
         if !hasWork then break;
       }
-
-      /* eachTime[1, gpuID] = t1.elapsed();
-      eachTime[2, gpuID] = t2.elapsed();
-      eachTime[3, gpuID] = t3.elapsed();
-      eachTime[4, gpuID] = t4.elapsed();
-      eachTime[5, gpuID] = t5.elapsed();
-      eachTime[6, gpuID] = t6.elapsed(); */
 
       eachExploredTree[gpuID] = tree;
       eachExploredSol[gpuID] = sol;
@@ -435,13 +408,6 @@ module qap_search_multigpu_glb
     optimum = best;
 
     writeln("\nExploration terminated.");
-
-    /* writeln("prepare children = ", (+ reduce eachTime[6, 0..<D])/D, " (", (+ reduce eachTime[6, 0..<D])/D/elapsedTime*100, "%)");
-    writeln("H2D              = ", (+ reduce eachTime[1, 0..<D])/D, " (", (+ reduce eachTime[1, 0..<D])/D/elapsedTime*100, "%)");
-    writeln("kernel           = ", (+ reduce eachTime[2, 0..<D])/D, " (", (+ reduce eachTime[2, 0..<D])/D/elapsedTime*100, "%)");
-    writeln("D2H              = ", (+ reduce eachTime[3, 0..<D])/D, " (", (+ reduce eachTime[3, 0..<D])/D/elapsedTime*100, "%)");
-    writeln("gen children     = ", (+ reduce eachTime[4, 0..<D])/D, " (", (+ reduce eachTime[4, 0..<D])/D/elapsedTime*100, "%)");
-    writeln("WS               = ", (+ reduce eachTime[5, 0..<D])/D, " (", (+ reduce eachTime[5, 0..<D])/D/elapsedTime*100, "%)"); */
   }
 
   proc search_multigpu_glb()

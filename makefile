@@ -48,10 +48,6 @@ CHPL_QAP_OPTS = -M $(CHPL_QAP_MODULES_DIR) -snewRangeLiteralType
 main_qap.out: main_qap.chpl
 	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QAP_OPTS) $< -o $@
 
-#
-# qubitAlloc_dist_multigpu_chpl.out: qubitAlloc_dist_multigpu_chpl.chpl
-# 	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QUBIT_ALLOC_LIBPATH) -snewRangeLiteralType $< -o $@
-
 # ==========================
 # Utilities
 # ==========================

@@ -102,12 +102,12 @@ module qap_search_sequential_hhb
     else {
       try! initUB = ub:int;
 
-      // NOTE: If `ub` cannot be cast into `int(32)`, an errow is thrown. For now, we cannot
+      // NOTE: If `ub` cannot be cast into `int`, an errow is thrown. For now, we cannot
       // manage it as only catch-less try! statements are allowed in initializers.
       // Ideally, we'd like to do this:
 
       /* try {
-        this.initUB = ub:int(32);
+        this.initUB = ub:int;
       } catch {
         halt("Error - Unsupported initial upper bound");
       } */

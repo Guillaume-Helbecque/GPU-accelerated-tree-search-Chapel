@@ -179,12 +179,12 @@ module qap_search_gpu_glb
     else {
       try! initUB = ub:int;
 
-      // NOTE: If `ub` cannot be cast into `int(32)`, an errow is thrown. For now, we cannot
+      // NOTE: If `ub` cannot be cast into `int`, an errow is thrown. For now, we cannot
       // manage it as only catch-less try! statements are allowed in initializers.
       // Ideally, we'd like to do this:
 
       /* try {
-        this.initUB = ub:int(32);
+        this.initUB = ub:int;
       } catch {
         halt("Error - Unsupported initial upper bound");
       } */
@@ -219,8 +219,6 @@ module qap_search_gpu_glb
     */
     timer.start();
 
-    /* var t1, t2, t3, t4, t5: stopwatch; */
-
     var children: [0..#M] Node_GLB;// = noinit;
     var bounds: [0..#M] int;// = noinit;
 
@@ -231,10 +229,7 @@ module qap_search_gpu_glb
     on device const F_d = F;
 
     while true {
-      /* t1.start(); */
       var poolSize = prepareChildren(m, M, n, N, D, F, priority, children, pool, best, exploredSol);
-      /* t1.stop(); */
-      /* var poolSize = pool.popBackBulk(m, M, children); */
 
       if (poolSize > 0) {
         /*
@@ -244,22 +239,14 @@ module qap_search_gpu_glb
         */
         const numBounds = poolSize;
 
-        /* t2.start(); */
         children_d = children; // host-to-device
-        /* t2.stop(); */
-        /* t3.start(); */
         on device do evaluate_gpu(children_d, numBounds, D_d, F_d, bounds_d); // GPU kernel
-        /* t3.stop(); */
-        /* t4.start(); */
         bounds = bounds_d; // device-to-host
-        /* t4.stop(); */
 
         /*
           Each task generates and inserts its children nodes to the pool.
         */
-        /* t5.start(); */
         generate_children(children, poolSize, bounds, exploredTree, exploredSol, best, pool);
-        /* t5.stop(); */
       }
       else {
         break;
@@ -299,12 +286,6 @@ module qap_search_gpu_glb
     optimum = best;
 
     writeln("\nExploration terminated.");
-
-    /* writeln("prepare children = ", t1.elapsed(), " (", t1.elapsed()/elapsedTime*100, "%)");
-    writeln("H2D              = ", t2.elapsed(), " (", t2.elapsed()/elapsedTime*100, "%)");
-    writeln("kernel           = ", t3.elapsed(), " (", t3.elapsed()/elapsedTime*100, "%)");
-    writeln("D2H              = ", t4.elapsed(), " (", t4.elapsed()/elapsedTime*100, "%)");
-    writeln("gen children     = ", t5.elapsed(), " (", t5.elapsed()/elapsedTime*100, "%)"); */
   }
 
   proc search_gpu_glb()
