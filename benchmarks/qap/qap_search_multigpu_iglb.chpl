@@ -167,20 +167,20 @@ module qap_search_multigpu_iglb
   {
     var timer: stopwatch;
 
-    /*
-      Step 1: We perform a partial breadth-first search on CPU in order to create
-      a sufficiently large amount of work for GPU computation.
-    */
-    timer.start();
-
-    var priority: [0..<sizeMax] int(32);
-
+    // read instance
     var domF, domD: domain(1, idxType = int(32));
     var F: [domF] int(32);
     var DD: [domD] int(32);
 
     readInstance(inst, n, N, domF, domD, F, DD, benchmark);
 
+    /*
+      Step 0 (preprocessing): Compute a variable prioritization order used by the
+      search and compute a heuristic solution for the initial upper bound.
+    */
+    timer.start();
+
+    var priority: [0..<sizeMax] int(32);
     Prioritization(priority, F, n);
 
     if (ub == "heuristic") then initUB = GreedyAllocation(DD, F, priority, n, N);
@@ -198,10 +198,23 @@ module qap_search_multigpu_iglb
       } */
     }
 
+    timer.stop();
+    const res0 = timer.elapsed();
+
+    print_settings(benchmark, inst, n, N, itmax, lb, ub, initUB);
+
+    writeln("\nPreprocessing completed");
+    writeln("Elapsed time: ", res0, " [s]\n");
+
     var best: int = initUB;
 
-    var root = new Node_GLB(n);
+    /*
+      Step 1: We perform a partial breadth-first search on CPU in order to create
+      a sufficiently large amount of work for GPU computation.
+    */
+    timer.start();
 
+    var root = new Node_GLB(n);
     var pool = new SinglePool_par(Node_GLB);
     pool.pushBackFree(root);
 
@@ -214,9 +227,9 @@ module qap_search_multigpu_iglb
     }
 
     timer.stop();
-    const res1 = (timer.elapsed(), exploredTree, exploredSol);
+    const res1 = (timer.elapsed() - res0, exploredTree, exploredSol);
 
-    writeln("\nInitial search on CPU completed");
+    writeln("Initial search on CPU completed");
     writeln("Size of the explored tree: ", res1[1]);
     writeln("Number of explored solutions: ", res1[2]);
     writeln("Elapsed time: ", res1[0], " [s]\n");
@@ -413,8 +426,6 @@ module qap_search_multigpu_iglb
   proc search_multigpu_iglb()
   {
     writeln("Multi-GPU execution mode using IGLB with ", D, " GPUs");
-    // TODO: n, N, and ub are still at 0 here
-    print_settings(benchmark, inst, n, N, itmax, lb, ub, initUB);
 
     var optimum: int;
     var exploredTree: uint = 0;

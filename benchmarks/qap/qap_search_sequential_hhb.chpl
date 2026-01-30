@@ -86,16 +86,20 @@ module qap_search_sequential_hhb
   {
     var timer: stopwatch;
 
-    timer.start();
-
-    var priority: [0..<sizeMax] int(32);
-
+    // read instance
     var domF, domD: domain(1, idxType = int(32));
     var F: [domF] int(32);
     var D: [domD] int(32);
 
     readInstance(inst, n, N, domF, domD, F, D, benchmark);
 
+    /*
+      Step 0 (preprocessing): Compute a variable prioritization order used by the
+      search and compute a heuristic solution for the initial upper bound.
+    */
+    timer.start();
+
+    var priority: [0..<sizeMax] int(32);
     Prioritization(priority, F, n);
 
     if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N);
@@ -113,10 +117,22 @@ module qap_search_sequential_hhb
       } */
     }
 
+    timer.stop();
+    const res0 = timer.elapsed();
+
+    print_settings(benchmark, inst, n, N, itmax, lb, ub, initUB);
+
+    writeln("\nPreprocessing completed");
+    writeln("Elapsed time: ", res0, " [s]\n");
+
     var best: int = initUB;
 
-    var root = new Node_HHB(n, N, D, F);
+    /*
+      Step 1: Sequential depth-first search.
+    */
+    timer.start();
 
+    var root = new Node_HHB(n, N, D, F);
     var pool = new SinglePool(Node_HHB);
     pool.pushBack(root);
 
@@ -131,13 +147,15 @@ module qap_search_sequential_hhb
     elapsedTime = timer.elapsed();
     optimum = best;
 
+    writeln("Search on CPU completed");
+    writeln("Elapsed time: ", elapsedTime - res0, " [s]");
+
     writeln("\nExploration terminated.");
   }
 
   proc search_sequential_hhb()
   {
     writeln("Sequential execution mode using HHB");
-    print_settings(benchmark, inst, n, N, itmax, lb, ub, initUB);
 
     var optimum: int;
     var exploredTree: uint = 0;
