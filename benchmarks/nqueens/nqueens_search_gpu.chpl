@@ -10,17 +10,19 @@ module nqueens_search_gpu
   use util;
   use Pool;
   use NQueens_node;
+  use nqueens_problem;
+
+  import main_nqueens.m as m;
+  import main_nqueens.M as M;
+
+  import main_nqueens.N as N;
+  import main_nqueens.g as g;
 
   config const BLOCK_SIZE = 512;
 
   /*******************************************************************************
   Implementation of the single-GPU N-Queens search.
   *******************************************************************************/
-
-  config const N = 14;
-  config const g = 1;
-  config const m = 25;
-  config const M = 50000;
 
   proc check_parameters()
   {

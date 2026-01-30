@@ -38,6 +38,16 @@ CHPL_NQUEENS_OPTS = -M $(CHPL_NQUEENS_MODULES_DIR)
 main_nqueens.out: main_nqueens.chpl
 	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_NQUEENS_OPTS) $< -o $@
 
+# ==================
+# QAP
+# ==================
+
+CHPL_QAP_MODULES_DIR = ./benchmarks/qap
+CHPL_QAP_OPTS = -M $(CHPL_QAP_MODULES_DIR) -snewRangeLiteralType
+
+main_qap.out: main_qap.chpl
+	$(CHPL_COMPILER) $(CHPL_COMMON_OPTS) $(CHPL_QAP_OPTS) $< -o $@
+
 # ==========================
 # Utilities
 # ==========================

@@ -4,8 +4,8 @@
 # cluster of the Université du Luxembourg (https://hpc-docs.uni.lu/systems/iris/).
 
 # Load modules
-module load toolchain/foss/2020b
-module load system/CUDA/11.1
+module load toolchain/foss/2023b
+module load system/CUDA/12.6.0
 module load devel/CMake
 
 export HERE=$(pwd)

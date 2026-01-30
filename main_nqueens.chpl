@@ -1,14 +1,24 @@
 module main_nqueens
 {
+  // Common modules
   use util;
 
+  // Problem-specific modules
   use nqueens_problem;
   use nqueens_search_sequential;
   use nqueens_search_gpu;
   use nqueens_search_multigpu;
   use nqueens_search_distributed;
 
+  // Common options
   config const mode: string = "multigpu";
+  config const m = 25;
+  config const M = 50000;
+  config const D = 1;
+
+  // Problem-specific option
+  config const N = 14;
+  config const g = 1;
 
   proc main(args: [] string): int
   {

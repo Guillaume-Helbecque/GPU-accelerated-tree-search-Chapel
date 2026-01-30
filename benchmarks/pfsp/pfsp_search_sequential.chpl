@@ -12,34 +12,17 @@ module pfsp_search_sequential
   use Bound_johnson;
   use Bound_simple;
   use Taillard;
+  use pfsp_problem;
+
+  import main_pfsp.inst as inst;
+  import main_pfsp.lb as lb;
+  import main_pfsp.ub as ub;
 
   const allowedLowerBounds = ["lb1", "lb1_d", "lb2"];
 
   /*******************************************************************************
   Implementation of the sequential PFSP search.
   *******************************************************************************/
-
-  config const inst: int = 14; // instance
-  config const lb: string = "lb1"; // lower bound function
-  config const ub: int = 1; // initial upper bound
-  /*
-    NOTE: Only forward branching is considered because other strategies increase a
-    lot the implementation complexity and do not add much contribution.
-  */
-
-  const jobs = taillard_get_nb_jobs(inst);
-  const machines = taillard_get_nb_machines(inst);
-
-  var lbound1 = new lb1_bound_data(jobs, machines);
-  taillard_get_processing_times(lbound1.p_times, inst);
-  fill_min_heads_tails(lbound1);
-
-  var lbound2 = new lb2_bound_data(jobs, machines);
-  fill_machine_pairs(lbound2/*, LB2_FULL*/);
-  fill_lags(lbound1.p_times, lbound2);
-  fill_johnson_schedules(lbound1.p_times, lbound2);
-
-  const initUB = if (ub == 1) then taillard_get_best_ub(inst) else max(int);
 
   proc check_parameters()
   {
@@ -54,8 +37,8 @@ module pfsp_search_sequential
   }
 
   // Evaluate and generate children nodes on CPU.
-  proc decompose_lb1(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-    ref best: int, ref pool: SinglePool(Node))
+  proc decompose_lb1(const jobs, const lb1_data, const parent: Node, ref tree_loc: uint,
+    ref num_sol: uint, ref best: int, ref pool: SinglePool(Node))
   {
     for i in parent.limit1+1..(jobs-1) {
       var child = new Node();
@@ -64,7 +47,7 @@ module pfsp_search_sequential
       child.prmu = parent.prmu;
       child.prmu[parent.depth] <=> child.prmu[i];
 
-      var lowerbound = lb1_bound(lbound1, child.prmu, child.limit1, jobs);
+      var lowerbound = lb1_bound(lb1_data, child.prmu, child.limit1, jobs);
 
       if (child.depth == jobs) { // if child leaf
         num_sol += 1;
@@ -81,12 +64,12 @@ module pfsp_search_sequential
     }
   }
 
-  proc decompose_lb1_d(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-    ref best: int, ref pool: SinglePool(Node))
+  proc decompose_lb1_d(const jobs, const lb1_data, const parent: Node, ref tree_loc: uint,
+    ref num_sol: uint, ref best: int, ref pool: SinglePool(Node))
   {
     var lb_begin: MAX_JOBS*int(32);
 
-    lb1_children_bounds(lbound1, parent.prmu, parent.limit1, jobs, lb_begin);
+    lb1_children_bounds(lb1_data, parent.prmu, parent.limit1, jobs, lb_begin);
 
     for i in parent.limit1+1..(jobs-1) {
       const job = parent.prmu[i];
@@ -113,8 +96,8 @@ module pfsp_search_sequential
     }
   }
 
-  proc decompose_lb2(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-    ref best: int, ref pool: SinglePool(Node))
+  proc decompose_lb2(const jobs, const lb1_data, const lb2_data, const parent: Node,
+    ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool(Node))
   {
     for i in parent.limit1+1..(jobs-1) {
       var child = new Node();
@@ -123,7 +106,7 @@ module pfsp_search_sequential
       child.prmu = parent.prmu;
       child.prmu[parent.depth] <=> child.prmu[i];
 
-      var lowerbound = lb2_bound(lbound1, lbound2, child.prmu, child.limit1, jobs, best);
+      var lowerbound = lb2_bound(lb1_data, lb2_data, child.prmu, child.limit1, jobs, best);
 
       if (child.depth == jobs) { // if child leaf
         num_sol += 1;
@@ -140,18 +123,18 @@ module pfsp_search_sequential
     }
   }
 
-  proc decompose(const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-    ref best: int, ref pool: SinglePool(Node))
+  proc decompose(const jobs, const lb1_data, const lb2_data, const parent: Node,
+    ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool(Node))
   {
     select lb {
       when "lb1_d" {
-        decompose_lb1_d(parent, tree_loc, num_sol, best, pool);
+        decompose_lb1_d(jobs, lb1_data, parent, tree_loc, num_sol, best, pool);
       }
       when "lb1" {
-        decompose_lb1(parent, tree_loc, num_sol, best, pool);
+        decompose_lb1(jobs, lb1_data, parent, tree_loc, num_sol, best, pool);
       }
       otherwise { // lb2
-        decompose_lb2(parent, tree_loc, num_sol, best, pool);
+        decompose_lb2(jobs, lb1_data, lb2_data, parent, tree_loc, num_sol, best, pool);
       }
     }
   }
@@ -159,6 +142,13 @@ module pfsp_search_sequential
   // Sequential PFSP search.
   proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
   {
+    var timer: stopwatch;
+
+    const jobs = taillard_get_nb_jobs(inst);
+    const machines = taillard_get_nb_machines(inst);
+
+    const initUB = if (ub == 1) then taillard_get_best_ub(inst) else max(int);
+
     var best: int = initUB;
 
     var root = new Node(jobs);
@@ -166,14 +156,22 @@ module pfsp_search_sequential
     var pool = new SinglePool(Node);
     pool.pushBack(root);
 
-    var timer: stopwatch;
     timer.start();
+
+    var lbound1 = new lb1_bound_data(jobs, machines);
+    taillard_get_processing_times(lbound1.p_times, inst);
+    fill_min_heads_tails(lbound1);
+
+    var lbound2 = new lb2_bound_data(jobs, machines);
+    fill_machine_pairs(lbound2/*, LB2_FULL*/);
+    fill_lags(lbound1.p_times, lbound2);
+    fill_johnson_schedules(lbound1.p_times, lbound2);
 
     while true {
       var hasWork = 0;
       var parent = pool.popBack(hasWork);
       if !hasWork then break;
-      decompose(parent, exploredTree, exploredSol, best, pool);
+      decompose(jobs, lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
     }
 
     timer.stop();
@@ -187,6 +185,10 @@ module pfsp_search_sequential
   {
     check_parameters();
     writeln("Sequential execution mode");
+    /* NOTE: this following three lines are redundant */
+    const jobs = taillard_get_nb_jobs(inst);
+    const machines = taillard_get_nb_machines(inst);
+    const initUB = if (ub == 1) then taillard_get_best_ub(inst) else max(int);
     print_settings(jobs, machines, inst, ub, lb);
 
     var optimum: int;

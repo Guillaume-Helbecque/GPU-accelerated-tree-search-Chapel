@@ -15,6 +15,15 @@ module pfsp_search_distributed
   use Bound_johnson;
   use Bound_simple;
   use Taillard;
+  use pfsp_problem;
+
+  import main_pfsp.m as m;
+  import main_pfsp.M as M;
+  import main_pfsp.D as D;
+
+  import main_pfsp.inst as inst;
+  import main_pfsp.lb as lb;
+  import main_pfsp.ub as ub;
 
   const allowedLowerBounds = ["lb1", "lb1_d", "lb2"];
 
@@ -23,23 +32,6 @@ module pfsp_search_distributed
   /*******************************************************************************
   Implementation of the distributed multi-GPU PFSP search.
   *******************************************************************************/
-
-  config const m = 25;
-  config const M = 50000;
-  config const D = 1;
-
-  config const inst: int = 14; // instance
-  config const lb: string = "lb1"; // lower bound function
-  config const ub: int = 1; // initial upper bound
-  /*
-    NOTE: Only forward branching is considered because other strategies increase a
-    lot the implementation complexity and do not add much contribution.
-  */
-
-  const jobs = taillard_get_nb_jobs(inst);
-  const machines = taillard_get_nb_machines(inst);
-
-  const initUB = if (ub == 1) then taillard_get_best_ub(inst) else max(int);
 
   proc check_parameters()
   {
@@ -57,8 +49,8 @@ module pfsp_search_distributed
   }
 
   // Evaluate and generate children nodes on CPU.
-  proc decompose_lb1(const lb1_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-    ref best: int, ref pool)
+  proc decompose_lb1(const jobs, const lb1_data, const parent: Node, ref tree_loc: uint,
+    ref num_sol: uint, ref best: int, ref pool)
   {
     for i in parent.limit1+1..(jobs-1) {
       var child = new Node();
@@ -84,8 +76,8 @@ module pfsp_search_distributed
     }
   }
 
-  proc decompose_lb1_d(const lb1_data, const parent: Node, ref tree_loc: uint, ref num_sol: uint,
-    ref best: int, ref pool)
+  proc decompose_lb1_d(const jobs, const lb1_data, const parent: Node, ref tree_loc: uint,
+    ref num_sol: uint, ref best: int, ref pool)
   {
     var lb_begin: MAX_JOBS*int(32);
 
@@ -116,8 +108,8 @@ module pfsp_search_distributed
     }
   }
 
-  proc decompose_lb2(const lb1_data, const lb2_data, const parent: Node, ref tree_loc: uint,
-    ref num_sol: uint, ref best: int, ref pool)
+  proc decompose_lb2(const jobs, const lb1_data, const lb2_data, const parent: Node,
+    ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool)
   {
     for i in parent.limit1+1..(jobs-1) {
       var child = new Node();
@@ -144,24 +136,24 @@ module pfsp_search_distributed
   }
 
   // Evaluate and generate children nodes on CPU.
-  proc decompose(const lb1_data, const lb2_data, const parent: Node, ref tree_loc: uint,
-    ref num_sol: uint, ref best: int, ref pool)
+  proc decompose(const jobs, const lb1_data, const lb2_data,
+    const parent: Node, ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool)
   {
     select lb {
       when "lb1_d" {
-        decompose_lb1_d(lb1_data, parent, tree_loc, num_sol, best, pool);
+        decompose_lb1_d(jobs, lb1_data, parent, tree_loc, num_sol, best, pool);
       }
       when "lb1" {
-        decompose_lb1(lb1_data, parent, tree_loc, num_sol, best, pool);
+        decompose_lb1(jobs, lb1_data, parent, tree_loc, num_sol, best, pool);
       }
       otherwise { // lb2
-        decompose_lb2(lb1_data, lb2_data, parent, tree_loc, num_sol, best, pool);
+        decompose_lb2(jobs, lb1_data, lb2_data, parent, tree_loc, num_sol, best, pool);
       }
     }
   }
 
   // Evaluate a bulk of parent nodes on GPU using lb1.
-  proc evaluate_gpu_lb1(const parents_d: [] Node, const size, const lbound1_d, ref bounds_d)
+  proc evaluate_gpu_lb1(const parents_d: [] Node, const size, const jobs, const lbound1_d, ref bounds_d)
   {
     @assertOnGpu
     foreach threadId in 0..#size {
@@ -185,7 +177,7 @@ module pfsp_search_distributed
     to the other lower bounds.
   */
   // Evaluate a bulk of parent nodes on GPU using lb1_d.
-  proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size, const best, const lbound1_d, ref bounds_d)
+  proc evaluate_gpu_lb1_d(const parents_d: [] Node, const size, const best, const jobs, const lbound1_d, ref bounds_d)
   {
     @assertOnGpu
     foreach parentId in 0..#(size/jobs) {
@@ -207,7 +199,7 @@ module pfsp_search_distributed
   }
 
   // Evaluate a bulk of parent nodes on GPU using lb2.
-  proc evaluate_gpu_lb2(const parents_d: [] Node, const size, const best, const lbound1_d, const lbound2_d, ref bounds_d)
+  proc evaluate_gpu_lb2(const parents_d: [] Node, const size, const best, const jobs, const lbound1_d, const lbound2_d, ref bounds_d)
   {
     @assertOnGpu
     foreach threadId in 0..#size {
@@ -226,24 +218,25 @@ module pfsp_search_distributed
   }
 
   // Evaluate a bulk of parent nodes on GPU.
-  proc evaluate_gpu(const parents_d: [] Node, const size, const best, const lbound1_d, const lbound2_d, ref bounds_d)
+  proc evaluate_gpu(const parents_d: [] Node, const size, const best, const jobs, const lbound1_d, const lbound2_d, ref bounds_d)
   {
     select lb {
       when "lb1_d" {
-        evaluate_gpu_lb1_d(parents_d, size, best, lbound1_d, bounds_d);
+        evaluate_gpu_lb1_d(parents_d, size, best, jobs, lbound1_d, bounds_d);
       }
       when "lb1" {
-        evaluate_gpu_lb1(parents_d, size, lbound1_d, bounds_d);
+        evaluate_gpu_lb1(parents_d, size, jobs, lbound1_d, bounds_d);
       }
       otherwise { // lb2
-        evaluate_gpu_lb2(parents_d, size, best, lbound1_d, lbound2_d, bounds_d);
+        evaluate_gpu_lb2(parents_d, size, best, jobs, lbound1_d, lbound2_d, bounds_d);
       }
     }
   }
 
   // Generate children nodes (evaluated by GPU) on CPU.
-  proc generate_children(const ref parents: [] Node, const size: int, const ref bounds: [] int(32),
-    ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool: SinglePool_par(Node))
+  proc generate_children(const jobs, const ref parents: [] Node, const size: int,
+    const ref bounds: [] int(32), ref exploredTree: uint, ref exploredSol: uint,
+    ref best: int, ref pool: SinglePool_par(Node))
   {
     pool.acquireLock();
 
@@ -281,14 +274,19 @@ module pfsp_search_distributed
   // Distributed multi-GPU PFSP search.
   proc pfsp_search(ref optimum: int, ref exploredTree: uint, ref exploredSol: uint, ref elapsedTime: real)
   {
+    var timer: stopwatch;
+
+    const jobs = taillard_get_nb_jobs(inst);
+    const machines = taillard_get_nb_machines(inst);
+
+    const initUB = if (ub == 1) then taillard_get_best_ub(inst) else max(int);
+
     var best: int = initUB;
 
     var root = new Node(jobs);
 
     var pool = new SinglePool_par(Node);
     pool.pushBackFree(root);
-
-    var timer: stopwatch;
 
     /*
       Step 1: We perform a partial breadth-first search on CPU in order to create
@@ -310,7 +308,7 @@ module pfsp_search_distributed
       var parent = pool.popFrontFree(hasWork);
       if !hasWork then break;
 
-      decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
+      decompose(jobs, lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
     }
 
     timer.stop();
@@ -429,13 +427,13 @@ module pfsp_search_distributed
               const numBounds = jobs * poolSize;
 
               parents_d = parents; // host-to-device
-              on device do evaluate_gpu(parents_d, numBounds, best_l, lbound1_d, lbound2_d, bounds_d); // GPU kernel
+              on device do evaluate_gpu(parents_d, numBounds, best_l, jobs, lbound1_d, lbound2_d, bounds_d); // GPU kernel
               bounds = bounds_d; // device-to-host
 
               /*
                 Each task generates and inserts its children nodes to the pool.
               */
-              generate_children(parents, poolSize, bounds, tree, sol, best_l, pool_loc);
+              generate_children(jobs, parents, poolSize, bounds, tree, sol, best_l, pool_loc);
             }
           }
           else {
@@ -598,7 +596,7 @@ module pfsp_search_distributed
       var parent = pool.popBackFree(hasWork);
       if !hasWork then break;
 
-      decompose(lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
+      decompose(jobs, lbound1, lbound2, parent, exploredTree, exploredSol, best, pool);
     }
 
     timer.stop();
@@ -619,6 +617,10 @@ module pfsp_search_distributed
   {
     check_parameters();
     writeln("Distributed multi-GPU execution mode with ", numLocales, " locales and ", D, " GPUs each");
+    /* NOTE: this following three lines are redundant */
+    const jobs = taillard_get_nb_jobs(inst);
+    const machines = taillard_get_nb_machines(inst);
+    const initUB = if (ub == 1) then taillard_get_best_ub(inst) else max(int);
     print_settings(jobs, machines, inst, ub, lb);
 
     var optimum: int;

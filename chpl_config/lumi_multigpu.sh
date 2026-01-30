@@ -6,7 +6,7 @@
 # Load modules
 module load LUMI/24.03
 module load partition/G
-module load rocm/6.0.3
+module load rocm/6.2.2 # not compatible with LUMI/25.03
 
 export HERE=$(pwd)
 
