@@ -28,7 +28,7 @@ module qap_search_gpu_iglb
   Implementation of the single-GPU QAP search.
   *******************************************************************************/
 
-  var benchmark: string = "qubitAlloc";
+  var benchmark: string;
 
   var n, N: int(32);
 

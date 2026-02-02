@@ -22,7 +22,7 @@ module qap_search_sequential_glb
   Implementation of the sequential QAP search.
   *******************************************************************************/
 
-  var benchmark: string = "qubitAlloc";
+  var benchmark: string;
 
   var n, N: int(32);
 

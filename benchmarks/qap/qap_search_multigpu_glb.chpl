@@ -30,7 +30,7 @@ module qap_search_multigpu_glb
   Implementation of the multi-GPU QAP search.
   *******************************************************************************/
 
-  var benchmark: string = "qubitAlloc";
+  var benchmark: string;
 
   var n, N: int(32);
 

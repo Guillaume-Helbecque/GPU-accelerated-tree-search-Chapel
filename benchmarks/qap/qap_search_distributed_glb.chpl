@@ -3,7 +3,6 @@ module qap_search_distributed_glb
   /*
     Distributed multi-GPU B&B to solve instances of the QAP in Chapel.
   */
-  use IO;
   use Time;
   use Random;
   use PrivateDist;
@@ -15,6 +14,15 @@ module qap_search_distributed_glb
   use Util_qap;
   use Problem_qap;
 
+  import main_qap.m as m;
+  import main_qap.M as M;
+  import main_qap.D as D;
+
+  import main_qap.inst as inst;
+  import main_qap.itmax as itmax;
+  import main_qap.lb as lb;
+  import main_qap.ub as ub;
+
   config param sizeMax: int(32) = 27;
 
   config const count = 2;
@@ -25,52 +33,11 @@ module qap_search_distributed_glb
   Implementation of the distributed multi-GPU QAP search.
   *******************************************************************************/
 
-  config const m = 25;
-  config const M = 50000;
-  config const D = 1;
-
-  config const inter = "10_sqn";
-  config const dist = "16_melbourne";
-  config const ub: string = "heuristic"; // heuristic
+  var benchmark: string;
 
   var n, N: int(32);
 
   var initUB: int(32);
-
-  proc print_settings(): void
-  {
-    writeln("\n=================================================");
-    writeln("Distributed multi-GPU Chapel (", numLocales, " locales x ", D, " GPUs)\n");
-    writeln("Circuit: ", inter);
-    writeln("Device: ", dist);
-    writeln("Number of logical qubits: ", n);
-    writeln("Number of physical qubits: ", N);
-    const heuristic = if (ub == "heuristic") then " (heuristic)" else "";
-    writeln("Initial upper bound: ", initUB, heuristic);
-    writeln("Lower bound function: glb");
-    writeln("=================================================");
-  }
-
-  proc print_results(const optimum: int, const exploredTree: uint, const exploredSol: uint,
-    const timer: real)
-  {
-    writeln("\n=================================================");
-    writeln("Size of the explored tree: ", exploredTree);
-    writeln("Number of explored solutions: ", exploredSol);
-    const is_better = if (optimum < initUB) then " (improved)"
-                                            else " (not improved)";
-    writeln("Optimal allocation: ", optimum, is_better);
-    writeln("Elapsed time: ", timer, " [s]");
-    writeln("=================================================\n");
-  }
-
-  proc help_message(): void
-  {
-    writeln("\n  Quadratic Assignment Problem Parameters:\n");
-    writeln("   --inter   str       file containing the coupling distance matrix");
-    writeln("   --dist    str       file containing the interaction frequency matrix");
-    writeln("   --ub      str/int   upper bound initialization ('heuristic' or any integer)\n");
-  }
 
   proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority,
     ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool_par(Node_GLB))
@@ -203,56 +170,54 @@ module qap_search_distributed_glb
   {
     var timer: stopwatch;
 
+    // read instance
+    var domF, domD: domain(1, idxType = int(32));
+    var F: [domF] int(32);
+    var DD: [domD] int(32);
+
+    readInstance(inst, n, N, domF, domD, F, DD, benchmark);
+
+    /*
+      Step 0 (preprocessing): Compute a variable prioritization order used by the
+      search and compute a heuristic solution for the initial upper bound.
+    */
+    timer.start();
+
+    var priority: [0..<sizeMax] int(32);
+    Prioritization(priority, F, n);
+
+    if (ub == "heuristic") then initUB = GreedyAllocation(DD, F, priority, n, N);
+    else {
+      try! initUB = ub:int;
+
+      // NOTE: If `ub` cannot be cast into `int`, an errow is thrown. For now, we cannot
+      // manage it as only catch-less try! statements are allowed in initializers.
+      // Ideally, we'd like to do this:
+
+      /* try {
+        this.initUB = ub:int;
+      } catch {
+        halt("Error - Unsupported initial upper bound");
+      } */
+    }
+
+    timer.stop();
+    const res0 = timer.elapsed();
+
+    print_settings(benchmark, inst, n, N, itmax, lb, ub, initUB);
+
+    writeln("\nPreprocessing completed");
+    writeln("Elapsed time: ", res0, " [s]\n");
+
+    var best: int = initUB;
+
     /*
       Step 1: We perform a partial breadth-first search on CPU in order to create
       a sufficiently large amount of work for GPU computation.
     */
     timer.start();
 
-    var priority: [0..<sizeMax] int(32);
-
-    var ff = open("./lib/qap/instances/inter/" + inter + ".csv", ioMode.r);
-    var channel = ff.reader(locking=false);
-
-    channel.read(n);
-    var F: [0..<(n**2)] int(32) = noinit;
-    channel.read(F);
-
-    channel.close();
-    ff.close();
-
-    ff = open("./lib/qap/instances/dist/" + dist + ".csv", ioMode.r);
-    channel = ff.reader(locking=false);
-
-    channel.read(N);
-    assert(n <= N, "More logical qubits than physical ones");
-    var DD: [0..<(N**2)] int(32) = noinit;
-    channel.read(DD);
-
-    channel.close();
-    ff.close();
-
-    Prioritization(priority, F, n, N);
-
-    if (ub == "heuristic") then initUB = GreedyAllocation(DD, F, priority, n, N);
-    else {
-      try! initUB = ub:int(32);
-
-      // NOTE: If `ub` cannot be cast into `int(32)`, an errow is thrown. For now, we cannot
-      // manage it as only catch-less try! statements are allowed in initializers.
-      // Ideally, we'd like to do this:
-
-      /* try {
-        this.initUB = ub:int(32);
-      } catch {
-        halt("Error - Unsupported initial upper bound");
-      } */
-    }
-
-    var best: int = initUB;
-
     var root = new Node_GLB(n);
-
     var pool = new SinglePool_par(Node_GLB);
     pool.pushBackFree(root);
 
@@ -265,9 +230,9 @@ module qap_search_distributed_glb
     }
 
     timer.stop();
-    const res1 = (timer.elapsed(), exploredTree, exploredSol);
+    const res1 = (timer.elapsed() - res0, exploredTree, exploredSol);
 
-    writeln("\nInitial search on CPU completed");
+    writeln("Initial search on CPU completed");
     writeln("Size of the explored tree: ", res1[1]);
     writeln("Number of explored solutions: ", res1[2]);
     writeln("Elapsed time: ", res1[0], " [s]\n");
@@ -618,8 +583,7 @@ module qap_search_distributed_glb
 
   proc search_distributed_glb()
   {
-    // TODO: n, N, and ub are still at 0 here
-    print_settings();
+    writeln("Distributed multi-GPU (", numLocales, " locales x ", D, " GPUs)\n");
 
     var optimum: int;
     var exploredTree: uint = 0;
