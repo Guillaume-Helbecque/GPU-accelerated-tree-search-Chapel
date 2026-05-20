@@ -10,7 +10,7 @@ The framework supports multiple execution modes, including sequential, single-GP
 
 ### Prerequisites
 
-[Chapel](https://chapel-lang.org/) 2.7.0
+[Chapel](https://chapel-lang.org/) 2.8.0
 
 The [chpl_config](./chpl_config/) directory contains predefined shell scripts for downloading, configuring, and building the Chapel compiler from source.
 
@@ -35,7 +35,7 @@ where the available options are:
   - any positive integer (`25` by default)
 
 - **`--M`**: maximum number of elements to offload on a GPU device
-  - any positive integer greater than `--m` (`50,000` by default)
+  - any positive integer greater than `--m` (`50000` by default)
 
 - **`--D`**: number of GPU device(s) (only in multi-GPU settings)
   - any positive integer, typically the number of GPU devices (`1` by default)
