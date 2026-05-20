@@ -533,135 +533,6 @@ module Problem_qap
     return total_cost;
   }
 
-  record MinPair {
-    var min1, min2, idx1: int(32);
-  }
-
-  proc Assemble_LAP(const dp, const partial_mapping, const ref av, const ref D,
-    const ref F, const n, const N)
-  {
-    var assigned_fac: sizeMax*int(32);
-    var unassigned_fac: sizeMax*int(32);
-    var unassigned_loc: sizeMax*int(32);
-
-    var c1, c2, c4: int(32) = 0;
-
-    for i in 0..<n {
-      if (partial_mapping[i] != -1) {
-        assigned_fac[c1] = i;
-        c1 += 1;
-      }
-      else {
-        unassigned_fac[c2] = i;
-        c2 += 1;
-      }
-    }
-
-    for i in 0..<N {
-      if av[i] {
-        unassigned_loc[c4] = i;
-        c4 += 1;
-      }
-    }
-
-    var u = n - dp;
-    var r = N - dp;
-
-    var L: (sizeMax**2)*int;
-
-    /* record MinPair {
-      var min1, min2, idx1: int(32);
-    } */
-
-    var best: sizeMax*MinPair;
-
-    for k_idx in 0..<r {
-      var k = unassigned_loc[k_idx];
-      var min1 = INF32;
-      var idx1: int(32) = -1;
-      var min2 = INF32;
-
-      for l_idx in 0..<r {
-        if (k_idx == l_idx) then
-          continue;
-
-        var l = unassigned_loc[l_idx];
-        var dist = D[k * N + l];
-
-        if (dist < min1) {
-          min2 = min1;
-          min1 = dist;
-          idx1 = l_idx;
-        }
-        else if (dist < min2) {
-          min2 = dist;
-        }
-      }
-      best[k_idx] = new MinPair(min1, min2, idx1);
-    }
-
-    // Build reduced L-matrix
-    for i_idx in 0..<u {
-      var i = unassigned_fac[i_idx];
-
-      for k_idx in 0..<r {
-        var k = unassigned_loc[k_idx];
-        var cost: int = 0;
-
-        // Interaction with other unassigned facilities
-        for j_idx in 0..<u {
-          var j = unassigned_fac[j_idx];
-
-          if (i == j) then
-            continue;
-
-          // Pick best or second-best distance if best is disallowed
-          var d = if (best[k_idx].idx1 == k_idx) then best[k_idx].min2 else best[k_idx].min1;
-
-          cost += F[i * n + j] * d;
-        }
-
-        // Interaction with assigned facilities
-        for a_idx in 0..<dp {
-          var j = assigned_fac[a_idx];
-          var l = partial_mapping[j];
-
-          cost += F[i * n + j] * D[k * N + l];
-        }
-
-        L[i_idx * r + k_idx] = cost;
-      }
-    }
-
-    return L;
-  }
-
-  proc bound_GLB(const ref node, const ref D, const ref F, const n, const N)
-  {
-    use CTypes only c_ptrToConst;
-    const D_ = c_ptrToConst(D[0]);
-
-    const partial_mapping = node.mapping;
-    const av = node.available;
-    const dp = node.depth;
-
-    var fixed_cost, remaining_lb: int;
-
-    /* local { */
-      var L = Assemble_LAP(dp, partial_mapping, av, D_, F, n, N);
-
-      fixed_cost = ObjectiveFunction(partial_mapping, D_, F, n, N);
-
-      remaining_lb = Hungarian_GLB(L, n - dp, N - dp);
-    /* } */
-
-    return fixed_cost + remaining_lb;
-  }
-
-  /*******************************************************
-                 IMPROVED GILMORE-LAWLER
-  *******************************************************/
-
   proc insertion_sort_device(ref arr, const n, const ascend)
   {
     // ascend=true  -> increasing
@@ -691,7 +562,7 @@ module Problem_qap
     }
   }
 
-  proc Assemble_LAP_IGLB(const dp, const partial_mapping, const ref av, const ref D,
+  proc Assemble_LAP(const dp, const partial_mapping, const ref av, const ref D,
     const ref F, const n, const N)
   {
     var assigned_fac: sizeMax*int(32);
@@ -797,7 +668,7 @@ module Problem_qap
     return L;
   }
 
-  proc bound_IGLB(const ref node, const ref D, const ref F, const n, const N)
+  proc bound_GLB(const ref node, const ref D, const ref F, const n, const N)
   {
     use CTypes only c_ptrToConst;
     const D_ = c_ptrToConst(D[0]);
@@ -811,7 +682,7 @@ module Problem_qap
     /* NOTE: copy ptr F as well */
 
     /* local { */
-      var L = Assemble_LAP_IGLB(dp, partial_mapping, av, D_, F, n, N);
+      var L = Assemble_LAP(dp, partial_mapping, av, D_, F, n, N);
 
       fixed_cost = ObjectiveFunction(partial_mapping, D_, F, n, N);
 
@@ -862,7 +733,7 @@ module Problem_qap
     writeln("\n  Quadratic Assignment Problem Parameters:\n");
     writeln("   --inst    str       file(s) containing the instance data");
     writeln("   --itmax   int       maximum number of bounding iterations");
-    writeln("   --lb      str       lower bound function (glb, iglb, or hhb)");
+    writeln("   --lb      str       lower bound function (glb or hhb)");
     writeln("   --ub      str/int   upper bound initialization ('heuristic' or any integer)\n");
   }
 }
