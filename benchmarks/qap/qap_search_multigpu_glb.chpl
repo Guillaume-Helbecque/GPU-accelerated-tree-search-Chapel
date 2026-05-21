@@ -190,9 +190,9 @@ module qap_search_multigpu_glb
 
     Prioritization(priority_fac, F, n, ascend = false);
     if (benchmark == "qubitAlloc") then
-      Prioritization_loc_connec(D, N);
+      Prioritization_loc_connec(priority_loc, DD, N);
     else
-      Prioritization(priority_loc, D, N);
+      Prioritization(priority_loc, DD, N);
 
     if (ub == "heuristic") then initUB = GreedyAllocation(DD, F, priority_fac, n, N);
     else {

@@ -107,7 +107,7 @@ module qap_search_sequential_hhb
 
     Prioritization(priority_fac, F, n, ascend = false);
     if (benchmark == "qubitAlloc") then
-      Prioritization_loc_connec(D, N);
+      Prioritization_loc_connec(priority_loc, D, N);
     else
       Prioritization(priority_loc, D, N);
 
