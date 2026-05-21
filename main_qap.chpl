@@ -55,7 +55,6 @@ module main_qap
       }
       when "distributed" {
         if lb == "glb" then search_distributed_glb();
-        else if lb == "iglb" then halt("'distributed' execution mode with IGLB not yet implemented");
         else if lb == "hhb" then halt("'distributed' execution mode with HHB not yet implemented");
       }
       otherwise {
