@@ -28,8 +28,9 @@ module qap_search_sequential_glb
 
   var initUB: int;
 
-  proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority,
-    ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool(Node_GLB))
+  proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority_fac,
+    const ref priority_loc, ref tree_loc: uint, ref num_sol: uint, ref best: int,
+    ref pool: SinglePool(Node_GLB))
   {
     const depth = parent.depth;
 
@@ -43,9 +44,11 @@ module qap_search_sequential_glb
       num_sol += 1;
     }
     else {
-      var i = priority[depth];
+      var i = priority_fac[depth];
 
-      for j in 0..<N by -1 {
+      for j0 in 0..<N by -1 {
+        const j = priority_loc[j0];
+
         if !parent.available[j] then continue; // skip if not available
 
         var child = new Node_GLB();
@@ -88,10 +91,16 @@ module qap_search_sequential_glb
     */
     timer.start();
 
-    var priority: [0..<sizeMax] int(32);
-    Prioritization(priority, F, n);
+    var priority_fac: [0..<sizeMax] int(32);
+    var priority_loc: [0..<sizeMax] int(32);
 
-    if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority, n, N);
+    Prioritization(priority_fac, F, n, ascend = false);
+    if (benchmark == "qubitAlloc") then
+      Prioritization_loc_connec(priority_loc, D, N);
+    else
+      Prioritization(priority_loc, D, N);
+
+    if (ub == "heuristic") then initUB = GreedyAllocation(D, F, priority_fac, n, N);
     else {
       try! initUB = ub:int;
 
@@ -129,7 +138,7 @@ module qap_search_sequential_glb
       var hasWork = 0;
       var parent = pool.popBack(hasWork);
       if !hasWork then break;
-      decompose(parent, D, F, priority, exploredTree, exploredSol, best, pool);
+      decompose(parent, D, F, priority_fac, priority_loc, exploredTree, exploredSol, best, pool);
     }
 
     timer.stop();
