@@ -30,14 +30,15 @@ module qap_search_multigpu_glb
   Implementation of the multi-GPU QAP search.
   *******************************************************************************/
 
-  var benchmark: string = "qubitAlloc";
+  var benchmark: string;
 
   var n, N: int(32);
 
   var initUB: int;
 
-  proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority,
-    ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool_par(Node_GLB))
+  proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority_fac,
+    const ref priority_loc, ref tree_loc: uint, ref num_sol: uint, ref best: int,
+    ref pool: SinglePool_par(Node_GLB))
   {
     const depth = parent.depth;
 
@@ -51,9 +52,11 @@ module qap_search_multigpu_glb
       num_sol += 1;
     }
     else {
-      var i = priority[depth];
+      var i = priority_fac[depth];
 
-      for j in 0..<N by -1 {
+      for j0 in 0..<N by -1 {
+        const j = priority_loc[j0];
+
         if !parent.available[j] then continue; // skip if not available
 
         var child = new Node_GLB();
@@ -78,8 +81,9 @@ module qap_search_multigpu_glb
     }
   }
 
-  proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority,
-    ref children, ref pool: SinglePool_par(Node_GLB), ref best, ref num_sol)
+  proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority_fac,
+    const ref priority_loc, ref children, ref pool: SinglePool_par(Node_GLB), ref best,
+    ref num_sol)
   {
     var size = 0;
 
@@ -104,16 +108,17 @@ module qap_search_multigpu_glb
         num_sol += 1;
       }
       else {
-        var i = priority[depth];
+        var i = priority_fac[depth];
 
-        for j in 0..<N by -1 {
+        for j0 in 0..<N by -1 {
+          const j = priority_loc[j0];
+
           if !parent.available[j] then continue; // skip if not available
 
           var child = new Node_GLB();
           child.mapping = parent.mapping;
           child.depth = depth + 1;
           child.available = parent.available;
-
           child.mapping[i] = j:int(8);
           child.available[j] = false;
 
@@ -180,10 +185,16 @@ module qap_search_multigpu_glb
     */
     timer.start();
 
-    var priority: [0..<sizeMax] int(32);
-    Prioritization(priority, F, n);
+    var priority_fac: [0..<sizeMax] int(32);
+    var priority_loc: [0..<sizeMax] int(32);
 
-    if (ub == "heuristic") then initUB = GreedyAllocation(DD, F, priority, n, N);
+    Prioritization(priority_fac, F, n, ascend = false);
+    if (benchmark == "qubitAlloc") then
+      Prioritization_loc_connec(D, N);
+    else
+      Prioritization(priority_loc, D, N);
+
+    if (ub == "heuristic") then initUB = GreedyAllocation(DD, F, priority_fac, n, N);
     else {
       try! initUB = ub:int;
 
@@ -223,7 +234,7 @@ module qap_search_multigpu_glb
       var parent = pool.popFrontFree(hasWork);
       if !hasWork then break;
 
-      decompose(parent, DD, F, priority, exploredTree, exploredSol, best, pool);
+      decompose(parent, DD, F, priority_fac, priority_loc, exploredTree, exploredSol, best, pool);
     }
 
     timer.stop();
@@ -285,7 +296,7 @@ module qap_search_multigpu_glb
       on device const F_d = F;
 
       while true {
-        var poolSize = prepareChildren(m, M, n, N, DD, F, priority, children, pool_loc, best_l, sol);
+        var poolSize = prepareChildren(m, M, n, N, DD, F, priority_fac, priority_loc, children, pool_loc, best_l, sol);
 
         if (poolSize > 0) {
           if (taskState == IDLE) {
@@ -406,7 +417,7 @@ module qap_search_multigpu_glb
       var parent = pool.popBackFree(hasWork);
       if !hasWork then break;
 
-      decompose(parent, DD, F, priority, exploredTree, exploredSol, best, pool);
+      decompose(parent, DD, F, priority_fac, priority_loc, exploredTree, exploredSol, best, pool);
     }
 
     timer.stop();

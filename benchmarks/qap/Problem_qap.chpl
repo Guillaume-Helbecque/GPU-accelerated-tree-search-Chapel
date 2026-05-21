@@ -69,7 +69,7 @@ module Problem_qap
     else halt("Error - Unknown instance");
   }
 
-  proc Prioritization(ref priority, const ref F, n: int(32))
+  proc Prioritization(ref priority, const ref F, n: int(32), ascend = true)
   {
     var sF: [0..<n] int(32);
 
@@ -90,7 +90,10 @@ module Problem_qap
         }
       }
 
-      priority[n-1-i] = min_inter_index;
+      if ascend then
+        priority[i] = min_inter_index;
+      else
+        priority[n-1-i] = min_inter_index;
 
       sF[min_inter_index] = INF32;
 
@@ -98,6 +101,44 @@ module Problem_qap
         if (sF[j] != INF32) then
           sF[j] -= F[j * n + min_inter_index];
       }
+    }
+  }
+
+  proc RowwiseNumZeros(const ref D, const N)
+  {
+    var nzD: [0..#N] int(32);
+
+    for i in 0..<N {
+      for j in 0..<N {
+        if !D[i * N + j] then
+          nzD[i] += 1;
+      }
+    }
+
+    return nzD;
+  }
+
+  /* rank physical qubits (locations) based on their connectivity degree */
+  proc Prioritization_loc_connec(ref priority_loc, const ref D, const N)
+  {
+    var nzD = RowwiseNumZeros(D, N);
+
+    var min_connec, min_connec_index: int(32);
+
+    for i in 0..<N {
+      min_connec = nzD[0];
+      min_connec_index = 0;
+
+      for j in 1..<N {
+        if (nzD[j] < min_connec) {
+          min_connec = nzD[j];
+          min_connec_index = j;
+        }
+      }
+
+      priority_loc[i] = min_connec_index;
+
+      nzD[min_connec_index] = INF32;
     }
   }
 
@@ -109,7 +150,7 @@ module Problem_qap
     var route_cost_temp, cost_incre, min_cost_incre: int;
 
     for j in 0..<N {
-      var alloc_temp: [0..<sizeMax] int(32) = -1;
+      var alloc_temp: [0..<n] int(32) = -1;
       var available: [0..<N] bool = true;
 
       alloc_temp[priority[0]] = j;
@@ -188,16 +229,17 @@ module Problem_qap
     var yj: (sizeMax+1)*int;
     for i in 0..n do yj[i] = 0;
 
+    var min_to: (sizeMax+1)*int;
+    var prv: (sizeMax+1)*int(32);
+    var in_Z: (sizeMax+1)*bool;
+
     // main Hungarian algorithm
     for w_cur in 0..<n {
       j_cur = n;
       job[j_cur] = w_cur;
 
-      var min_to: (sizeMax+1)*int;
       for i in 0..n do min_to[i] = INFD2;
-      var prv: (sizeMax+1)*int(32);
       for i in 0..n do prv[i] = -1;
-      var in_Z: (sizeMax+1)*bool;
       for i in 0..n do in_Z[i] = false;
 
       while (job[j_cur] != -1) {
@@ -329,44 +371,6 @@ module Problem_qap
     }
   }
 
-  proc bound_HHB(ref node, best, it_max)
-  {
-    ref lb = node.lower_bound;
-    ref C = node.costs;
-    ref L = node.leader;
-    const m = node.size;
-
-    var cost, incre: int;
-
-    var it = 0;
-
-    while (it < it_max && lb <= best) {
-      it += 1;
-
-      distributeLeader(C, L, m);
-      halveComplementary(C, m);
-
-      // apply Hungarian algorithm to each sub-matrix
-      for i in 0..<m {
-        for j in 0..<m {
-          cost = Hungarian_HHB(C, i, j, m);
-
-          L[i*m + j] += cost;
-        }
-      }
-
-      // apply Hungarian algorithm to the leader matrix
-      incre = Hungarian_HHB(L, 0, 0, m);
-
-      if (incre == 0) then
-        break;
-
-      lb += incre;
-    }
-
-    return lb;
-  }
-
   proc reduceNode(type Node, parent, i, j, k, l, lb_new)
   {
     var child = new Node();
@@ -450,6 +454,44 @@ module Problem_qap
     return child;
   }
 
+  proc bound_HHB(ref node, best, it_max)
+  {
+    ref lb = node.lower_bound;
+    ref C = node.costs;
+    ref L = node.leader;
+    const m = node.size;
+
+    var cost, incre: int;
+
+    var it = 0;
+
+    while (it < it_max && lb <= best) {
+      it += 1;
+
+      distributeLeader(C, L, m);
+      halveComplementary(C, m);
+
+      // apply Hungarian algorithm to each sub-matrix
+      for i in 0..<m {
+        for j in 0..<m {
+          cost = Hungarian_HHB(C, i, j, m);
+
+          L[i*m + j] += cost;
+        }
+      }
+
+      // apply Hungarian algorithm to the leader matrix
+      incre = Hungarian_HHB(L, 0, 0, m);
+
+      if (incre == 0) then
+        break;
+
+      lb += incre;
+    }
+
+    return lb;
+  }
+
   /*******************************************************
                        GILMORE-LAWLER
   *******************************************************/
@@ -469,16 +511,17 @@ module Problem_qap
     var yj: (sizeMax+1)*int;
     for i in 0..m do yj[i] = 0;
 
+    var min_to: (sizeMax+1)*int;
+    var prv: (sizeMax+1)*int(32);
+    var in_Z: (sizeMax+1)*bool;
+
     // main Hungarian algorithm
     for w_cur in 0..<n {
       j_cur = m; // dummy job index
       job[j_cur] = w_cur;
 
-      var min_to: (sizeMax+1)*int;
       for i in 0..m do min_to[i] = INFD2;
-      var prv: (sizeMax+1)*int(32);
       for i in 0..m do prv[i] = -1;
-      var in_Z: (sizeMax+1)*bool;
       for i in 0..m do in_Z[i] = false;
 
       while (job[j_cur] != -1) {
@@ -522,7 +565,7 @@ module Problem_qap
     }
 
     // compute total cost
-    var total_cost: int = 0;
+    var total_cost: int;
 
     // for j in [0..m-1], job[j] is the worker assigned to job j
     for j in 0..<m {
@@ -568,7 +611,6 @@ module Problem_qap
     var assigned_fac: sizeMax*int(32);
     var unassigned_fac: sizeMax*int(32);
     var unassigned_loc: sizeMax*int(32);
-
     var c1, c2, c4: int(32) = 0;
 
     for i in 0..<n {
@@ -597,11 +639,12 @@ module Problem_qap
     // Precompute sorted distances from each location k to other free locations
     var sortedDidx: (sizeMax**2)*int(32);
 
+    var tmp: sizeMax*int(32);
+
     for k_idx in 0..<r {
       var k = unassigned_loc[k_idx];
 
       // create temporary vector of {dist, l_idx} pairs
-      var tmp: sizeMax*int(32);
       var c5: int(32) = 0;
 
       for l_idx in 0..<r {
@@ -620,12 +663,13 @@ module Problem_qap
         sortedDidx[k_idx * r + t] = tmp[t];
     }
 
+    var flows: sizeMax*int(32);
+
     // Loop over unassigned facilities
     for i_idx in 0..<u {
       var i = unassigned_fac[i_idx];
 
       // extract flows from i to other unassigned facilities
-      var flows: sizeMax*int(32);
       var c6: int(32) = 0;
 
       for j_idx in 0..<u {
@@ -733,7 +777,7 @@ module Problem_qap
     writeln("\n  Quadratic Assignment Problem Parameters:\n");
     writeln("   --inst    str       file(s) containing the instance data");
     writeln("   --itmax   int       maximum number of bounding iterations");
-    writeln("   --lb      str       lower bound function (glb or hhb)");
+    writeln("   --lb      str       lower bound function ('glb' or 'hhb')");
     writeln("   --ub      str/int   upper bound initialization ('heuristic' or any integer)\n");
   }
 }
