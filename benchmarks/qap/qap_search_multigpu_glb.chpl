@@ -22,7 +22,7 @@ module qap_search_multigpu_glb
   import main_qap.lb as lb;
   import main_qap.ub as ub;
 
-  config param sizeMax: int(32) = 27;
+  config param sizeMax: int(32) = 32;
 
   config const BLOCK_SIZE = 512;
 

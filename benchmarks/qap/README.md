@@ -41,12 +41,13 @@ where the available options are:
   Files must be placed in `./instances/data_QubitAlloc/inter` and
   `./instances/data_QubitAlloc/dist` folders, respectively.
 
-- **`--itmax`**: maximum number of bounding iterations (only for `hhb` bound)
+- **`--itmax`**: maximum number of bounding iterations (only for `RLT1` bound)
   - any positive integer (`10` by default)
 
 - **`--lb`**: lower bound function
-  - `glb`: Gilmore-Lawler bound [1] (default)
-  - `hhb`: Hightower-Hahn bound [2]
+  - `GLB`: Gilmore-Lawler bound [1] (default)
+  - `RLT1`: Reformulation-Linearization-Technique level 1 (Hightower-Hahn) bound [2]
+  - `QPB`: Quadratic Programming Bound (GPU-only)
 
 - **`--ub`**: initial upper bound (UB)
   - `heuristic`: initialize the UB using a greedy heuristic (default)

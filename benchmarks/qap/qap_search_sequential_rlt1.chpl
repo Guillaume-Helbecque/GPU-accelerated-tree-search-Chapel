@@ -1,4 +1,4 @@
-module qap_search_sequential_glb
+module qap_search_sequential_rlt1
 {
   /*
     Sequential B&B to solve instances of the QAP in Chapel.
@@ -28,9 +28,10 @@ module qap_search_sequential_glb
 
   var initUB: int;
 
-  proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority_fac,
+  // Evaluate and generate children nodes on CPU.
+  proc decompose(const parent: Node_RLT1, const ref D, const ref F, const ref priority_fac,
     const ref priority_loc, ref tree_loc: uint, ref num_sol: uint, ref best: int,
-    ref pool: SinglePool(Node_GLB))
+    ref pool: SinglePool(Node_RLT1))
   {
     const depth = parent.depth;
 
@@ -46,20 +47,30 @@ module qap_search_sequential_glb
     else {
       var i = priority_fac[depth];
 
+      // local index of q_i in the cost matrix
+      var k = localLogicalQubitIndex(parent.mapping, i);
+
       for j0 in 0..<N by -1 {
         const j = priority_loc[j0];
 
         if !parent.available[j] then continue; // skip if not available
 
-        var child = new Node_GLB();
-        child.mapping = parent.mapping;
-        child.depth = depth + 1;
-        child.available = parent.available;
-        child.mapping[i] = j:int(8);
-        child.available[j] = false;
+        // next available physical qubit
+        var l = localPhysicalQubitIndex(parent.available, j);
+
+        // increment lower bound
+        var incre = parent.leader[k*(N - depth) + l];
+        var lb_new = parent.lower_bound + incre;
+
+        // prune
+        if (lb_new > best) {
+          continue;
+        }
+
+        var child = reduceNode(Node_RLT1, parent, i, j, k, l, lb_new);
 
         if (child.depth < n) {
-          var lb = bound_GLB(child, D, F, n, N);
+          var lb = bound_RLT1(child, best, itmax);
           if (lb <= best) {
             pool.pushBack(child);
             tree_loc += 1;
@@ -130,8 +141,8 @@ module qap_search_sequential_glb
     */
     timer.start();
 
-    var root = new Node_GLB(n);
-    var pool = new SinglePool(Node_GLB);
+    var root = new Node_RLT1(n, N, D, F);
+    var pool = new SinglePool(Node_RLT1);
     pool.pushBack(root);
 
     while true {
@@ -151,7 +162,7 @@ module qap_search_sequential_glb
     writeln("\nExploration terminated.");
   }
 
-  proc search_sequential_glb()
+  proc search_sequential_rlt1()
   {
     writeln("Sequential execution mode");
 

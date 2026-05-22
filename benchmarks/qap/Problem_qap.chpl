@@ -5,7 +5,7 @@ module Problem_qap
 
   use Util_qap;
 
-  config param sizeMax: int(32) = 27;
+  config param sizeMax: int(32) = 32;
 
   proc readInstance(const filename, ref n, ref N, ref domF, ref domD, ref F, ref D, ref benchmark)
   {
@@ -211,10 +211,10 @@ module Problem_qap
   }
 
   /*******************************************************
-                      HIGHTOWER-HAHN BOUND
+                            RLT1 BOUND
     *******************************************************/
 
-  proc Hungarian_HHB(ref C, i0, j0, n)
+  proc Hungarian_RLT1(ref C, i0, j0, n)
   {
     var w, j_cur, j_next: int(32);
 
@@ -454,7 +454,7 @@ module Problem_qap
     return child;
   }
 
-  proc bound_HHB(ref node, best, it_max)
+  proc bound_RLT1(ref node, best, it_max)
   {
     ref lb = node.lower_bound;
     ref C = node.costs;
@@ -474,14 +474,14 @@ module Problem_qap
       // apply Hungarian algorithm to each sub-matrix
       for i in 0..<m {
         for j in 0..<m {
-          cost = Hungarian_HHB(C, i, j, m);
+          cost = Hungarian_RLT1(C, i, j, m);
 
           L[i*m + j] += cost;
         }
       }
 
       // apply Hungarian algorithm to the leader matrix
-      incre = Hungarian_HHB(L, 0, 0, m);
+      incre = Hungarian_RLT1(L, 0, 0, m);
 
       if (incre == 0) then
         break;
@@ -742,7 +742,7 @@ module Problem_qap
     writeln("\n=================================================");
     if (benchmark == "qap") {
       writeln("QAP instance: ", inst);
-      writeln("Number of locations: ", N);
+      writeln("Number of facilities: ", N);
     }
     else if (benchmark == "qubitAlloc") {
       var getFilenames = inst.split(",");
@@ -751,7 +751,7 @@ module Problem_qap
       writeln("Number of logical qubits: ", n);
       writeln("Number of physical qubits: ", N);
     }
-    if (lb == "hhb") then
+    if (lb == "RLT1") then
       writeln("Max bounding iterations: ", it_max);
     const heuristic = if (ub == "heuristic") then " (heuristic)" else "";
     writeln("Initial upper bound: ", initUB, heuristic);
@@ -763,12 +763,12 @@ module Problem_qap
     const timer: real, const initUB)
   {
     writeln("\n=================================================");
-    writeln("Size of the explored tree: ", exploredTree);
-    writeln("Number of explored solutions: ", exploredSol);
+    writeln("Size of the explored tree:   ", exploredTree);
+    /* writeln("Number of explored solutions: ", exploredSol); */
     const is_better = if (optimum < initUB) then " (improved)"
                                             else " (not improved)";
-    writeln("Optimal allocation: ", optimum, is_better);
-    writeln("Elapsed time: ", timer, " [s]");
+    writeln("Optimal allocation:          ", optimum, is_better);
+    writeln("Elapsed time:                ", timer, " [s]");
     writeln("=================================================\n");
   }
 
@@ -776,8 +776,14 @@ module Problem_qap
   {
     writeln("\n  Quadratic Assignment Problem Parameters:\n");
     writeln("   --inst    str       file(s) containing the instance data");
-    writeln("   --itmax   int       maximum number of bounding iterations");
-    writeln("   --lb      str       lower bound function ('glb' or 'hhb')");
-    writeln("   --ub      str/int   upper bound initialization ('heuristic' or any integer)\n");
+    writeln("   --itmax   int       maximum number of bounding iterations (RLT1)");
+    writeln("   --lb      str       lower bound function ('GLB', 'RLT1', or 'QPB')");
+    writeln("   --ub      str/int   upper bound initialization ('heuristic' or any integer)");
+    writeln("");
+    writeln("  QPB-specific Parameters (only applicable when --lb QPB):\n");
+    writeln("   --qpb_maxFW       int       maximum number of Frank-Wolfe iterations");
+    writeln("   --qpb_tol         real(64)  relative FW duality gap tolerance");
+    writeln("   --qpb_sinkIter    int       Sinkhorn-Knopp iterations for warm-start projection");
+    writeln("   --qpb_xPoolSize   int       number of slots in the persistent device-side qpbX pool\n");
   }
 }

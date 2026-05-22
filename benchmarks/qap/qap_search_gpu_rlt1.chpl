@@ -1,4 +1,4 @@
-module qap_search_gpu_glb
+module qap_search_gpu_rlt1
 {
   /*
     Single-GPU B&B to solve instances of the QAP in Chapel.
@@ -34,9 +34,10 @@ module qap_search_gpu_glb
 
   var initUB: int;
 
-  proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority_fac,
+  // Evaluate and generate children nodes on CPU.
+  proc decompose(const parent: Node_RLT1, const ref D, const ref F, const ref priority_fac,
     const ref priority_loc, ref tree_loc: uint, ref num_sol: uint, ref best: int,
-    ref pool: SinglePool(Node_GLB))
+    ref pool: SinglePool(Node_RLT1))
   {
     const depth = parent.depth;
 
@@ -52,20 +53,30 @@ module qap_search_gpu_glb
     else {
       var i = priority_fac[depth];
 
+      // local index of q_i in the cost matrix
+      var k = localLogicalQubitIndex(parent.mapping, i);
+
       for j0 in 0..<N by -1 {
         const j = priority_loc[j0];
 
         if !parent.available[j] then continue; // skip if not available
 
-        var child = new Node_GLB();
-        child.mapping = parent.mapping;
-        child.depth = depth + 1;
-        child.available = parent.available;
-        child.mapping[i] = j:int(8);
-        child.available[j] = false;
+        // next available physical qubit
+        var l = localPhysicalQubitIndex(parent.available, j);
+
+        // increment lower bound
+        var incre = parent.leader[k*(N - depth) + l];
+        var lb_new = parent.lower_bound + incre;
+
+        // prune
+        if (lb_new > best) {
+          continue;
+        }
+
+        var child = reduceNode(Node_RLT1, parent, i, j, k, l, lb_new);
 
         if (child.depth < n) {
-          var lb = bound_GLB(child, D, F, n, N);
+          var lb = bound_RLT1(child, best, itmax);
           if (lb <= best) {
             pool.pushBack(child);
             tree_loc += 1;
@@ -80,8 +91,7 @@ module qap_search_gpu_glb
   }
 
   proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority_fac,
-    const ref priority_loc, ref children, ref pool: SinglePool(Node_GLB), ref best,
-    ref num_sol)
+    const ref priority_loc, ref children, ref pool, ref best, ref num_sol)
   {
     var size = 0;
 
@@ -106,17 +116,27 @@ module qap_search_gpu_glb
       else {
         var i = priority_fac[depth];
 
+        // local index of q_i in the cost matrix
+        var k = localLogicalQubitIndex(parent.mapping, i);
+
         for j0 in 0..<N by -1 {
           const j = priority_loc[j0];
 
           if !parent.available[j] then continue; // skip if not available
 
-          var child = new Node_GLB();
-          child.mapping = parent.mapping;
-          child.depth = depth + 1;
-          child.available = parent.available;
-          child.mapping[i] = j:int(8);
-          child.available[j] = false;
+          // next available physical qubit
+          var l = localPhysicalQubitIndex(parent.available, j);
+
+          // increment lower bound
+          var incre = parent.leader[k*(N - depth) + l];
+          var lb_new = parent.lower_bound + incre;
+
+          // prune
+          if (lb_new > best) {
+            continue;
+          }
+
+          var child = reduceNode(Node_RLT1, parent, i, j, k, l, lb_new);
 
           children[size] = child;
           size += 1;
@@ -128,17 +148,17 @@ module qap_search_gpu_glb
   }
 
   // Evaluate a bulk of parent nodes on GPU.
-  proc evaluate_gpu(ref children_d: [] Node_GLB, const size, const ref D, const ref F, ref bounds_d)
+  proc evaluate_gpu(ref children_d: [] Node_RLT1, const size, const best, ref bounds_d)
   {
     @assertOnGpu
     foreach threadId in 0..#size {
-      bounds_d[threadId] = bound_GLB(children_d[threadId], D, F, n, N);
+      bounds_d[threadId] = bound_RLT1(children_d[threadId], best, itmax);
     }
   }
 
   // Generate children nodes (evaluated by GPU) on CPU.
-  proc generate_children(const ref children: [] Node_GLB, const size: int, const ref bounds: [] int,
-    ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool: SinglePool(Node_GLB))
+  proc generate_children(const ref children: [] Node_RLT1, const size: int, const ref bounds: [] int,
+    ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool: SinglePool(Node_RLT1))
   {
     for i in 0..<size {
       ref child = children[i];
@@ -216,8 +236,8 @@ module qap_search_gpu_glb
     */
     timer.start();
 
-    var root = new Node_GLB(n);
-    var pool = new SinglePool(Node_GLB);
+    var root = new Node_RLT1(n, N, D, F);
+    var pool = new SinglePool(Node_RLT1);
     pool.pushBack(root);
 
     while (pool.size < m) {
@@ -242,14 +262,11 @@ module qap_search_gpu_glb
     */
     timer.start();
 
-    var children: [0..#M] Node_GLB;// = noinit;
+    var children: [0..#M] Node_RLT1;// = noinit;
     var bounds: [0..#M] int;// = noinit;
 
-    on device var children_d: [0..#M] Node_GLB;
+    on device var children_d: [0..#M] Node_RLT1;
     on device var bounds_d: [0..#M] int;
-
-    on device const D_d = D;
-    on device const F_d = F;
 
     while true {
       var poolSize = prepareChildren(m, M, n, N, D, F, priority_fac, priority_loc, children, pool, best, exploredSol);
@@ -263,7 +280,9 @@ module qap_search_gpu_glb
         const numBounds = poolSize;
 
         children_d = children; // host-to-device
-        on device do evaluate_gpu(children_d, numBounds, D_d, F_d, bounds_d); // GPU kernel
+        on device do evaluate_gpu(children_d, numBounds, best, bounds_d); // GPU kernel
+        // TODO: can we avoid this copy?
+        children = children_d;
         bounds = bounds_d; // device-to-host
 
         /*
@@ -311,7 +330,7 @@ module qap_search_gpu_glb
     writeln("\nExploration terminated.");
   }
 
-  proc search_gpu_glb()
+  proc search_gpu_rlt1()
   {
     writeln("Single-GPU execution mode");
 
