@@ -37,10 +37,11 @@ module qap_search_distributed_glb
 
   var n, N: int(32);
 
-  var initUB: int(32);
+  var initUB: int;
 
-  proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority,
-    ref tree_loc: uint, ref num_sol: uint, ref best: int, ref pool: SinglePool_par(Node_GLB))
+  proc decompose(const parent: Node_GLB, const ref D, const ref F, const ref priority_fac,
+    const ref priority_loc, ref tree_loc: uint, ref num_sol: uint, ref best: int,
+    ref pool: SinglePool_par(Node_GLB))
   {
     var depth = parent.depth;
 
@@ -54,9 +55,11 @@ module qap_search_distributed_glb
       num_sol += 1;
     }
     else {
-      var i = priority[depth];
+      var i = priority_fac[depth];
 
-      for j in 0..<N by -1 {
+      for j0 in 0..<N by -1 {
+        const j = priority_loc[j0];
+
         if !parent.available[j] then continue; // skip if not available
 
         var child = new Node_GLB();
@@ -81,8 +84,9 @@ module qap_search_distributed_glb
     }
   }
 
-  proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority,
-    ref children, ref pool: SinglePool_par(Node_GLB), ref best, ref num_sol)
+  proc prepareChildren(m, M, n, N, const ref D, const ref F, const ref priority_fac,
+    const ref priority_loc, ref children, ref pool: SinglePool_par(Node_GLB), ref best,
+    ref num_sol)
   {
     var size = 0;
 
@@ -107,16 +111,17 @@ module qap_search_distributed_glb
         num_sol += 1;
       }
       else {
-        var i = priority[depth];
+        var i = priority_fac[depth];
 
-        for j in 0..<N by -1 {
+        for j0 in 0..<N by -1 {
+          const j = priority_loc[j0];
+
           if !parent.available[j] then continue; // skip if not available
 
           var child = new Node_GLB();
           child.mapping = parent.mapping;
           child.depth = parent.depth + 1;
           child.available = parent.available;
-
           child.mapping[i] = j:int(8);
           child.available[j] = false;
 
@@ -141,7 +146,7 @@ module qap_search_distributed_glb
   }
 
   // Generate children nodes (evaluated by GPU) on CPU.
-  proc generate_children(const ref children: [] Node_GLB, const size: int, const ref bounds: [] int(32),
+  proc generate_children(const ref children: [] Node_GLB, const size: int, const ref bounds: [] int,
     ref exploredTree: uint, ref exploredSol: uint, ref best: int, ref pool: SinglePool_par(Node_GLB))
   {
     pool.acquireLock();
@@ -183,10 +188,16 @@ module qap_search_distributed_glb
     */
     timer.start();
 
-    var priority: [0..<sizeMax] int(32);
-    Prioritization(priority, F, n);
+    var priority_fac: [0..<sizeMax] int(32);
+    var priority_loc: [0..<sizeMax] int(32);
 
-    if (ub == "heuristic") then initUB = GreedyAllocation(DD, F, priority, n, N);
+    Prioritization(priority_fac, F, n, ascend = false);
+    if (benchmark == "qubitAlloc") then
+      Prioritization_loc_connec(priority_loc, DD, N);
+    else
+      Prioritization(priority_loc, DD, N);
+
+    if (ub == "heuristic") then initUB = GreedyAllocation(DD, F, priority_fac, n, N);
     else {
       try! initUB = ub:int;
 
@@ -226,7 +237,7 @@ module qap_search_distributed_glb
       var parent = pool.popFrontFree(hasWork);
       if !hasWork then break;
 
-      decompose(parent, DD, F, priority, exploredTree, exploredSol, best, pool);
+      decompose(parent, DD, F, priority_fac, priority_loc, exploredTree, exploredSol, best, pool);
     }
 
     timer.stop();
@@ -261,7 +272,8 @@ module qap_search_distributed_glb
 
     coforall (locID, loc) in zip(0..#numLocales, Locales) with (ref pool,
       ref eachLocaleExploredTree, ref eachLocaleExploredSol, ref eachLocaleBest,
-      ref eachLocaleState, ref distMultiPool, const ref DD, const ref F, const ref priority) do on loc {
+      ref eachLocaleState, ref distMultiPool, const ref DD, const ref F,
+      const ref priority_fac, const ref priority_loc) do on loc {
 
       var eachExploredTree, eachExploredSol: [0..#D] uint = noinit;
       var eachBest: [0..#D] int = noinit;
@@ -291,7 +303,8 @@ module qap_search_distributed_glb
       /* var eachTime: [1..6, 0..#D] real; */
 
       coforall gpuID in 0..#D with (ref pool, ref eachExploredTree, ref eachExploredSol,
-        ref eachBest, ref eachTaskState, ref multiPool, const ref DD, const ref F, const ref priority/*, ref eachTime*/) {
+        ref eachBest, ref eachTaskState, ref multiPool, const ref DD, const ref F,
+        const ref priority_fac, const ref priority_loc/*, ref eachTime*/) {
 
         writeln("Hello from gpu ", gpuID, " of locale ", locID);
 
@@ -320,14 +333,15 @@ module qap_search_distributed_glb
         writeln("BEFORE on loc ", locID, " gpu ", gpuID, " pool size = ", pool_loc.size);
 
         var children: [0..#M] Node_GLB = noinit;
-        var bounds: [0..#M] int(32) = noinit;
+        var bounds: [0..#M] int = noinit;
 
         const DD_loc = DD;
         const F_loc = F;
-        const priority_loc = priority;
+        const priority_fac_loc = priority_fac;
+        const priority_loc_loc = priority_loc;
 
         on device var children_d: [0..#M] Node_GLB;
-        on device var bounds_d: [0..#M] int(32);
+        on device var bounds_d: [0..#M] int;
 
         on device const D_d = DD;
         on device const F_d = F;
@@ -340,7 +354,7 @@ module qap_search_distributed_glb
           /* t6.start(); */
             ////////////////////////////
           /* local { */
-            var poolSize = prepareChildren(m, M, n, N, DD_loc, F_loc, priority_loc, children, pool_loc, best_l, sol);
+            var poolSize = prepareChildren(m, M, n, N, DD_loc, F_loc, priority_fac_loc, priority_loc_loc, children, pool_loc, best_l, sol);
             /* t6.stop(); */
             /* var poolSize = pool.popBackBulk(m, M, children); */
           /* } */
@@ -597,7 +611,7 @@ module qap_search_distributed_glb
 
     stopGpuDiagnostics();
 
-    print_results(optimum, exploredTree, exploredSol, elapsedTime);
+    print_results(optimum, exploredTree, exploredSol, elapsedTime, initUB);
 
     writeln("GPU diagnostics:");
     writeln("   kernel_launch: ", getGpuDiagnostics().kernel_launch);

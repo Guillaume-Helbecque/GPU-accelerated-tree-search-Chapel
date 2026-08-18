@@ -56,6 +56,7 @@ module main_qap
       when "distributed" {
         if lb == "glb" then search_distributed_glb();
         else if lb == "hhb" then halt("'distributed' execution mode with HHB not yet implemented");
+        else halt("unknown bounding function");
       }
       otherwise {
         halt("unknown execution mode");
