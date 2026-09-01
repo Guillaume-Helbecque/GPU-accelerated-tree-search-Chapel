@@ -10,6 +10,7 @@ module main_qap
   use qap_search_gpu_glb;
   use qap_search_gpu_hhb;
   use qap_search_multigpu_glb;
+  use qap_search_distributed_glb;
 
   // Common options
   config const mode: string = "multigpu";
@@ -53,7 +54,9 @@ module main_qap
         else halt("unknown bounding function");
       }
       when "distributed" {
-        halt("'distributed' execution mode not yet implemented");
+        if lb == "glb" then search_distributed_glb();
+        else if lb == "hhb" then halt("'distributed' execution mode with HHB not yet implemented");
+        else halt("unknown bounding function");
       }
       otherwise {
         halt("unknown execution mode");
